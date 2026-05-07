@@ -12,3 +12,10 @@ management:
     web:
       exposure:
         include: health,info
+
+
+tokenmeter:
+  repository-intake:
+    temp-directory: ${TOKENMETER_WORKDIR:${java.io.tmpdir}/tokenmeter-repositories}
+    max-repository-bytes: ${TOKENMETER_MAX_REPOSITORY_BYTES:104857600}
+    clone-timeout: ${TOKENMETER_CLONE_TIMEOUT:30s}
