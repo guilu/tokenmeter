@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: tokenmeter-backend
+  profiles:
+    default: local
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

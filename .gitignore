@@ -1,0 +1,23 @@
+# OS / editors
+.DS_Store
+.idea/
+.vscode/
+*.iml
+
+# env
+.env
+.env.*
+!.env.example
+
+# Java / Gradle
+.gradle/
+build/
+**/build/
+
+# Node
+node_modules/
+dist/
+coverage/
+
+# logs
+*.log
