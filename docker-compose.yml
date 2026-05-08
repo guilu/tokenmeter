@@ -13,7 +13,7 @@ services:
       timeout: 5s
       retries: 5
     volumes:
-      - tokenmeter-db:/var/lib/postgresql/data
+      - tokenmeter-db:/var/lib/postgresql
 
   backend:
     build:
