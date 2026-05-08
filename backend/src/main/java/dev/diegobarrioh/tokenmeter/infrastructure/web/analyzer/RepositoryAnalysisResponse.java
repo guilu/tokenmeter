@@ -1,6 +1,7 @@
 package dev.diegobarrioh.tokenmeter.infrastructure.web.analyzer;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 public record RepositoryAnalysisResponse(
@@ -8,4 +9,5 @@ public record RepositoryAnalysisResponse(
     Instant createdAt,
     String repositoryUrl,
     RepositoryAnalysisStatus status,
-    RepositoryAnalysisMetricsResponse metrics) {}
+    RepositoryAnalysisMetricsResponse metrics,
+    List<RepositoryAnalysisCostEstimateResponse> costEstimates) {}

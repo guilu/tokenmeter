@@ -14,6 +14,7 @@ export interface RepositoryAnalysisResponse {
   repositoryUrl: string
   status: 'SUCCESS'
   metrics: RepositoryAnalysisMetricsResponse
+  costEstimates: RepositoryAnalysisCostEstimateResponse[]
 }
 
 export interface RepositoryAnalysisMetricsResponse {
@@ -31,6 +32,19 @@ export interface RepositoryAnalysisLanguageMetricsResponse {
   lines: number
   bytes: number
   tokens: number
+}
+
+export interface RepositoryAnalysisCostEstimateResponse {
+  provider: string
+  model: string
+  mode: 'raw' | 'assisted' | 'agentic'
+  baseTokens: number
+  estimatedInputTokens: number
+  estimatedOutputTokens: number
+  inputCost: number
+  outputCost: number
+  totalCost: number
+  formula: string
 }
 
 export interface PricingResponse {

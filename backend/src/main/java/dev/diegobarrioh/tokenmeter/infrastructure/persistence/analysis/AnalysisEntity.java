@@ -55,6 +55,9 @@ public class AnalysisEntity {
   @OneToMany(mappedBy = "analysis", cascade = CascadeType.ALL, orphanRemoval = true)
   private List<LanguageStatsEntity> languages = new ArrayList<>();
 
+  @OneToMany(mappedBy = "analysis", cascade = CascadeType.ALL, orphanRemoval = true)
+  private List<CostEstimateEntity> costEstimates = new ArrayList<>();
+
   protected AnalysisEntity() {}
 
   public AnalysisEntity(
@@ -87,6 +90,11 @@ public class AnalysisEntity {
   public void addLanguage(LanguageStatsEntity language) {
     languages.add(language);
     language.setAnalysis(this);
+  }
+
+  public void addCostEstimate(CostEstimateEntity costEstimate) {
+    costEstimates.add(costEstimate);
+    costEstimate.setAnalysis(this);
   }
 
   public UUID getId() {
@@ -135,5 +143,9 @@ public class AnalysisEntity {
 
   public List<LanguageStatsEntity> getLanguages() {
     return List.copyOf(languages);
+  }
+
+  public List<CostEstimateEntity> getCostEstimates() {
+    return List.copyOf(costEstimates);
   }
 }

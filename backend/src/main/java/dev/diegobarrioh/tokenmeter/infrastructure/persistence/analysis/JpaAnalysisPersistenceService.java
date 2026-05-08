@@ -4,6 +4,7 @@ import dev.diegobarrioh.tokenmeter.application.analyzer.AnalysisPersistenceServi
 import dev.diegobarrioh.tokenmeter.application.analyzer.RepositoryAnalysisResult;
 import dev.diegobarrioh.tokenmeter.domain.analyzer.LanguageStatistics;
 import dev.diegobarrioh.tokenmeter.domain.analyzer.RepositoryScanResult;
+import dev.diegobarrioh.tokenmeter.domain.cost.ModelCostEstimate;
 import dev.diegobarrioh.tokenmeter.domain.tokenizer.LanguageTokenMetrics;
 import dev.diegobarrioh.tokenmeter.domain.tokenizer.RepositoryTokenizationResult;
 import java.time.Instant;
@@ -66,6 +67,22 @@ public class JpaAnalysisPersistenceService implements AnalysisPersistenceService
                         statistics.lines(),
                         statistics.bytes(),
                         tokensFor(result, language))));
+    result
+        .costEstimates()
+        .forEach(
+            estimate ->
+                entity.addCostEstimate(
+                    new CostEstimateEntity(
+                        estimate.provider(),
+                        estimate.model(),
+                        estimate.mode(),
+                        estimate.baseTokens(),
+                        estimate.estimatedInputTokens(),
+                        estimate.estimatedOutputTokens(),
+                        estimate.inputCost(),
+                        estimate.outputCost(),
+                        estimate.totalCost(),
+                        estimate.formula())));
     return entity;
   }
 
@@ -95,6 +112,23 @@ public class JpaAnalysisPersistenceService implements AnalysisPersistenceService
                         new LanguageTokenMetrics(
                             language.getLanguage(), language.getFiles(), language.getTokens())));
 
+    List<ModelCostEstimate> costEstimates =
+        entity.getCostEstimates().stream()
+            .map(
+                estimate ->
+                    new ModelCostEstimate(
+                        estimate.getProvider(),
+                        estimate.getModel(),
+                        estimate.getMode(),
+                        estimate.getBaseTokens(),
+                        estimate.getEstimatedInputTokens(),
+                        estimate.getEstimatedOutputTokens(),
+                        estimate.getInputCost(),
+                        estimate.getOutputCost(),
+                        estimate.getTotalCost(),
+                        estimate.getFormula()))
+            .toList();
+
     return new RepositoryAnalysisResult(
         entity.getId(),
         entity.getCreatedAt(),
@@ -113,6 +147,7 @@ public class JpaAnalysisPersistenceService implements AnalysisPersistenceService
             entity.getTotalFiles(),
             entity.getTotalTokens(),
             List.of(),
-            tokenLanguages));
+            tokenLanguages),
+        costEstimates);
   }
 }

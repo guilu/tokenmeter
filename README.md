@@ -205,6 +205,24 @@ Lockfiles podrán excluirse opcionalmente.
 # 🔢 Fórmula de cálculo
 coste = output_tokens * precio_por_1M / 1_000_000
 
+## Modos de estimación de costes
+
+TokenMeter calcula estimaciones por modelo configurado y por modo:
+
+| Modo | Output tokens simulados | Input/reasoning overhead | Uso |
+|---|---:|---:|---|
+| Raw | `baseTokens × 1` | `baseTokens × 0` | Coste mínimo de salida final del repositorio |
+| Assisted | `baseTokens × 5` | `baseTokens × 1` | Desarrollo asistido con iteraciones, contexto y razonamiento moderado |
+| Agentic | `baseTokens × 20` | `baseTokens × 4` | Workflow autónomo con más iteraciones, herramientas y razonamiento |
+
+Fórmula persistida por estimación:
+
+```text
+inputCost = (baseTokens × reasoningInputMultiplier × inputPricePerMillion) / 1_000_000
+outputCost = (baseTokens × outputMultiplier × outputPricePerMillion) / 1_000_000
+totalCost = inputCost + outputCost
+```
+
 Ejemplo:
 850.000 tokens
 GPT-5.3 Codex → $14 / 1M tokens

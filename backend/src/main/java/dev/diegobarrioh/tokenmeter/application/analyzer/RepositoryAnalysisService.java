@@ -1,5 +1,6 @@
 package dev.diegobarrioh.tokenmeter.application.analyzer;
 
+import dev.diegobarrioh.tokenmeter.application.cost.RepositoryCostEstimationService;
 import dev.diegobarrioh.tokenmeter.application.repository.GitRepositoryCloner;
 import dev.diegobarrioh.tokenmeter.application.repository.RepositoryIntakeProperties;
 import dev.diegobarrioh.tokenmeter.application.repository.RepositorySizeCalculator;
@@ -35,6 +36,7 @@ public class RepositoryAnalysisService {
   private final RepositoryFileScanner fileScanner;
   private final RepositoryTokenizationService tokenizationService;
   private final AnalysisPersistenceService persistenceService;
+  private final RepositoryCostEstimationService costEstimationService;
   private final RepositorySizeCalculator sizeCalculator;
 
   @Autowired
@@ -43,13 +45,15 @@ public class RepositoryAnalysisService {
       RepositoryIntakeProperties properties,
       RepositoryFileScanner fileScanner,
       RepositoryTokenizationService tokenizationService,
-      AnalysisPersistenceService persistenceService) {
+      AnalysisPersistenceService persistenceService,
+      RepositoryCostEstimationService costEstimationService) {
     this(
         cloner,
         properties,
         fileScanner,
         tokenizationService,
         persistenceService,
+        costEstimationService,
         new RepositorySizeCalculator());
   }
 
@@ -59,12 +63,14 @@ public class RepositoryAnalysisService {
       RepositoryFileScanner fileScanner,
       RepositoryTokenizationService tokenizationService,
       AnalysisPersistenceService persistenceService,
+      RepositoryCostEstimationService costEstimationService,
       RepositorySizeCalculator sizeCalculator) {
     this.cloner = cloner;
     this.properties = properties;
     this.fileScanner = fileScanner;
     this.tokenizationService = tokenizationService;
     this.persistenceService = persistenceService;
+    this.costEstimationService = costEstimationService;
     this.sizeCalculator = sizeCalculator;
   }
 
@@ -78,6 +84,7 @@ public class RepositoryAnalysisService {
       RepositoryScanResult scan = fileScanner.scan(cloneDirectory);
       RepositoryTokenizationResult tokenization =
           tokenizationService.tokenize(cloneDirectory, scan);
+      var costEstimates = costEstimationService.estimate(tokenization.totalTokens());
       return persistenceService.save(
           new RepositoryAnalysisResult(
               repositoryUrl.normalizedUrl(),
@@ -85,7 +92,8 @@ public class RepositoryAnalysisService {
               repositoryUrl.owner(),
               repositoryUrl.name(),
               scan,
-              tokenization));
+              tokenization,
+              costEstimates));
     } finally {
       if (!deleteRecursively(cloneDirectory)) {
         LOGGER.warn("Could not fully clean temporary analysis directory {}", cloneDirectory);

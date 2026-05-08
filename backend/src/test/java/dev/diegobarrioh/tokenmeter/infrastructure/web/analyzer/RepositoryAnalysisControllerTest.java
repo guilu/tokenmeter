@@ -12,11 +12,15 @@ import dev.diegobarrioh.tokenmeter.application.analyzer.RepositoryAnalysisResult
 import dev.diegobarrioh.tokenmeter.application.analyzer.RepositoryAnalysisService;
 import dev.diegobarrioh.tokenmeter.domain.analyzer.LanguageStatistics;
 import dev.diegobarrioh.tokenmeter.domain.analyzer.RepositoryScanResult;
+import dev.diegobarrioh.tokenmeter.domain.cost.CostEstimationMode;
+import dev.diegobarrioh.tokenmeter.domain.cost.ModelCostEstimate;
+import dev.diegobarrioh.tokenmeter.domain.pricing.AiProvider;
 import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeErrorCode;
 import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeException;
 import dev.diegobarrioh.tokenmeter.domain.tokenizer.LanguageTokenMetrics;
 import dev.diegobarrioh.tokenmeter.domain.tokenizer.RepositoryTokenizationResult;
 import dev.diegobarrioh.tokenmeter.infrastructure.web.repository.RepositoryIntakeExceptionHandler;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -59,7 +63,19 @@ class RepositoryAnalysisControllerTest {
                     2,
                     25,
                     List.of(),
-                    Map.of("Java", new LanguageTokenMetrics("Java", 2, 25)))));
+                    Map.of("Java", new LanguageTokenMetrics("Java", 2, 25))),
+                List.of(
+                    new ModelCostEstimate(
+                        AiProvider.OPENAI,
+                        "gpt-4o",
+                        CostEstimationMode.RAW,
+                        25,
+                        0,
+                        25,
+                        new BigDecimal("0.000000"),
+                        new BigDecimal("0.000250"),
+                        new BigDecimal("0.000250"),
+                        "test formula"))));
 
     mockMvc
         .perform(
@@ -77,7 +93,12 @@ class RepositoryAnalysisControllerTest {
         .andExpect(jsonPath("$.metrics.tokenEncoding").value("o200k_base"))
         .andExpect(jsonPath("$.metrics.totalTokens").value(25))
         .andExpect(jsonPath("$.metrics.languages.Java.files").value(2))
-        .andExpect(jsonPath("$.metrics.languages.Java.tokens").value(25));
+        .andExpect(jsonPath("$.metrics.languages.Java.tokens").value(25))
+        .andExpect(jsonPath("$.costEstimates[0].provider").value("openai"))
+        .andExpect(jsonPath("$.costEstimates[0].model").value("gpt-4o"))
+        .andExpect(jsonPath("$.costEstimates[0].mode").value("raw"))
+        .andExpect(jsonPath("$.costEstimates[0].estimatedOutputTokens").value(25))
+        .andExpect(jsonPath("$.costEstimates[0].totalCost").value(0.000250));
   }
 
   @Test
@@ -99,7 +120,8 @@ class RepositoryAnalysisControllerTest {
                     1,
                     12,
                     List.of(),
-                    Map.of("Java", new LanguageTokenMetrics("Java", 1, 12)))));
+                    Map.of("Java", new LanguageTokenMetrics("Java", 1, 12))),
+                List.of()));
 
     mockMvc
         .perform(get("/api/analyze/{id}", id))

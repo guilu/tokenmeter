@@ -3,16 +3,22 @@ package dev.diegobarrioh.tokenmeter.application.analyzer;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import dev.diegobarrioh.tokenmeter.application.cost.RepositoryCostEstimationService;
+import dev.diegobarrioh.tokenmeter.application.pricing.PricingProvider;
 import dev.diegobarrioh.tokenmeter.application.repository.RepositoryIntakeProperties;
 import dev.diegobarrioh.tokenmeter.application.tokenizer.OpenAiTokenCounter;
 import dev.diegobarrioh.tokenmeter.application.tokenizer.RepositoryTokenizationService;
+import dev.diegobarrioh.tokenmeter.domain.pricing.AiProvider;
+import dev.diegobarrioh.tokenmeter.domain.pricing.ModelPricing;
 import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeErrorCode;
 import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeException;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -32,7 +38,8 @@ class RepositoryAnalysisServiceTest {
             properties(1024, Duration.ofSeconds(2)),
             scanner(),
             tokenizationService(),
-            persistenceService());
+            persistenceService(),
+            costEstimationService());
 
     RepositoryAnalysisResult result = service.analyze("https://github.com/guilu/tokenmeter");
 
@@ -49,6 +56,11 @@ class RepositoryAnalysisServiceTest {
     assertThat(result.tokenization().totalFiles()).isEqualTo(1);
     assertThat(result.tokenization().totalTokens()).isPositive();
     assertThat(result.tokenization().languages().get("Java").tokens()).isPositive();
+    assertThat(result.costEstimates()).hasSize(3);
+    assertThat(result.costEstimates())
+        .allSatisfy(
+            estimate ->
+                assertThat(estimate.baseTokens()).isEqualTo(result.tokenization().totalTokens()));
     assertThat(tempDir).isEmptyDirectory();
   }
 
@@ -60,7 +72,8 @@ class RepositoryAnalysisServiceTest {
             properties(1024, Duration.ofMillis(50)),
             scanner(),
             tokenizationService(),
-            persistenceService());
+            persistenceService(),
+            costEstimationService());
 
     assertThatThrownBy(() -> service.analyze("https://github.com/guilu/slow"))
         .isInstanceOf(RepositoryIntakeException.class)
@@ -78,7 +91,8 @@ class RepositoryAnalysisServiceTest {
             properties(3, Duration.ofSeconds(2)),
             scanner(),
             tokenizationService(),
-            persistenceService());
+            persistenceService(),
+            costEstimationService());
 
     assertThatThrownBy(() -> service.analyze("https://github.com/guilu/huge"))
         .isInstanceOf(RepositoryIntakeException.class)
@@ -111,7 +125,8 @@ class RepositoryAnalysisServiceTest {
             result.owner(),
             result.name(),
             result.scan(),
-            result.tokenization());
+            result.tokenization(),
+            result.costEstimates());
       }
 
       @Override
@@ -119,6 +134,23 @@ class RepositoryAnalysisServiceTest {
         return Optional.empty();
       }
     };
+  }
+
+  private static RepositoryCostEstimationService costEstimationService() {
+    return new RepositoryCostEstimationService(
+        new PricingProvider() {
+          @Override
+          public List<ModelPricing> all() {
+            return List.of(
+                new ModelPricing(
+                    AiProvider.OPENAI, "gpt-4o", new BigDecimal("2.50"), new BigDecimal("10.00")));
+          }
+
+          @Override
+          public Optional<ModelPricing> find(AiProvider provider, String model) {
+            return Optional.empty();
+          }
+        });
   }
 
   private static void writeFile(Path directory, String relativePath, String content) {

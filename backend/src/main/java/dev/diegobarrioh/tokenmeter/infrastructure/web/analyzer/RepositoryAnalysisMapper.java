@@ -2,6 +2,7 @@ package dev.diegobarrioh.tokenmeter.infrastructure.web.analyzer;
 
 import dev.diegobarrioh.tokenmeter.application.analyzer.RepositoryAnalysisResult;
 import dev.diegobarrioh.tokenmeter.domain.analyzer.LanguageStatistics;
+import dev.diegobarrioh.tokenmeter.domain.cost.ModelCostEstimate;
 import dev.diegobarrioh.tokenmeter.domain.tokenizer.LanguageTokenMetrics;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -23,7 +24,22 @@ public class RepositoryAnalysisMapper {
             scan.totalBytes(),
             tokenization.encoding(),
             tokenization.totalTokens(),
-            toLanguageMetrics(result)));
+            toLanguageMetrics(result)),
+        result.costEstimates().stream().map(this::toCostEstimate).toList());
+  }
+
+  private RepositoryAnalysisCostEstimateResponse toCostEstimate(ModelCostEstimate estimate) {
+    return new RepositoryAnalysisCostEstimateResponse(
+        estimate.provider().configKey(),
+        estimate.model(),
+        estimate.mode().name().toLowerCase(),
+        estimate.baseTokens(),
+        estimate.estimatedInputTokens(),
+        estimate.estimatedOutputTokens(),
+        estimate.inputCost(),
+        estimate.outputCost(),
+        estimate.totalCost(),
+        estimate.formula());
   }
 
   private Map<String, RepositoryAnalysisLanguageMetricsResponse> toLanguageMetrics(
