@@ -12,6 +12,8 @@ import dev.diegobarrioh.tokenmeter.domain.analyzer.LanguageStatistics;
 import dev.diegobarrioh.tokenmeter.domain.analyzer.RepositoryScanResult;
 import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeErrorCode;
 import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeException;
+import dev.diegobarrioh.tokenmeter.domain.tokenizer.LanguageTokenMetrics;
+import dev.diegobarrioh.tokenmeter.domain.tokenizer.RepositoryTokenizationResult;
 import dev.diegobarrioh.tokenmeter.infrastructure.web.repository.RepositoryIntakeExceptionHandler;
 import java.util.List;
 import java.util.Map;
@@ -44,7 +46,13 @@ class RepositoryAnalysisControllerTest {
                     10,
                     120,
                     List.of(),
-                    Map.of("Java", new LanguageStatistics("Java", 2, 10, 120)))));
+                    Map.of("Java", new LanguageStatistics("Java", 2, 10, 120))),
+                new RepositoryTokenizationResult(
+                    "o200k_base",
+                    2,
+                    25,
+                    List.of(),
+                    Map.of("Java", new LanguageTokenMetrics("Java", 2, 25)))));
 
     mockMvc
         .perform(
@@ -57,7 +65,10 @@ class RepositoryAnalysisControllerTest {
         .andExpect(jsonPath("$.metrics.totalFiles").value(2))
         .andExpect(jsonPath("$.metrics.totalLines").value(10))
         .andExpect(jsonPath("$.metrics.totalBytes").value(120))
-        .andExpect(jsonPath("$.metrics.languages.Java.files").value(2));
+        .andExpect(jsonPath("$.metrics.tokenEncoding").value("o200k_base"))
+        .andExpect(jsonPath("$.metrics.totalTokens").value(25))
+        .andExpect(jsonPath("$.metrics.languages.Java.files").value(2))
+        .andExpect(jsonPath("$.metrics.languages.Java.tokens").value(25));
   }
 
   @Test

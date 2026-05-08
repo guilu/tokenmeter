@@ -25,6 +25,7 @@ dependencies {
   implementation("org.flywaydb:flyway-core")
   implementation("org.flywaydb:flyway-database-postgresql")
   implementation("org.eclipse.jgit:org.eclipse.jgit:6.10.0.202406032230-r")
+  implementation("com.knuddels:jtokkit:1.1.0")
   runtimeOnly("org.postgresql:postgresql")
   testRuntimeOnly("com.h2database:h2")
   testImplementation("org.springframework.boot:spring-boot-starter-test")

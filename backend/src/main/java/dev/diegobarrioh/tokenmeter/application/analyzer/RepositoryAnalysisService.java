@@ -3,11 +3,13 @@ package dev.diegobarrioh.tokenmeter.application.analyzer;
 import dev.diegobarrioh.tokenmeter.application.repository.GitRepositoryCloner;
 import dev.diegobarrioh.tokenmeter.application.repository.RepositoryIntakeProperties;
 import dev.diegobarrioh.tokenmeter.application.repository.RepositorySizeCalculator;
+import dev.diegobarrioh.tokenmeter.application.tokenizer.RepositoryTokenizationService;
 import dev.diegobarrioh.tokenmeter.domain.analyzer.RepositoryScanResult;
 import dev.diegobarrioh.tokenmeter.domain.repository.GitHubRepositoryUrl;
 import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryCloneSummary;
 import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeErrorCode;
 import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeException;
+import dev.diegobarrioh.tokenmeter.domain.tokenizer.RepositoryTokenizationResult;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
@@ -30,24 +32,28 @@ public class RepositoryAnalysisService {
   private final GitRepositoryCloner cloner;
   private final RepositoryIntakeProperties properties;
   private final RepositoryFileScanner fileScanner;
+  private final RepositoryTokenizationService tokenizationService;
   private final RepositorySizeCalculator sizeCalculator;
 
   @Autowired
   public RepositoryAnalysisService(
       GitRepositoryCloner cloner,
       RepositoryIntakeProperties properties,
-      RepositoryFileScanner fileScanner) {
-    this(cloner, properties, fileScanner, new RepositorySizeCalculator());
+      RepositoryFileScanner fileScanner,
+      RepositoryTokenizationService tokenizationService) {
+    this(cloner, properties, fileScanner, tokenizationService, new RepositorySizeCalculator());
   }
 
   RepositoryAnalysisService(
       GitRepositoryCloner cloner,
       RepositoryIntakeProperties properties,
       RepositoryFileScanner fileScanner,
+      RepositoryTokenizationService tokenizationService,
       RepositorySizeCalculator sizeCalculator) {
     this.cloner = cloner;
     this.properties = properties;
     this.fileScanner = fileScanner;
+    this.tokenizationService = tokenizationService;
     this.sizeCalculator = sizeCalculator;
   }
 
@@ -59,12 +65,15 @@ public class RepositoryAnalysisService {
       cloneWithTimeout(repositoryUrl, cloneDirectory);
       enforceSizeLimit(sizeCalculator.summarize(cloneDirectory));
       RepositoryScanResult scan = fileScanner.scan(cloneDirectory);
+      RepositoryTokenizationResult tokenization =
+          tokenizationService.tokenize(cloneDirectory, scan);
       return new RepositoryAnalysisResult(
           repositoryUrl.normalizedUrl(),
           repositoryUrl.cloneUrl(),
           repositoryUrl.owner(),
           repositoryUrl.name(),
-          scan);
+          scan,
+          tokenization);
     } finally {
       if (!deleteRecursively(cloneDirectory)) {
         LOGGER.warn("Could not fully clean temporary analysis directory {}", cloneDirectory);

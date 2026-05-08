@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import dev.diegobarrioh.tokenmeter.application.repository.RepositoryIntakeProperties;
+import dev.diegobarrioh.tokenmeter.application.tokenizer.OpenAiTokenCounter;
+import dev.diegobarrioh.tokenmeter.application.tokenizer.RepositoryTokenizationService;
 import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeErrorCode;
 import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeException;
 import java.io.IOException;
@@ -25,7 +27,8 @@ class RepositoryAnalysisServiceTest {
               writeFile(targetDirectory, "node_modules/pkg/index.js", "ignored\n");
             },
             properties(1024, Duration.ofSeconds(2)),
-            scanner());
+            scanner(),
+            tokenizationService());
 
     RepositoryAnalysisResult result = service.analyze("https://github.com/guilu/tokenmeter");
 
@@ -36,6 +39,10 @@ class RepositoryAnalysisServiceTest {
     assertThat(result.scan().totalFiles()).isEqualTo(1);
     assertThat(result.scan().totalLines()).isEqualTo(1);
     assertThat(result.scan().languages().get("Java").files()).isEqualTo(1);
+    assertThat(result.tokenization().encoding()).isEqualTo("o200k_base");
+    assertThat(result.tokenization().totalFiles()).isEqualTo(1);
+    assertThat(result.tokenization().totalTokens()).isPositive();
+    assertThat(result.tokenization().languages().get("Java").tokens()).isPositive();
     assertThat(tempDir).isEmptyDirectory();
   }
 
@@ -45,7 +52,8 @@ class RepositoryAnalysisServiceTest {
         new RepositoryAnalysisService(
             (repositoryUrl, targetDirectory) -> sleep(Duration.ofMillis(500)),
             properties(1024, Duration.ofMillis(50)),
-            scanner());
+            scanner(),
+            tokenizationService());
 
     assertThatThrownBy(() -> service.analyze("https://github.com/guilu/slow"))
         .isInstanceOf(RepositoryIntakeException.class)
@@ -61,7 +69,8 @@ class RepositoryAnalysisServiceTest {
             (repositoryUrl, targetDirectory) ->
                 writeFile(targetDirectory, "large.txt", "too large"),
             properties(3, Duration.ofSeconds(2)),
-            scanner());
+            scanner(),
+            tokenizationService());
 
     assertThatThrownBy(() -> service.analyze("https://github.com/guilu/huge"))
         .isInstanceOf(RepositoryIntakeException.class)
@@ -76,6 +85,10 @@ class RepositoryAnalysisServiceTest {
 
   private static RepositoryFileScanner scanner() {
     return new RepositoryFileScanner(new FileLanguageDetector(), new BinaryFileDetector());
+  }
+
+  private static RepositoryTokenizationService tokenizationService() {
+    return new RepositoryTokenizationService(new OpenAiTokenCounter());
   }
 
   private static void writeFile(Path directory, String relativePath, String content) {
