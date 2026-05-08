@@ -1,5 +1,6 @@
 package dev.diegobarrioh.tokenmeter.infrastructure.web.repository;
 
+import dev.diegobarrioh.tokenmeter.application.analyzer.AnalysisNotFoundException;
 import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeErrorCode;
 import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -22,6 +23,19 @@ public class RepositoryIntakeExceptionHandler {
                 exception.errorCode().name(),
                 exception.getMessage(),
                 status.value(),
+                request.getRequestURI(),
+                Instant.now()));
+  }
+
+  @ExceptionHandler(AnalysisNotFoundException.class)
+  public ResponseEntity<RepositoryIntakeErrorResponse> handleAnalysisNotFoundException(
+      AnalysisNotFoundException exception, HttpServletRequest request) {
+    return ResponseEntity.status(HttpStatus.NOT_FOUND)
+        .body(
+            new RepositoryIntakeErrorResponse(
+                "ANALYSIS_NOT_FOUND",
+                exception.getMessage(),
+                HttpStatus.NOT_FOUND.value(),
                 request.getRequestURI(),
                 Instant.now()));
   }

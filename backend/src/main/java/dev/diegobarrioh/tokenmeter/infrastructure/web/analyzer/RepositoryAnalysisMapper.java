@@ -13,6 +13,8 @@ public class RepositoryAnalysisMapper {
     var scan = result.scan();
     var tokenization = result.tokenization();
     return new RepositoryAnalysisResponse(
+        result.id(),
+        result.createdAt(),
         result.repositoryUrl(),
         RepositoryAnalysisStatus.SUCCESS,
         new RepositoryAnalysisMetricsResponse(

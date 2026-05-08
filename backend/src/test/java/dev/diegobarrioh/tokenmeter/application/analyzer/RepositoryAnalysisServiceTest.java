@@ -12,6 +12,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.time.Instant;
+import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -28,10 +31,13 @@ class RepositoryAnalysisServiceTest {
             },
             properties(1024, Duration.ofSeconds(2)),
             scanner(),
-            tokenizationService());
+            tokenizationService(),
+            persistenceService());
 
     RepositoryAnalysisResult result = service.analyze("https://github.com/guilu/tokenmeter");
 
+    assertThat(result.id()).isNotNull();
+    assertThat(result.createdAt()).isNotNull();
     assertThat(result.repositoryUrl()).isEqualTo("https://github.com/guilu/tokenmeter");
     assertThat(result.cloneUrl()).isEqualTo("https://github.com/guilu/tokenmeter.git");
     assertThat(result.owner()).isEqualTo("guilu");
@@ -53,7 +59,8 @@ class RepositoryAnalysisServiceTest {
             (repositoryUrl, targetDirectory) -> sleep(Duration.ofMillis(500)),
             properties(1024, Duration.ofMillis(50)),
             scanner(),
-            tokenizationService());
+            tokenizationService(),
+            persistenceService());
 
     assertThatThrownBy(() -> service.analyze("https://github.com/guilu/slow"))
         .isInstanceOf(RepositoryIntakeException.class)
@@ -70,7 +77,8 @@ class RepositoryAnalysisServiceTest {
                 writeFile(targetDirectory, "large.txt", "too large"),
             properties(3, Duration.ofSeconds(2)),
             scanner(),
-            tokenizationService());
+            tokenizationService(),
+            persistenceService());
 
     assertThatThrownBy(() -> service.analyze("https://github.com/guilu/huge"))
         .isInstanceOf(RepositoryIntakeException.class)
@@ -89,6 +97,28 @@ class RepositoryAnalysisServiceTest {
 
   private static RepositoryTokenizationService tokenizationService() {
     return new RepositoryTokenizationService(new OpenAiTokenCounter());
+  }
+
+  private static AnalysisPersistenceService persistenceService() {
+    return new AnalysisPersistenceService() {
+      @Override
+      public RepositoryAnalysisResult save(RepositoryAnalysisResult result) {
+        return new RepositoryAnalysisResult(
+            UUID.randomUUID(),
+            Instant.now(),
+            result.repositoryUrl(),
+            result.cloneUrl(),
+            result.owner(),
+            result.name(),
+            result.scan(),
+            result.tokenization());
+      }
+
+      @Override
+      public Optional<RepositoryAnalysisResult> findById(UUID id) {
+        return Optional.empty();
+      }
+    };
   }
 
   private static void writeFile(Path directory, String relativePath, String content) {

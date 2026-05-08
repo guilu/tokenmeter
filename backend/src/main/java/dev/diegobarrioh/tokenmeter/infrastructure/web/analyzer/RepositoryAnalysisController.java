@@ -2,7 +2,10 @@ package dev.diegobarrioh.tokenmeter.infrastructure.web.analyzer;
 
 import dev.diegobarrioh.tokenmeter.application.analyzer.RepositoryAnalysisService;
 import jakarta.validation.Valid;
+import java.util.UUID;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -23,5 +26,10 @@ public class RepositoryAnalysisController {
   @ResponseStatus(HttpStatus.OK)
   public RepositoryAnalysisResponse analyze(@Valid @RequestBody RepositoryAnalysisRequest request) {
     return mapper.toResponse(analysisService.analyze(request.repositoryUrl()));
+  }
+
+  @GetMapping("/api/analyze/{id}")
+  public RepositoryAnalysisResponse findById(@PathVariable UUID id) {
+    return mapper.toResponse(analysisService.findById(id));
   }
 }

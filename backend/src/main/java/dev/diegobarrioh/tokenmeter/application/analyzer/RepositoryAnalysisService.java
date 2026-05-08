@@ -15,6 +15,7 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -33,6 +34,7 @@ public class RepositoryAnalysisService {
   private final RepositoryIntakeProperties properties;
   private final RepositoryFileScanner fileScanner;
   private final RepositoryTokenizationService tokenizationService;
+  private final AnalysisPersistenceService persistenceService;
   private final RepositorySizeCalculator sizeCalculator;
 
   @Autowired
@@ -40,8 +42,15 @@ public class RepositoryAnalysisService {
       GitRepositoryCloner cloner,
       RepositoryIntakeProperties properties,
       RepositoryFileScanner fileScanner,
-      RepositoryTokenizationService tokenizationService) {
-    this(cloner, properties, fileScanner, tokenizationService, new RepositorySizeCalculator());
+      RepositoryTokenizationService tokenizationService,
+      AnalysisPersistenceService persistenceService) {
+    this(
+        cloner,
+        properties,
+        fileScanner,
+        tokenizationService,
+        persistenceService,
+        new RepositorySizeCalculator());
   }
 
   RepositoryAnalysisService(
@@ -49,11 +58,13 @@ public class RepositoryAnalysisService {
       RepositoryIntakeProperties properties,
       RepositoryFileScanner fileScanner,
       RepositoryTokenizationService tokenizationService,
+      AnalysisPersistenceService persistenceService,
       RepositorySizeCalculator sizeCalculator) {
     this.cloner = cloner;
     this.properties = properties;
     this.fileScanner = fileScanner;
     this.tokenizationService = tokenizationService;
+    this.persistenceService = persistenceService;
     this.sizeCalculator = sizeCalculator;
   }
 
@@ -67,18 +78,23 @@ public class RepositoryAnalysisService {
       RepositoryScanResult scan = fileScanner.scan(cloneDirectory);
       RepositoryTokenizationResult tokenization =
           tokenizationService.tokenize(cloneDirectory, scan);
-      return new RepositoryAnalysisResult(
-          repositoryUrl.normalizedUrl(),
-          repositoryUrl.cloneUrl(),
-          repositoryUrl.owner(),
-          repositoryUrl.name(),
-          scan,
-          tokenization);
+      return persistenceService.save(
+          new RepositoryAnalysisResult(
+              repositoryUrl.normalizedUrl(),
+              repositoryUrl.cloneUrl(),
+              repositoryUrl.owner(),
+              repositoryUrl.name(),
+              scan,
+              tokenization));
     } finally {
       if (!deleteRecursively(cloneDirectory)) {
         LOGGER.warn("Could not fully clean temporary analysis directory {}", cloneDirectory);
       }
     }
+  }
+
+  public RepositoryAnalysisResult findById(UUID id) {
+    return persistenceService.findById(id).orElseThrow(() -> new AnalysisNotFoundException(id));
   }
 
   private Path createCloneDirectory(GitHubRepositoryUrl repositoryUrl) {

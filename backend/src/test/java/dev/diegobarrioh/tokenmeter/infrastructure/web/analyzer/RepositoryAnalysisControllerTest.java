@@ -2,10 +2,12 @@ package dev.diegobarrioh.tokenmeter.infrastructure.web.analyzer;
 
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import dev.diegobarrioh.tokenmeter.application.analyzer.AnalysisNotFoundException;
 import dev.diegobarrioh.tokenmeter.application.analyzer.RepositoryAnalysisResult;
 import dev.diegobarrioh.tokenmeter.application.analyzer.RepositoryAnalysisService;
 import dev.diegobarrioh.tokenmeter.domain.analyzer.LanguageStatistics;
@@ -15,8 +17,10 @@ import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeException;
 import dev.diegobarrioh.tokenmeter.domain.tokenizer.LanguageTokenMetrics;
 import dev.diegobarrioh.tokenmeter.domain.tokenizer.RepositoryTokenizationResult;
 import dev.diegobarrioh.tokenmeter.infrastructure.web.repository.RepositoryIntakeExceptionHandler;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -34,9 +38,12 @@ class RepositoryAnalysisControllerTest {
 
   @Test
   void returnsStandardSuccessResponseForValidRequest() throws Exception {
+    UUID id = UUID.randomUUID();
     when(analysisService.analyze(anyString()))
         .thenReturn(
             new RepositoryAnalysisResult(
+                id,
+                Instant.parse("2026-05-08T20:00:00Z"),
                 "https://github.com/guilu/tokenmeter",
                 "https://github.com/guilu/tokenmeter.git",
                 "guilu",
@@ -60,6 +67,8 @@ class RepositoryAnalysisControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"repositoryUrl\":\"https://github.com/guilu/tokenmeter\"}"))
         .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(id.toString()))
+        .andExpect(jsonPath("$.createdAt").value("2026-05-08T20:00:00Z"))
         .andExpect(jsonPath("$.repositoryUrl").value("https://github.com/guilu/tokenmeter"))
         .andExpect(jsonPath("$.status").value("SUCCESS"))
         .andExpect(jsonPath("$.metrics.totalFiles").value(2))
@@ -69,6 +78,47 @@ class RepositoryAnalysisControllerTest {
         .andExpect(jsonPath("$.metrics.totalTokens").value(25))
         .andExpect(jsonPath("$.metrics.languages.Java.files").value(2))
         .andExpect(jsonPath("$.metrics.languages.Java.tokens").value(25));
+  }
+
+  @Test
+  void retrievesAnalysisById() throws Exception {
+    UUID id = UUID.randomUUID();
+    when(analysisService.findById(id))
+        .thenReturn(
+            new RepositoryAnalysisResult(
+                id,
+                Instant.parse("2026-05-08T20:00:00Z"),
+                "https://github.com/guilu/tokenmeter",
+                "https://github.com/guilu/tokenmeter.git",
+                "guilu",
+                "tokenmeter",
+                new RepositoryScanResult(
+                    1, 5, 50, List.of(), Map.of("Java", new LanguageStatistics("Java", 1, 5, 50))),
+                new RepositoryTokenizationResult(
+                    "o200k_base",
+                    1,
+                    12,
+                    List.of(),
+                    Map.of("Java", new LanguageTokenMetrics("Java", 1, 12)))));
+
+    mockMvc
+        .perform(get("/api/analyze/{id}", id))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(id.toString()))
+        .andExpect(jsonPath("$.repositoryUrl").value("https://github.com/guilu/tokenmeter"))
+        .andExpect(jsonPath("$.metrics.totalTokens").value(12))
+        .andExpect(jsonPath("$.metrics.languages.Java.tokens").value(12));
+  }
+
+  @Test
+  void mapsNonexistentAnalysisToNotFound() throws Exception {
+    UUID id = UUID.randomUUID();
+    when(analysisService.findById(id)).thenThrow(new AnalysisNotFoundException(id));
+
+    mockMvc
+        .perform(get("/api/analyze/{id}", id))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.code").value("ANALYSIS_NOT_FOUND"));
   }
 
   @Test
