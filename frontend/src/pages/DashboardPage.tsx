@@ -128,6 +128,7 @@ function LoadingState({ repositoryUrl }: { repositoryUrl: string }) {
 
 function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysisResponse; onNewAnalysis: () => void }) {
   const cheapestEstimate = useMemo(() => cheapest(analysis.costEstimates), [analysis.costEstimates])
+  const highestEstimate = useMemo(() => highest(analysis.costEstimates), [analysis.costEstimates])
   const providers = new Set(analysis.costEstimates.map((estimate) => estimate.provider))
 
   return (
@@ -135,17 +136,25 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
       <button className="text-sm text-cyan-200 transition hover:text-cyan-100" onClick={onNewAnalysis} type="button">
         ← Analyze another repository
       </button>
-      <div className="mt-6 max-w-3xl">
+      <div className="mt-6 max-w-full lg:max-w-4xl">
         <p className="mb-4 inline-flex rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-sm text-emerald-200">
           Analysis complete
         </p>
-        <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">{analysis.repositoryUrl}</h1>
-        <p className="mt-4 text-slate-400">Analysis id: {analysis.id}</p>
+        <h1
+          className="truncate text-xl font-semibold tracking-tight text-white sm:text-3xl lg:text-5xl"
+          title={analysis.repositoryUrl}
+        >
+          {analysis.repositoryUrl}
+        </h1>
+        <p className="mt-4 truncate text-sm text-slate-400 sm:text-base" title={analysis.id}>
+          Analysis id: {analysis.id}
+        </p>
       </div>
 
-      <div className="mt-10 grid gap-4 md:grid-cols-3" id="metrics">
+      <div className="mt-10 grid gap-4 sm:grid-cols-2 xl:grid-cols-4" id="metrics">
         <MetricCard label="Tokens tracked" value={numberFormatter.format(analysis.metrics.totalTokens)} hint={`${numberFormatter.format(analysis.metrics.totalFiles)} files analyzed`} />
         <MetricCard label="Lowest estimate" value={cheapestEstimate ? currencyFormatter.format(cheapestEstimate.totalCost) : '$0.0000'} hint={cheapestEstimate ? `${cheapestEstimate.provider} · ${cheapestEstimate.model} · ${cheapestEstimate.mode}` : 'No estimates available'} />
+        <MetricCard label="Highest estimate" value={highestEstimate ? currencyFormatter.format(highestEstimate.totalCost) : '$0.0000'} hint={highestEstimate ? `${highestEstimate.provider} · ${highestEstimate.model} · ${highestEstimate.mode}` : 'No estimates available'} />
         <MetricCard label="Providers" value={numberFormatter.format(providers.size)} hint={`${analysis.costEstimates.length} model/mode estimates`} />
       </div>
 
@@ -199,6 +208,13 @@ function cheapest(estimates: RepositoryAnalysisCostEstimateResponse[]) {
   return estimates.reduce<RepositoryAnalysisCostEstimateResponse | null>((best, estimate) => {
     if (best === null) return estimate
     return estimate.totalCost < best.totalCost ? estimate : best
+  }, null)
+}
+
+function highest(estimates: RepositoryAnalysisCostEstimateResponse[]) {
+  return estimates.reduce<RepositoryAnalysisCostEstimateResponse | null>((best, estimate) => {
+    if (best === null) return estimate
+    return estimate.totalCost > best.totalCost ? estimate : best
   }, null)
 }
 
