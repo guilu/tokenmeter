@@ -1,0 +1,18 @@
+pricing:
+  models:
+    - provider: openai
+      model: gpt-4o
+      input-token-price: 2.50
+      output-token-price: 10.00
+    - provider: anthropic
+      model: claude-3-5-sonnet
+      input-token-price: 3.00
+      output-token-price: 15.00
+    - provider: google
+      model: gemini-1.5-pro
+      input-token-price: 1.25
+      output-token-price: 5.00
+    - provider: deepseek
+      model: deepseek-chat
+      input-token-price: 0.27
+      output-token-price: 1.10
