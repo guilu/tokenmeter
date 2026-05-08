@@ -265,20 +265,28 @@ GET /reports/{id}
 ---
 
 ## Backend
+```bash
 cd backend
 ./gradlew bootRun
+```
 
 ---
 
 ## Frontend
+```bash
 cd frontend
 npm install
 npm run dev
+```
 
 ---
 
 ## Docker Compose
-docker compose up --build
+```bash
+docker compose up --build -d
+```
+
+> Procedimiento dev por defecto: cuando se solicite desplegar TokenMeter en desarrollo, usar `docker compose up --build -d` desde la raíz del repo.
 
 ---
 
@@ -286,7 +294,7 @@ docker compose up --build
 
 | Servicio | URL |
 |---|---|
-| Frontend | http://localhost:5173 |
+| Frontend | http://localhost:3000 |
 | Backend API | http://localhost:8080 |
 | PostgreSQL | localhost:5432 |
 
