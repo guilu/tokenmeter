@@ -15,11 +15,15 @@ import org.springframework.web.bind.annotation.RestController;
 public class RepositoryAnalysisController {
   private final RepositoryAnalysisService analysisService;
   private final RepositoryAnalysisMapper mapper;
+  private final CostBreakdownMapper costBreakdownMapper;
 
   public RepositoryAnalysisController(
-      RepositoryAnalysisService analysisService, RepositoryAnalysisMapper mapper) {
+      RepositoryAnalysisService analysisService,
+      RepositoryAnalysisMapper mapper,
+      CostBreakdownMapper costBreakdownMapper) {
     this.analysisService = analysisService;
     this.mapper = mapper;
+    this.costBreakdownMapper = costBreakdownMapper;
   }
 
   @PostMapping("/api/analyze")
@@ -31,5 +35,10 @@ public class RepositoryAnalysisController {
   @GetMapping("/api/analyze/{id}")
   public RepositoryAnalysisResponse findById(@PathVariable UUID id) {
     return mapper.toResponse(analysisService.findById(id));
+  }
+
+  @GetMapping("/api/analyze/{id}/cost-breakdown")
+  public CostBreakdownResponse getCostBreakdown(@PathVariable UUID id) {
+    return costBreakdownMapper.toResponse(analysisService.findById(id));
   }
 }

@@ -10,11 +10,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import dev.diegobarrioh.tokenmeter.application.analyzer.AnalysisNotFoundException;
 import dev.diegobarrioh.tokenmeter.application.analyzer.RepositoryAnalysisResult;
 import dev.diegobarrioh.tokenmeter.application.analyzer.RepositoryAnalysisService;
+import dev.diegobarrioh.tokenmeter.application.pricing.PricingProvider;
 import dev.diegobarrioh.tokenmeter.domain.analyzer.LanguageStatistics;
 import dev.diegobarrioh.tokenmeter.domain.analyzer.RepositoryScanResult;
 import dev.diegobarrioh.tokenmeter.domain.cost.CostEstimationMode;
 import dev.diegobarrioh.tokenmeter.domain.cost.ModelCostEstimate;
 import dev.diegobarrioh.tokenmeter.domain.pricing.AiProvider;
+import dev.diegobarrioh.tokenmeter.domain.pricing.ModelPricing;
 import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeErrorCode;
 import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeException;
 import dev.diegobarrioh.tokenmeter.domain.tokenizer.LanguageTokenMetrics;
@@ -24,6 +26,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,11 +37,16 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(RepositoryAnalysisController.class)
-@Import({RepositoryAnalysisMapper.class, RepositoryIntakeExceptionHandler.class})
+@Import({
+  RepositoryAnalysisMapper.class,
+  CostBreakdownMapper.class,
+  RepositoryIntakeExceptionHandler.class
+})
 class RepositoryAnalysisControllerTest {
   @Autowired private MockMvc mockMvc;
 
   @MockitoBean private RepositoryAnalysisService analysisService;
+  @MockitoBean private PricingProvider pricingProvider;
 
   @Test
   void returnsStandardSuccessResponseForValidRequest() throws Exception {
@@ -133,6 +141,65 @@ class RepositoryAnalysisControllerTest {
   }
 
   @Test
+  void returnsCostBreakdownGroupedByProviderAndModel() throws Exception {
+    UUID id = UUID.randomUUID();
+    when(pricingProvider.find(AiProvider.OPENAI, "gpt-4o"))
+        .thenReturn(
+            Optional.of(
+                new ModelPricing(
+                    AiProvider.OPENAI, "gpt-4o", new BigDecimal("2.50"), new BigDecimal("10.00"))));
+    when(analysisService.findById(id)).thenReturn(sampleAnalysis(id, sampleCostEstimates()));
+
+    mockMvc
+        .perform(get("/api/analyze/{id}/cost-breakdown", id))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.analysisId").value(id.toString()))
+        .andExpect(jsonPath("$.repositoryUrl").value("https://github.com/guilu/tokenmeter"))
+        .andExpect(jsonPath("$.summary.totalTokens").value(25))
+        .andExpect(jsonPath("$.summary.totalModels").value(1))
+        .andExpect(jsonPath("$.summary.totalModes").value(3))
+        .andExpect(jsonPath("$.models[0].provider").value("openai"))
+        .andExpect(jsonPath("$.models[0].model").value("gpt-4o"))
+        .andExpect(jsonPath("$.models[0].pricing.inputTokenPricePerMillion").value(2.50))
+        .andExpect(jsonPath("$.models[0].pricing.outputTokenPricePerMillion").value(10.00))
+        .andExpect(jsonPath("$.models[0].modes[0].mode").value("raw"))
+        .andExpect(jsonPath("$.models[0].modes[1].mode").value("assisted"))
+        .andExpect(jsonPath("$.models[0].modes[2].mode").value("agentic"));
+  }
+
+  @Test
+  void returnsEmptyCostBreakdownForAnalysisWithoutPricingData() throws Exception {
+    UUID id = UUID.randomUUID();
+    when(analysisService.findById(id)).thenReturn(sampleAnalysis(id, List.of()));
+
+    mockMvc
+        .perform(get("/api/analyze/{id}/cost-breakdown", id))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.summary.totalModels").value(0))
+        .andExpect(jsonPath("$.summary.totalModes").value(0))
+        .andExpect(jsonPath("$.models").isEmpty());
+  }
+
+  @Test
+  void mapsNonexistentAnalysisCostBreakdownToNotFound() throws Exception {
+    UUID id = UUID.randomUUID();
+    when(analysisService.findById(id)).thenThrow(new AnalysisNotFoundException(id));
+
+    mockMvc
+        .perform(get("/api/analyze/{id}/cost-breakdown", id))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.code").value("ANALYSIS_NOT_FOUND"));
+  }
+
+  @Test
+  void mapsMalformedAnalysisIdToBadRequest() throws Exception {
+    mockMvc
+        .perform(get("/api/analyze/not-a-uuid/cost-breakdown"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+  }
+
+  @Test
   void mapsNonexistentAnalysisToNotFound() throws Exception {
     UUID id = UUID.randomUUID();
     when(analysisService.findById(id)).thenThrow(new AnalysisNotFoundException(id));
@@ -196,5 +263,62 @@ class RepositoryAnalysisControllerTest {
                 .content("{\"repositoryUrl\":\"https://github.com/guilu/slow\"}"))
         .andExpect(status().isGatewayTimeout())
         .andExpect(jsonPath("$.code").value("CLONE_TIMEOUT"));
+  }
+
+  private static RepositoryAnalysisResult sampleAnalysis(
+      UUID id, List<ModelCostEstimate> costEstimates) {
+    return new RepositoryAnalysisResult(
+        id,
+        Instant.parse("2026-05-08T20:00:00Z"),
+        "https://github.com/guilu/tokenmeter",
+        "https://github.com/guilu/tokenmeter.git",
+        "guilu",
+        "tokenmeter",
+        new RepositoryScanResult(
+            2, 10, 120, List.of(), Map.of("Java", new LanguageStatistics("Java", 2, 10, 120))),
+        new RepositoryTokenizationResult(
+            "o200k_base",
+            2,
+            25,
+            List.of(),
+            Map.of("Java", new LanguageTokenMetrics("Java", 2, 25))),
+        costEstimates);
+  }
+
+  private static List<ModelCostEstimate> sampleCostEstimates() {
+    return List.of(
+        new ModelCostEstimate(
+            AiProvider.OPENAI,
+            "gpt-4o",
+            CostEstimationMode.RAW,
+            25,
+            0,
+            25,
+            new BigDecimal("0.000000"),
+            new BigDecimal("0.000250"),
+            new BigDecimal("0.000250"),
+            "raw formula"),
+        new ModelCostEstimate(
+            AiProvider.OPENAI,
+            "gpt-4o",
+            CostEstimationMode.ASSISTED,
+            25,
+            25,
+            125,
+            new BigDecimal("0.000063"),
+            new BigDecimal("0.001250"),
+            new BigDecimal("0.001313"),
+            "assisted formula"),
+        new ModelCostEstimate(
+            AiProvider.OPENAI,
+            "gpt-4o",
+            CostEstimationMode.AGENTIC,
+            25,
+            100,
+            500,
+            new BigDecimal("0.000250"),
+            new BigDecimal("0.005000"),
+            new BigDecimal("0.005250"),
+            "agentic formula"));
   }
 }

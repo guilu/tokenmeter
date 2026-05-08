@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 @RestControllerAdvice
 public class RepositoryIntakeExceptionHandler {
@@ -36,6 +37,19 @@ public class RepositoryIntakeExceptionHandler {
                 "ANALYSIS_NOT_FOUND",
                 exception.getMessage(),
                 HttpStatus.NOT_FOUND.value(),
+                request.getRequestURI(),
+                Instant.now()));
+  }
+
+  @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+  public ResponseEntity<RepositoryIntakeErrorResponse> handleTypeMismatchException(
+      MethodArgumentTypeMismatchException exception, HttpServletRequest request) {
+    return ResponseEntity.badRequest()
+        .body(
+            new RepositoryIntakeErrorResponse(
+                "INVALID_REQUEST",
+                "Malformed request parameter: " + exception.getName(),
+                HttpStatus.BAD_REQUEST.value(),
                 request.getRequestURI(),
                 Instant.now()));
   }

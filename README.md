@@ -243,31 +243,77 @@ Más adelante se integrarán tokenizers reales por modelo.
 # 🌐 API
 
 ## Crear análisis
-POST /api/analyses
+```http
+POST /api/analyze
+Content-Type: application/json
 
-Request:
 {
- "repositoryUrl": "https://github.com/user/repo"
+  "repositoryUrl": "https://github.com/user/repo"
 }
+```
+
+La respuesta incluye métricas del repositorio y `costEstimates` plano por modelo/modo.
 
 ---
 
-## Obtener análisisGET /api/analyses/{id}
+## Obtener análisis
+```http
+GET /api/analyze/{id}
+```
 
 ---
 
-## Obtener archivos analizados
-GET /api/analyses/{id}/files
+## Obtener breakdown de costes
+```http
+GET /api/analyze/{id}/cost-breakdown
+```
+
+Respuesta agrupada por provider/model:
+
+```json
+{
+  "analysisId": "uuid",
+  "repositoryUrl": "https://github.com/user/repo",
+  "summary": {
+    "totalTokens": 850000,
+    "totalModels": 4,
+    "totalModes": 12
+  },
+  "models": [
+    {
+      "provider": "openai",
+      "model": "gpt-4o",
+      "pricing": {
+        "inputTokenPricePerMillion": 2.5,
+        "outputTokenPricePerMillion": 10.0
+      },
+      "modes": [
+        {
+          "mode": "raw",
+          "baseTokens": 850000,
+          "estimatedInputTokens": 0,
+          "estimatedOutputTokens": 850000,
+          "inputCost": 0.0,
+          "outputCost": 8.5,
+          "totalCost": 8.5,
+          "formula": "inputCost=(baseTokens*0*inputPricePerMillion)/1_000_000; outputCost=(baseTokens*1*outputPricePerMillion)/1_000_000; totalCost=inputCost+outputCost"
+        }
+      ]
+    }
+  ]
+}
+```
+
+Errores estándar:
+- `404 ANALYSIS_NOT_FOUND` si no existe el análisis.
+- `400 INVALID_REQUEST` si el id está mal formado.
 
 ---
 
 ## Obtener precios
-GET /api/models/pricing
-
----
-
-## Reporte público
-GET /reports/{id}
+```http
+GET /api/pricing
+```
 
 ---
 
