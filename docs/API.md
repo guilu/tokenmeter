@@ -30,7 +30,7 @@ Cualquier endpoint puede devolver:
 | `ANALYSIS_NOT_FOUND` | 404 | `id` no existe en BD |
 | `REPOSITORY_TOO_LARGE` | 413 | Excede `TOKENMETER_MAX_REPOSITORY_BYTES` (default 100 MiB) |
 | `CLONE_FAILED` | 502 | JGit falló durante el clone |
-| `CLONE_TIMEOUT` | 504 | Excedió `TOKENMETER_CLONE_TIMEOUT` (default 30s) |
+| `CLONE_TIMEOUT` | 504 | Excedió `TOKENMETER_CLONE_TIMEOUT` (default 60s) |
 
 ---
 

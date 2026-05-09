@@ -15,7 +15,7 @@ public record RepositoryIntakeProperties(
       maxRepositoryBytes = 100L * 1024L * 1024L;
     }
     if (cloneTimeout == null || cloneTimeout.isNegative() || cloneTimeout.isZero()) {
-      cloneTimeout = Duration.ofSeconds(30);
+      cloneTimeout = Duration.ofSeconds(60);
     }
   }
 }

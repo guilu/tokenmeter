@@ -64,7 +64,7 @@ Detalle completo: `docs/ARCHITECTURE.md`.
 `POST /api/analyze` → `RepositoryAnalysisService.analyze`:
 
 1. `GitHubRepositoryUrl.parse` valida URL.
-2. `JGitRepositoryCloner.clone` con timeout (`tokenmeter.repository-intake.clone-timeout`, 30s default).
+2. `JGitRepositoryCloner.clone` con timeout (`tokenmeter.repository-intake.clone-timeout`, 60s default).
 3. `RepositorySizeCalculator.summarize` + `enforceSizeLimit` (max 100 MiB default).
 4. `RepositoryFileScanner.scan` ignora `.git`, `node_modules`, `target`, `build`, `dist`, `coverage`. `BinaryFileDetector` filtra binarios.
 5. `RepositoryTokenizationService.tokenize` por archivo con `OpenAiTokenCounter`.
@@ -125,7 +125,7 @@ Gitmojis comunes: ✨ feat · 🐛 fix · ♻️ refactor · 🧪 test · 📝 d
 | `SPRING_PROFILES_ACTIVE` | `local` | `local` / `docker` / `prod` |
 | `TOKENMETER_WORKDIR` | `${java.io.tmpdir}/tokenmeter-repositories` | Directorio temporal para clones |
 | `TOKENMETER_MAX_REPOSITORY_BYTES` | `104857600` (100 MiB) | Tamaño máximo del repo |
-| `TOKENMETER_CLONE_TIMEOUT` | `30s` | Timeout de clone |
+| `TOKENMETER_CLONE_TIMEOUT` | `60s` | Timeout de clone |
 | `DATABASE_URL` / `DATABASE_USERNAME` / `DATABASE_PASSWORD` | — | Solo perfil `prod` |
 
 ## No-go zones para asistentes IA

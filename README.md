@@ -365,7 +365,7 @@ docker compose up --build -d
 | `SPRING_PROFILES_ACTIVE` | `local` | `local` / `docker` / `prod` |
 | `TOKENMETER_WORKDIR` | `${java.io.tmpdir}/tokenmeter-repositories` | Directorio temporal para clones |
 | `TOKENMETER_MAX_REPOSITORY_BYTES` | `104857600` (100 MiB) | Tamaño máximo permitido al clonar |
-| `TOKENMETER_CLONE_TIMEOUT` | `30s` | Timeout de clonado |
+| `TOKENMETER_CLONE_TIMEOUT` | `60s` | Timeout de clonado |
 | `POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD` | `tokenmeter` | Solo para Docker Compose |
 | `DATABASE_URL` / `DATABASE_USERNAME` / `DATABASE_PASSWORD` | — | Solo perfil `prod` |
 
