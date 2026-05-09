@@ -8,7 +8,8 @@ const numberFormatter = new Intl.NumberFormat('en-US')
 const currencyFormatter = new Intl.NumberFormat('en-US', {
   style: 'currency',
   currency: 'USD',
-  maximumFractionDigits: 4,
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
 })
 
 export function DashboardPage() {
@@ -153,8 +154,8 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
 
       <div className="mt-10 grid gap-4 sm:grid-cols-2 xl:grid-cols-4" id="metrics">
         <MetricCard label="Tokens tracked" value={numberFormatter.format(analysis.metrics.totalTokens)} hint={`${numberFormatter.format(analysis.metrics.totalFiles)} files analyzed`} />
-        <MetricCard label="Lowest estimate" value={cheapestEstimate ? currencyFormatter.format(cheapestEstimate.totalCost) : '$0.0000'} hint={cheapestEstimate ? `${cheapestEstimate.provider} · ${cheapestEstimate.model} · ${cheapestEstimate.mode}` : 'No estimates available'} />
-        <MetricCard label="Highest estimate" value={highestEstimate ? currencyFormatter.format(highestEstimate.totalCost) : '$0.0000'} hint={highestEstimate ? `${highestEstimate.provider} · ${highestEstimate.model} · ${highestEstimate.mode}` : 'No estimates available'} />
+        <MetricCard label="Lowest estimate" value={cheapestEstimate ? currencyFormatter.format(cheapestEstimate.totalCost) : '$0.00'} hint={cheapestEstimate ? `${cheapestEstimate.provider} · ${cheapestEstimate.model} · ${cheapestEstimate.mode}` : 'No estimates available'} />
+        <MetricCard label="Highest estimate" value={highestEstimate ? currencyFormatter.format(highestEstimate.totalCost) : '$0.00'} hint={highestEstimate ? `${highestEstimate.provider} · ${highestEstimate.model} · ${highestEstimate.mode}` : 'No estimates available'} />
         <MetricCard label="Providers" value={numberFormatter.format(providers.size)} hint={`${analysis.costEstimates.length} model/mode estimates`} />
       </div>
 
@@ -169,20 +170,20 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
           <table className="min-w-full divide-y divide-white/10 text-sm">
             <thead className="bg-white/[0.04] text-left text-slate-400">
               <tr>
-                <th className="px-4 py-3 font-medium">Provider</th>
+                <th className="hidden px-4 py-3 font-medium sm:table-cell">Provider</th>
                 <th className="px-4 py-3 font-medium">Model</th>
                 <th className="px-4 py-3 font-medium">Mode</th>
-                <th className="px-4 py-3 text-right font-medium">Output tokens</th>
+                <th className="hidden px-4 py-3 text-right font-medium sm:table-cell">Output tokens</th>
                 <th className="px-4 py-3 text-right font-medium">Total cost</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/10 text-slate-200">
               {analysis.costEstimates.slice(0, 12).map((estimate) => (
                 <tr key={`${estimate.provider}-${estimate.model}-${estimate.mode}`}>
-                  <td className="px-4 py-3 capitalize">{estimate.provider}</td>
+                  <td className="hidden px-4 py-3 capitalize sm:table-cell">{estimate.provider}</td>
                   <td className="px-4 py-3">{estimate.model}</td>
                   <td className="px-4 py-3 capitalize">{estimate.mode}</td>
-                  <td className="px-4 py-3 text-right">{numberFormatter.format(estimate.estimatedOutputTokens)}</td>
+                  <td className="hidden px-4 py-3 text-right sm:table-cell">{numberFormatter.format(estimate.estimatedOutputTokens)}</td>
                   <td className="px-4 py-3 text-right font-medium text-white">{currencyFormatter.format(estimate.totalCost)}</td>
                 </tr>
               ))}
