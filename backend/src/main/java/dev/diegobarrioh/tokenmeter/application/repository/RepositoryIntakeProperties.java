@@ -12,10 +12,10 @@ public record RepositoryIntakeProperties(
       tempDirectory = Path.of(System.getProperty("java.io.tmpdir"), "tokenmeter-repositories");
     }
     if (maxRepositoryBytes <= 0) {
-      maxRepositoryBytes = 100L * 1024L * 1024L;
+      maxRepositoryBytes = 300L * 1024L * 1024L;
     }
     if (cloneTimeout == null || cloneTimeout.isNegative() || cloneTimeout.isZero()) {
-      cloneTimeout = Duration.ofSeconds(60);
+      cloneTimeout = Duration.ofSeconds(120);
     }
   }
 }

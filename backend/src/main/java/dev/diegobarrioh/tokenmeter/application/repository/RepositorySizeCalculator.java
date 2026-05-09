@@ -10,12 +10,24 @@ public class RepositorySizeCalculator {
   public RepositoryCloneSummary summarize(Path repositoryDirectory) {
     try (var paths = Files.walk(repositoryDirectory)) {
       var files =
-          paths.filter(Files::isRegularFile).map(RepositorySizeCalculator::fileSize).toList();
+          paths
+              .filter(path -> isRepositoryFile(repositoryDirectory, path))
+              .map(RepositorySizeCalculator::fileSize)
+              .toList();
       long totalBytes = files.stream().mapToLong(Long::longValue).sum();
       return new RepositoryCloneSummary(totalBytes, files.size());
     } catch (IOException exception) {
       throw new UncheckedIOException("Could not inspect cloned repository", exception);
     }
+  }
+
+  private static boolean isRepositoryFile(Path repositoryDirectory, Path path) {
+    return Files.isRegularFile(path) && !isGitMetadata(repositoryDirectory, path);
+  }
+
+  private static boolean isGitMetadata(Path repositoryDirectory, Path path) {
+    Path relativePath = repositoryDirectory.relativize(path);
+    return relativePath.getNameCount() > 0 && relativePath.getName(0).toString().equals(".git");
   }
 
   private static long fileSize(Path path) {

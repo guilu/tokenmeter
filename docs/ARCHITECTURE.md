@@ -17,7 +17,7 @@ TokenMeter responde a una pregunta: **"¿Cuál sería el coste mínimo de genera
                             ▼                         ▼                          ▼
                   ┌──────────────────┐     ┌────────────────────┐    ┌─────────────────────┐
                   │   PostgreSQL     │     │  Filesystem (tmp)  │    │  pricing.yaml       │
-                  │   18 + Flyway    │     │  clones JGit       │    │  (classpath)        │
+                  │   18 + Flyway    │     │  clones git CLI       │    │  (classpath)        │
                   └──────────────────┘     └────────────────────┘    └─────────────────────┘
 ```
 
@@ -43,7 +43,7 @@ backend/src/main/java/dev/diegobarrioh/tokenmeter/
 │   │                              RepositorySizeCalculator, RepositoryIntakeProperties
 │   └── tokenizer/                 RepositoryTokenizationService, OpenAiTokenCounter
 └── infrastructure/              ← adapters
-    ├── git/                       JGitRepositoryCloner            implements GitRepositoryCloner
+    ├── git/                       GitCliRepositoryCloner            implements GitRepositoryCloner
     ├── pricing/                   YamlPricingProvider             implements PricingProvider
     ├── persistence/analysis/      JpaAnalysisPersistenceService   implements AnalysisPersistenceService
     │                              + AnalysisEntity / LanguageStatsEntity / CostEstimateEntity
@@ -60,13 +60,13 @@ backend/src/main/java/dev/diegobarrioh/tokenmeter/
 infrastructure ──▶ application ──▶ domain
 ```
 
-`domain` no conoce a `application` ni a `infrastructure`. `application` define **ports** (interfaces) que `infrastructure` implementa con tecnologías concretas (JGit, JPA, Jackson YAML).
+`domain` no conoce a `application` ni a `infrastructure`. `application` define **ports** (interfaces) que `infrastructure` implementa con tecnologías concretas (git CLI, JPA, Jackson YAML).
 
 ### Ports (interfaces) e implementaciones
 
 | Port (`application` o `domain`) | Adapter (`infrastructure`) |
 |---|---|
-| `application.repository.GitRepositoryCloner` | `infrastructure.git.JGitRepositoryCloner` |
+| `application.repository.GitRepositoryCloner` | `infrastructure.git.GitCliRepositoryCloner` |
 | `application.pricing.PricingProvider` | `infrastructure.pricing.YamlPricingProvider` |
 | `application.analyzer.AnalysisPersistenceService` | `infrastructure.persistence.analysis.JpaAnalysisPersistenceService` |
 
@@ -78,7 +78,7 @@ RepositoryAnalysisController.analyze(req)
         ├─ GitHubRepositoryUrl.parse(rawUrl)              ← validación dominio
         ├─ Files.createTempDirectory(...)
         ├─ cloneWithTimeout()                             ← ExecutorService + Future.get(timeout)
-        │     └─ JGitRepositoryCloner.clone(...)
+        │     └─ GitCliRepositoryCloner.clone(...)
         ├─ RepositorySizeCalculator.summarize(dir)
         ├─ enforceSizeLimit(summary)                      ← REPOSITORY_TOO_LARGE
         ├─ RepositoryFileScanner.scan(dir)
@@ -204,10 +204,10 @@ El proxy de Vite (`vite.config.ts`) reenvía `/api/*` a `http://localhost:8080`,
 ## Decisiones clave
 
 1. **Hexagonal con tres paquetes**, no DDD pleno. Suficiente para el tamaño actual; evita over-engineering.
-2. **JGit en lugar de `git` CLI**. Sin dependencia binaria externa, más fácil de containerizar.
+2. **`git` CLI en lugar de JGit**. Más rápido y más parecido al comportamiento real de GitHub para clones shallow; requiere binario `git` en runtime.
 3. **jtokkit (encoder OpenAI) para todos los modelos**. Aproximación pragmática; mejor un suelo razonable hoy que vaporware multi-tokenizer.
 4. **Postgres + Flyway desde el día 1**. `ddl-auto=validate` para que Hibernate nunca toque el schema.
-5. **Sin caché de análisis** (todavía). Cada `POST /api/analyze` clona de nuevo. Suficiente mientras `max-repository-bytes` esté en 100 MiB.
+5. **Sin caché de análisis** (todavía). Cada `POST /api/analyze` clona de nuevo. Suficiente mientras `max-repository-bytes` esté en 300 MiB.
 6. **Persistencia síncrona dentro del request**. No hay job queue. Para repos grandes, el cliente espera. Si crece, mover a flujo async + polling con `analysis.status`.
 7. **Filesystem temporal**. Clones se borran en `finally`; no se cachean entre requests.
 8. **3 modos hardcoded** (`RAW`/`ASSISTED`/`AGENTIC`). Multiplicadores son la ABI del cálculo: cambiarlos invalida estimaciones históricas. Si fueran configurables, persistirlos en `cost_estimates.formula` (ya se hace).

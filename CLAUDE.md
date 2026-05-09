@@ -13,7 +13,7 @@ Servicio que clona un repositorio público de GitHub, cuenta tokens por archivo 
 | Backend | Java 21, Spring Boot 3.5, Gradle Kotlin DSL |
 | Persistencia | PostgreSQL 18 + Flyway (migraciones `V1`–`V3`) |
 | Tokenizer | `com.knuddels:jtokkit` (encoder `O200K_BASE`) |
-| Clone | `org.eclipse.jgit` |
+| Clone | `git` CLI |
 | Frontend | React 19, Vite 8, TypeScript 6, Tailwind 4 |
 | Tests | JUnit 5, Spring Boot Test, H2 (runtime test) |
 | Calidad | Checkstyle, Spotless (Google Java Format), ESLint, Prettier, SonarCloud |
@@ -53,7 +53,7 @@ Tres paquetes en `backend/src/main/java/dev/diegobarrioh/tokenmeter/`:
 
 - `domain/` — value objects, enums, records de negocio. Sin dependencias de Spring ni JPA. Ejemplos: `GitHubRepositoryUrl`, `CostEstimationMode`, `ModelPricing`, `RepositoryScanResult`.
 - `application/` — casos de uso y orquestación. Servicios `@Service`, sin anotaciones JPA ni `@RestController`. Ejemplos: `RepositoryAnalysisService` (clone→scan→tokenize→estimate→persist), `RepositoryCostEstimationService`, `RepositoryFileScanner`.
-- `infrastructure/` — adapters: `web/` (REST controllers, mappers, DTO), `persistence/` (entidades JPA, repos), `git/` (`JGitRepositoryCloner`), `pricing/` (`YamlPricingProvider`).
+- `infrastructure/` — adapters: `web/` (REST controllers, mappers, DTO), `persistence/` (entidades JPA, repos), `git/` (`GitCliRepositoryCloner`), `pricing/` (`YamlPricingProvider`).
 
 **Regla**: dependencias siempre apuntan hacia adentro. `infrastructure` → `application` → `domain`. Nunca al revés.
 
@@ -64,8 +64,8 @@ Detalle completo: `docs/ARCHITECTURE.md`.
 `POST /api/analyze` → `RepositoryAnalysisService.analyze`:
 
 1. `GitHubRepositoryUrl.parse` valida URL.
-2. `JGitRepositoryCloner.clone` con timeout (`tokenmeter.repository-intake.clone-timeout`, 60s default).
-3. `RepositorySizeCalculator.summarize` + `enforceSizeLimit` (max 100 MiB default).
+2. `GitCliRepositoryCloner.clone` con timeout (`tokenmeter.repository-intake.clone-timeout`, 120s default).
+3. `RepositorySizeCalculator.summarize` + `enforceSizeLimit` (max 300 MiB default).
 4. `RepositoryFileScanner.scan` ignora `.git`, `node_modules`, `target`, `build`, `dist`, `coverage`. `BinaryFileDetector` filtra binarios.
 5. `RepositoryTokenizationService.tokenize` por archivo con `OpenAiTokenCounter`.
 6. `RepositoryCostEstimationService.estimate` calcula 3 modos × N modelos.
@@ -124,8 +124,8 @@ Gitmojis comunes: ✨ feat · 🐛 fix · ♻️ refactor · 🧪 test · 📝 d
 |---|---|---|
 | `SPRING_PROFILES_ACTIVE` | `local` | `local` / `docker` / `prod` |
 | `TOKENMETER_WORKDIR` | `${java.io.tmpdir}/tokenmeter-repositories` | Directorio temporal para clones |
-| `TOKENMETER_MAX_REPOSITORY_BYTES` | `104857600` (100 MiB) | Tamaño máximo del repo |
-| `TOKENMETER_CLONE_TIMEOUT` | `60s` | Timeout de clone |
+| `TOKENMETER_MAX_REPOSITORY_BYTES` | `314572800` (300 MiB) | Tamaño máximo del repo |
+| `TOKENMETER_CLONE_TIMEOUT` | `120s` | Timeout de clone |
 | `DATABASE_URL` / `DATABASE_USERNAME` / `DATABASE_PASSWORD` | — | Solo perfil `prod` |
 
 ## No-go zones para asistentes IA

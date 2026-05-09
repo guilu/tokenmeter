@@ -24,7 +24,6 @@ dependencies {
   implementation("org.springframework.boot:spring-boot-starter-web")
   implementation("org.flywaydb:flyway-core")
   implementation("org.flywaydb:flyway-database-postgresql")
-  implementation("org.eclipse.jgit:org.eclipse.jgit:6.10.0.202406032230-r")
   implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml")
   implementation("com.knuddels:jtokkit:1.1.0")
   runtimeOnly("org.postgresql:postgresql")

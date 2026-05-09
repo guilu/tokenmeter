@@ -72,7 +72,7 @@ Spring Boot REST API (:8080)
    ↓         ↓               ↓
 PostgreSQL  Filesystem    pricing.yaml
 (:5432)     (clones tmp)  (classpath)
-+ Flyway    + JGit        + jtokkit
++ Flyway    + git CLI     + jtokkit
 ```
 
 Detalle completo en [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
@@ -364,8 +364,8 @@ docker compose up --build -d
 |---|---|---|
 | `SPRING_PROFILES_ACTIVE` | `local` | `local` / `docker` / `prod` |
 | `TOKENMETER_WORKDIR` | `${java.io.tmpdir}/tokenmeter-repositories` | Directorio temporal para clones |
-| `TOKENMETER_MAX_REPOSITORY_BYTES` | `104857600` (100 MiB) | Tamaño máximo permitido al clonar |
-| `TOKENMETER_CLONE_TIMEOUT` | `60s` | Timeout de clonado |
+| `TOKENMETER_MAX_REPOSITORY_BYTES` | `314572800` (300 MiB) | Tamaño máximo permitido al clonar |
+| `TOKENMETER_CLONE_TIMEOUT` | `120s` | Timeout de clonado |
 | `POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD` | `tokenmeter` | Solo para Docker Compose |
 | `DATABASE_URL` / `DATABASE_USERNAME` / `DATABASE_PASSWORD` | — | Solo perfil `prod` |
 

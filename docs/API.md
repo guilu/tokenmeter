@@ -28,9 +28,9 @@ Cualquier endpoint puede devolver:
 | `INVALID_REQUEST` | 400 | Tipo de parámetro inválido (ej. UUID malformado) |
 | `REPOSITORY_NOT_ACCESSIBLE` | 404 | Repo privado o no existe |
 | `ANALYSIS_NOT_FOUND` | 404 | `id` no existe en BD |
-| `REPOSITORY_TOO_LARGE` | 413 | Excede `TOKENMETER_MAX_REPOSITORY_BYTES` (default 100 MiB) |
-| `CLONE_FAILED` | 502 | JGit falló durante el clone |
-| `CLONE_TIMEOUT` | 504 | Excedió `TOKENMETER_CLONE_TIMEOUT` (default 60s) |
+| `REPOSITORY_TOO_LARGE` | 413 | Excede `TOKENMETER_MAX_REPOSITORY_BYTES` (default 300 MiB) |
+| `CLONE_FAILED` | 502 | git CLI falló durante el clone |
+| `CLONE_TIMEOUT` | 504 | Excedió `TOKENMETER_CLONE_TIMEOUT` (default 120s) |
 
 ---
 
