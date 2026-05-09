@@ -16,12 +16,10 @@
 
 ---
 
-TokenMeter analiza repositorios públicos de GitHub, estima la cantidad de tokens y calcula el coste mínimo de generación basado en los precios de los tokens de salida de modelos de IA.
+TokenMeter analiza repositorios públicos de GitHub, cuenta tokens con un encoder real (`jtokkit` / `o200k_base`) y calcula el coste estimado de generación con varios modelos de IA bajo tres modos de uso (`raw`, `assisted`, `agentic`).
 
 > [!IMPORTANT]
-> Este cálculo no incluye tokens de entrada, prompts, contexto, intentos fallidos, razonamiento ni llamadas a herramientas.
->
-> Es el suelo, no el techo.
+> El modo `raw` solo cuenta los tokens del código final (sin prompts, sin reintentos, sin razonamiento extra). Los modos `assisted` y `agentic` aplican multiplicadores fijos para aproximar overhead de input/razonamiento, pero siguen siendo una **estimación con suelo** — no contabilidad exacta.
 
 ---
 
@@ -31,8 +29,8 @@ TokenMeter analiza repositorios públicos de GitHub, estima la cantidad de token
 |---|---|
 | 🌍 Repos públicos GitHub | Analiza cualquier repositorio público simplemente con su URL |
 | 📄 Conteo de tokens | Estimación aproximada de tokens por archivo y repositorio |
-| 💸 Coste mínimo | Calcula el coste usando precios reales de salida |
-| 📊 Modos realistas | Estimación para workflows asistidos y agentic |
+| 💸 Coste estimado | Combina tokens × precios input/output reales por modelo |
+| 📊 Tres modos | `raw`, `assisted` y `agentic` con multiplicadores fijos |
 | 📈 Desglose detallado | Por lenguaje, extensión, carpeta y archivos |
 | 🔗 Reportes públicos | Comparte resultados mediante URL |
 | 🛠 Open Source | Proyecto transparente y extensible |
@@ -43,12 +41,13 @@ TokenMeter analiza repositorios públicos de GitHub, estima la cantidad de token
 
 # 🧠 Modos de estimación
 
-| Modo | Descripción | Multiplicador |
-|---|---|---|
-| 🟢 Mínimo | Solo tokens finales del repositorio | x1 |
-| 🔵 Asistido | IA + ayuda humana + iteraciones moderadas | x3 |
-| 🟣 Agentic | Agente IA itera, corrige, prueba y reescribe | x8 |
-| 🔴 Agente caótico | Mucho contexto, pruebas, errores y vueltas | x15 |
+Definidos en [`CostEstimationMode`](backend/src/main/java/dev/diegobarrioh/tokenmeter/domain/cost/CostEstimationMode.java):
+
+| Modo | Output × base | Input × base | Interpretación |
+|---|---:|---:|---|
+| 🟢 `raw` | 1 | 0 | Solo tokens del código final. Suelo absoluto. |
+| 🔵 `assisted` | 5 | 1 | IA + iteraciones humanas + razonamiento moderado. |
+| 🟣 `agentic` | 20 | 4 | Agente autónomo: iteraciones, herramientas, razonamiento. |
 
 ---
 
@@ -63,15 +62,20 @@ TokenMeter analiza repositorios públicos de GitHub, estima la cantidad de token
 ---
 
 # 🏗 Arquitectura
-React (Frontend)
- ↕
-Spring Boot (API)
- ↕
- PostgreSQL (DB)
- ↕
- Jobs / Analysis Engine
- ↕
-Filesystem (Repos temporales)
+
+```
+React SPA (Vite :3000)
+        ↕  HTTP /api/*
+Spring Boot REST API (:8080)
+        ↕
+   ┌────┴────┬───────────────┐
+   ↓         ↓               ↓
+PostgreSQL  Filesystem    pricing.yaml
+(:5432)     (clones tmp)  (classpath)
++ Flyway    + JGit        + jtokkit
+```
+
+Detalle completo en [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ---
 
@@ -122,24 +126,26 @@ Persistencia, GitHub, filesystem y REST APIs.
 ---
 
 # 📁 Estructura del proyecto
+
+```
 tokenmeter/
-├── backend/
-│ ├── domain/
-│ ├── application/
-│ ├── infrastructure/
-│ └── build.gradle.kts
-│
-├── frontend/
-│ ├── src/
-│ └── package.json
-│
+├── backend/                Spring Boot (Java 21, Gradle KTS)
+│   ├── src/main/java/dev/diegobarrioh/tokenmeter/
+│   │   ├── domain/         núcleo de negocio (records, enums, VOs)
+│   │   ├── application/    casos de uso + ports
+│   │   └── infrastructure/ adapters: web, persistence, git, pricing
+│   └── src/main/resources/ application.yml, pricing.yaml, db/migration/
+├── frontend/               React 19 + Vite 8 + Tailwind 4
 ├── docs/
-│ └── assets/
-│ └── tokenmeter-logo.png
-│
-├── docker/
+│   ├── ARCHITECTURE.md
+│   ├── API.md
+│   └── assets/
+├── .github/workflows/ci.yml
 ├── docker-compose.yml
+├── CLAUDE.md
+├── CONTRIBUTING.md
 └── README.md
+```
 
 ---
 
@@ -201,40 +207,30 @@ Lockfiles podrán excluirse opcionalmente.
 ---
 
 # 🔢 Fórmula de cálculo
-coste = output_tokens * precio_por_1M / 1_000_000
 
-## Modos de estimación de costes
-
-TokenMeter calcula estimaciones por modelo configurado y por modo:
-
-| Modo | Output tokens simulados | Input/reasoning overhead | Uso |
-|---|---:|---:|---|
-| Raw | `baseTokens × 1` | `baseTokens × 0` | Coste mínimo de salida final del repositorio |
-| Assisted | `baseTokens × 5` | `baseTokens × 1` | Desarrollo asistido con iteraciones, contexto y razonamiento moderado |
-| Agentic | `baseTokens × 20` | `baseTokens × 4` | Workflow autónomo con más iteraciones, herramientas y razonamiento |
-
-Fórmula persistida por estimación:
+Para cada combinación `(modelo, modo)`:
 
 ```text
-inputCost = (baseTokens × reasoningInputMultiplier × inputPricePerMillion) / 1_000_000
-outputCost = (baseTokens × outputMultiplier × outputPricePerMillion) / 1_000_000
-totalCost = inputCost + outputCost
+inputCost  = baseTokens × inputMultiplier  × inputTokenPricePerMillion  / 1_000_000
+outputCost = baseTokens × outputMultiplier × outputTokenPricePerMillion / 1_000_000
+totalCost  = inputCost + outputCost   (HALF_UP, 6 decimales)
 ```
 
-Ejemplo:
-850.000 tokens
-GPT-5.3 Codex → $14 / 1M tokens
+`baseTokens` son los tokens del repositorio escaneado.
 
-= $11.90
+Ejemplo (`raw`, GPT-4o, $10 / 1M output):
+
+```
+850 000 tokens × 1 × $10 / 1 000 000 = $8.50
+```
 
 ---
 
-# 🧮 Estrategia de tokenización MVP
+# 🧮 Estrategia de tokenización
 
-Inicialmente:
-tokens ≈ caracteres / 4
+TokenMeter usa el encoder real `o200k_base` (compatible con `gpt-4o`/`o1`) vía [`com.knuddels:jtokkit`](https://github.com/knuddels/jtokkit). El nombre del encoder se persiste en `analysis.token_encoding` para trazabilidad.
 
-Más adelante se integrarán tokenizers reales por modelo.
+> Limitación conocida: hoy se aplica el encoder OpenAI también a modelos Anthropic, Google y DeepSeek. Tokenizers nativos por proveedor están en el roadmap.
 
 ---
 
@@ -363,75 +359,67 @@ docker compose up --build -d
 ---
 
 # 🔐 Variables de entorno
-SPRING_PROFILES_ACTIVE=local
 
-POSTGRES_DB=tokenmeter
-POSTGRES_USER=tokenmeter
-POSTGRES_PASSWORD=tokenmeter
-
-TOKENMETER_WORKDIR=/tmp/tokenmeter
-TOKENMETER_PUBLIC_BASE_URL=http://localhost:5173
-TOKENMETER_USD_EUR_RATE=0.92
+| Variable | Default | Descripción |
+|---|---|---|
+| `SPRING_PROFILES_ACTIVE` | `local` | `local` / `docker` / `prod` |
+| `TOKENMETER_WORKDIR` | `${java.io.tmpdir}/tokenmeter-repositories` | Directorio temporal para clones |
+| `TOKENMETER_MAX_REPOSITORY_BYTES` | `104857600` (100 MiB) | Tamaño máximo permitido al clonar |
+| `TOKENMETER_CLONE_TIMEOUT` | `30s` | Timeout de clonado |
+| `POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD` | `tokenmeter` | Solo para Docker Compose |
+| `DATABASE_URL` / `DATABASE_USERNAME` / `DATABASE_PASSWORD` | — | Solo perfil `prod` |
 
 ---
 
-# 🐳 Docker Compose (ejemplo)
+# 🐳 Docker Compose
+
+El [`docker-compose.yml`](docker-compose.yml) en la raíz arranca todo el stack:
+
+```yaml
 services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: tokenmeter
+      POSTGRES_USER: tokenmeter
+      POSTGRES_PASSWORD: tokenmeter
+    ports: ["5432:5432"]
 
- tokenmeter-api:
- build:
- context: ./backend
+  backend:
+    build: { context: ./backend }
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    depends_on:
+      db: { condition: service_healthy }
+    ports: ["8080:8080"]
 
- ports:
- - "8080:8080"
-
- environment:
- SPRING_PROFILES_ACTIVE: docker
- SPRING_DATASOURCE_URL: jdbc:postgresql://tokenmeter-db:5432/tokenmeter
- SPRING_DATASOURCE_USERNAME: tokenmeter
- SPRING_DATASOURCE_PASSWORD: tokenmeter
-
- depends_on:
- - tokenmeter-db
-
- tokenmeter-web:
- build:
- context: ./frontend
-
- ports:
- - "5173:80"
-
- depends_on:
- - tokenmeter-api
-
- tokenmeter-db:
- image: postgres:16
-
- environment:
- POSTGRES_DB: tokenmeter
- POSTGRES_USER: tokenmeter
- POSTGRES_PASSWORD: tokenmeter
+  frontend:
+    build: { context: ./frontend }
+    depends_on: [backend]
+    ports: ["3000:80"]
+```
 
 ---
 
 # 🚀 Despliegue producción
 
-Dominio previsto:
-https://tokenmeter.backendtothefuture.com
+Dominio previsto: <https://tokenmeter.backendtothefuture.com>
 
-Nginx:
+Nginx (esquema):
+
+```nginx
 server {
+  server_name tokenmeter.backendtothefuture.com;
 
- server_name tokenmeter.backendtothefuture.com;
+  location / {
+    proxy_pass http://localhost:3000;
+  }
 
- location / {
- proxy_pass http://localhost:5173;
- }
-
- location /api/ {
- proxy_pass http://localhost:8080;
- }
+  location /api/ {
+    proxy_pass http://localhost:8080;
+  }
 }
+```
 
 ---
 
@@ -459,6 +447,14 @@ server {
 - [ ] GitHub App para repos privados
 - [ ] Exportación CSV/JSON
 - [ ] API pública
+
+---
+
+# 🤝 Contribuir
+
+Lee [`CONTRIBUTING.md`](CONTRIBUTING.md) para setup, convenciones de código y formato de commits (gitmoji + conventional commits).
+
+Si vas a usar un asistente IA para contribuir, [`CLAUDE.md`](CLAUDE.md) tiene los comandos, convenciones y zonas no-go.
 
 ---
 
