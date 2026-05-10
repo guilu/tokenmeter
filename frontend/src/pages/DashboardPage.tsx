@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 
-import { analyzeRepository, ApiError, DEFAULT_REPOSITORY_URL } from '../services/api'
+import { analyzeRepository, ApiError, DEFAULT_REPOSITORY_URL, getAnalysis } from '../services/api'
 import type { RepositoryAnalysisCostEstimateResponse, RepositoryAnalysisResponse } from '../types/api'
 
 const numberFormatter = new Intl.NumberFormat('en-US')
@@ -29,8 +29,35 @@ const modeCopy: Record<CostMode, string> = {
 export function DashboardPage() {
   const [repositoryUrl, setRepositoryUrl] = useState(DEFAULT_REPOSITORY_URL)
   const [analysis, setAnalysis] = useState<RepositoryAnalysisResponse | null>(null)
+  const [routeAnalysisId, setRouteAnalysisId] = useState(() => getAnalysisIdFromLocation())
   const [loading, setLoading] = useState(false)
+  const [sharedLoading, setSharedLoading] = useState(() => Boolean(getAnalysisIdFromLocation()))
   const [error, setError] = useState<string | null>(null)
+  const [sharedError, setSharedError] = useState<string | null>(null)
+
+  useEffect(() => {
+    function handlePopState() {
+      const nextAnalysisId = getAnalysisIdFromLocation()
+      setRouteAnalysisId(nextAnalysisId)
+      setSharedError(null)
+      setSharedLoading(Boolean(nextAnalysisId))
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
+
+  useEffect(() => {
+    if (!routeAnalysisId || analysis?.id === routeAnalysisId) return
+
+    getAnalysis(routeAnalysisId)
+      .then((result) => {
+        setAnalysis(result)
+        setRepositoryUrl(result.repositoryUrl)
+      })
+      .catch((reason: unknown) => setSharedError(toUserMessage(reason)))
+      .finally(() => setSharedLoading(false))
+  }, [analysis?.id, routeAnalysisId])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -47,7 +74,8 @@ export function DashboardPage() {
     try {
       const result = await analyzeRepository(trimmedUrl)
       setAnalysis(result)
-      window.history.pushState(null, '', `#results-${result.id}`)
+      setRouteAnalysisId(result.id)
+      window.history.pushState(null, '', analysisPath(result.id))
     } catch (reason) {
       setError(toUserMessage(reason))
     } finally {
@@ -55,8 +83,30 @@ export function DashboardPage() {
     }
   }
 
+  function handleNewAnalysis() {
+    setAnalysis(null)
+    setRouteAnalysisId(null)
+    setSharedError(null)
+    window.history.pushState(null, '', '/')
+    resetDocumentMetadata()
+  }
+
+  if (routeAnalysisId) {
+    if (analysis?.id === routeAnalysisId) {
+      return <ResultsView analysis={analysis} onNewAnalysis={handleNewAnalysis} />
+    }
+
+    return (
+      <SharedAnalysisState
+        error={sharedError}
+        loading={sharedLoading}
+        onBack={handleNewAnalysis}
+      />
+    )
+  }
+
   if (analysis) {
-    return <ResultsView analysis={analysis} onNewAnalysis={() => setAnalysis(null)} />
+    return <ResultsView analysis={analysis} onNewAnalysis={handleNewAnalysis} />
   }
 
   return (
@@ -137,8 +187,38 @@ function LoadingState({ repositoryUrl }: { repositoryUrl: string }) {
   )
 }
 
+function SharedAnalysisState({ error, loading, onBack }: { error: string | null; loading: boolean; onBack: () => void }) {
+  return (
+    <section className="mx-auto max-w-3xl px-6 py-20">
+      <button className="text-sm text-cyan-200 transition hover:text-cyan-100" onClick={onBack} type="button">
+        ← Back to analyzer
+      </button>
+      <div className="mt-8 rounded-3xl border border-white/10 bg-white/[0.04] p-8 shadow-2xl shadow-black/20">
+        {loading && !error ? (
+          <div className="flex items-center gap-3 text-cyan-100">
+            <span className="h-3 w-3 animate-pulse rounded-full bg-cyan-300" />
+            <span>Loading public analysis…</span>
+          </div>
+        ) : null}
+        {error ? (
+          <>
+            <p className="text-sm text-red-200">Analysis not available</p>
+            <h1 className="mt-3 text-3xl font-semibold text-white">This public analysis could not be loaded.</h1>
+            <p className="mt-3 text-slate-400">{error}</p>
+          </>
+        ) : null}
+      </div>
+    </section>
+  )
+}
+
 function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysisResponse; onNewAnalysis: () => void }) {
   const [selectedMode, setSelectedMode] = useState<CostMode>('raw')
+  const publicUrl = typeof window === 'undefined' ? analysisPath(analysis.id) : new URL(analysisPath(analysis.id), window.location.origin).toString()
+
+  useEffect(() => {
+    updateDocumentMetadata(analysis, publicUrl)
+  }, [analysis, publicUrl])
 
   const languages = useMemo(() => languageBreakdown(analysis), [analysis])
   const estimatesForMode = useMemo(
@@ -167,7 +247,16 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
             Analysis id: {analysis.id} · {dateFormatter.format(new Date(analysis.createdAt))}
           </p>
         </div>
-        <ModeSwitch selectedMode={selectedMode} onSelectMode={setSelectedMode} />
+        <div className="grid gap-3">
+          <ModeSwitch selectedMode={selectedMode} onSelectMode={setSelectedMode} />
+          <button
+            className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-slate-200 transition hover:bg-white/10"
+            onClick={() => void copyPublicUrl(publicUrl)}
+            type="button"
+          >
+            Copy public URL
+          </button>
+        </div>
       </header>
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4" id="metrics">
@@ -351,6 +440,61 @@ function CostSummaryCard({ label, estimate }: { label: string; estimate: Reposit
 
 function languageBreakdown(analysis: RepositoryAnalysisResponse) {
   return Object.values(analysis.metrics.languages).sort((left, right) => right.tokens - left.tokens)
+}
+
+function getAnalysisIdFromLocation() {
+  const match = window.location.pathname.match(/^\/analysis\/([^/]+)\/?$/)
+  return match ? decodeURIComponent(match[1]) : null
+}
+
+function analysisPath(analysisId: string) {
+  return `/analysis/${encodeURIComponent(analysisId)}`
+}
+
+async function copyPublicUrl(publicUrl: string) {
+  if (!navigator.clipboard) return
+  await navigator.clipboard.writeText(publicUrl)
+}
+
+function updateDocumentMetadata(analysis: RepositoryAnalysisResponse, publicUrl: string) {
+  const title = `TokenMeter analysis for ${repositoryName(analysis.repositoryUrl)}`
+  const description = `${numberFormatter.format(analysis.metrics.totalTokens)} tokens, ${numberFormatter.format(analysis.metrics.totalFiles)} files and ${numberFormatter.format(analysis.metrics.totalLines)} lines analyzed.`
+
+  document.title = title
+  setMeta('description', description)
+  setMeta('og:title', title, 'property')
+  setMeta('og:description', description, 'property')
+  setMeta('og:type', 'website', 'property')
+  setMeta('og:url', publicUrl, 'property')
+  setMeta('twitter:card', 'summary_large_image')
+  setMeta('twitter:title', title)
+  setMeta('twitter:description', description)
+}
+
+function resetDocumentMetadata() {
+  document.title = 'TokenMeter — Repository AI cost intelligence'
+  setMeta('description', 'Analyze public GitHub repositories and estimate AI generation costs by model and workflow mode.')
+}
+
+function setMeta(key: string, content: string, attribute: 'name' | 'property' = 'name') {
+  let element = document.head.querySelector<HTMLMetaElement>(`meta[${attribute}="${key}"]`)
+
+  if (!element) {
+    element = document.createElement('meta')
+    element.setAttribute(attribute, key)
+    document.head.appendChild(element)
+  }
+
+  element.content = content
+}
+
+function repositoryName(repositoryUrl: string) {
+  try {
+    const url = new URL(repositoryUrl)
+    return url.pathname.replace(/^\//, '') || repositoryUrl
+  } catch {
+    return repositoryUrl
+  }
 }
 
 function cheapest(estimates: RepositoryAnalysisCostEstimateResponse[]) {
