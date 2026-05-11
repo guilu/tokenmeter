@@ -335,6 +335,8 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
   )
   const cheapestEstimate = useMemo(() => cheapest(estimatesForMode), [estimatesForMode])
   const highestEstimate = useMemo(() => highest(estimatesForMode), [estimatesForMode])
+  const primaryEstimate = cheapestEstimate ?? estimatesForMode[0] ?? null
+  const topLanguage = languages[0]
   const averageCost = average(estimatesForMode.map((estimate) => estimate.totalCost))
 
   return (
@@ -366,6 +368,8 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
           </button>
         </div>
       </header>
+
+      <CostHero analysis={analysis} estimate={primaryEstimate} selectedMode={selectedMode} topLanguage={topLanguage} />
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4" id="metrics">
         <MetricCard label="Tokens" value={compactNumberFormatter.format(analysis.metrics.totalTokens)} hint={`${numberFormatter.format(analysis.metrics.totalTokens)} tracked`} />
@@ -445,6 +449,66 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
         </div>
       </div>
     </section>
+  )
+}
+
+function CostHero({
+  analysis,
+  estimate,
+  selectedMode,
+  topLanguage,
+}: {
+  analysis: RepositoryAnalysisResponse
+  estimate: RepositoryAnalysisCostEstimateResponse | null
+  selectedMode: CostMode
+  topLanguage: ReturnType<typeof languageBreakdown>[number] | undefined
+}) {
+  const repositoryLabel = repositoryName(analysis.repositoryUrl)
+  const modelLabel = estimate ? `${estimate.provider} · ${estimate.model}` : 'No model estimate available'
+
+  return (
+    <section className="relative mt-8 overflow-hidden rounded-[2rem] border border-cyan-300/20 bg-slate-950/90 p-6 shadow-2xl shadow-cyan-950/30 sm:p-8">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.2),_transparent_38%),radial-gradient(circle_at_bottom_right,_rgba(16,185,129,0.16),_transparent_36%)]" />
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300/80 to-transparent" />
+
+      <div className="relative grid gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
+        <div className="min-w-0">
+          <p className="inline-flex rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-sm text-cyan-100">
+            Estimated generation cost
+          </p>
+          <div className="mt-5 transition-all duration-500" key={`${selectedMode}-${estimate?.provider ?? 'none'}-${estimate?.model ?? 'none'}`}>
+            <p className="text-6xl font-semibold tracking-tight text-white sm:text-7xl">
+              {estimate ? currencyFormatter.format(estimate.totalCost) : '$0.00'}
+            </p>
+            <p className="mt-3 text-lg text-slate-300">
+              using <span className="font-medium text-cyan-100">{modelLabel}</span> in {selectedMode} workflow mode
+            </p>
+            <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-400">
+              TokenMeter estimates what it would cost to regenerate {repositoryLabel} with AI, including repository size,
+              token footprint and workflow overhead for the selected mode.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+          <HeroMeta label="Repository" value={repositoryLabel} />
+          <HeroMeta label="Total tokens" value={compactNumberFormatter.format(analysis.metrics.totalTokens)} />
+          <HeroMeta label="Files · languages" value={`${numberFormatter.format(analysis.metrics.totalFiles)} · ${numberFormatter.format(Object.keys(analysis.metrics.languages).length)}`} />
+          <HeroMeta label="Top language" value={topLanguage ? topLanguage.language : 'Unknown'} />
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function HeroMeta({ label, value }: { label: string; value: string }) {
+  return (
+    <article className="min-w-0 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+      <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{label}</p>
+      <p className="mt-2 truncate text-lg font-semibold text-white" title={value}>
+        {value}
+      </p>
+    </article>
   )
 }
 
