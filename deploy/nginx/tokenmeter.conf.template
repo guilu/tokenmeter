@@ -1,0 +1,43 @@
+# Nginx reverse proxy for TokenMeter.
+# Install on the Nginx machine under /etc/nginx/sites-available/tokenmeter.conf
+# and symlink it from /etc/nginx/sites-enabled/.
+#
+# If Nginx runs on a different machine than Docker, TOKENMETER_UPSTREAM_HOST
+# must be the private IP/DNS of the Docker host, not 127.0.0.1.
+
+server {
+  listen 80;
+  listen [::]:80;
+  server_name tokenmeter.backendtothefuture.com;
+
+  location /.well-known/acme-challenge/ {
+    root /var/www/certbot;
+  }
+
+  location / {
+    return 301 https://$host$request_uri;
+  }
+}
+
+server {
+  listen 443 ssl;
+  listen [::]:443 ssl;
+  http2 on;
+  server_name tokenmeter.backendtothefuture.com;
+
+  ssl_certificate ${TOKENMETER_SSL_CERTIFICATE};
+  ssl_certificate_key ${TOKENMETER_SSL_CERTIFICATE_KEY};
+
+  client_max_body_size 10m;
+
+  location / {
+    proxy_pass http://${TOKENMETER_UPSTREAM_HOST}:3001;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header X-Forwarded-Port $server_port;
+  }
+}

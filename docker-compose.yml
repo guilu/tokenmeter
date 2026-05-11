@@ -2,13 +2,15 @@ services:
   db:
     image: postgres:18-alpine
     environment:
-      POSTGRES_DB: tokenmeter
-      POSTGRES_USER: tokenmeter
-      POSTGRES_PASSWORD: tokenmeter
-    ports:
-      - "5432:5432"
+      POSTGRES_DB: ${TOKENMETER_DB_NAME:-tokenmeter}
+      POSTGRES_USER: ${TOKENMETER_DB_USER:-tokenmeter}
+      POSTGRES_PASSWORD: ${TOKENMETER_DB_PASSWORD:-tokenmeter}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U tokenmeter -d tokenmeter"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -20,19 +22,46 @@ services:
       context: ./backend
     environment:
       SPRING_PROFILES_ACTIVE: docker
+      DATABASE_URL: jdbc:postgresql://db:5432/${TOKENMETER_DB_NAME:-tokenmeter}
+      DATABASE_USERNAME: ${TOKENMETER_DB_USER:-tokenmeter}
+      DATABASE_PASSWORD: ${TOKENMETER_DB_PASSWORD:-tokenmeter}
+      TOKENMETER_WORKDIR: ${TOKENMETER_WORKDIR:-/tmp/tokenmeter-repositories}
+      TOKENMETER_MAX_REPOSITORY_BYTES: ${TOKENMETER_MAX_REPOSITORY_BYTES:-314572800}
+      TOKENMETER_CLONE_TIMEOUT: ${TOKENMETER_CLONE_TIMEOUT:-120s}
     depends_on:
       db:
         condition: service_healthy
     ports:
-      - "8080:8080"
+      - "${TOKENMETER_BIND_ADDRESS:-127.0.0.1}:${TOKENMETER_BACKEND_PORT:-8081}:8080"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://127.0.0.1:8080/actuator/health >/dev/null 2>&1 || exit 1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
 
   frontend:
     build:
       context: ./frontend
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     ports:
-      - "3000:80"
+      - "${TOKENMETER_BIND_ADDRESS:-127.0.0.1}:${TOKENMETER_FRONTEND_PORT:-3001}:80"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://127.0.0.1/ >/dev/null 2>&1 || exit 1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
 
 volumes:
   tokenmeter-db:
