@@ -1,0 +1,12 @@
+# Scrape config for an external Prometheus server.
+# Replace <tokenmeter-host> with the Docker host private IP/DNS reachable from Prometheus.
+scrape_configs:
+  - job_name: tokenmeter-backend
+    metrics_path: /actuator/prometheus
+    scheme: http
+    static_configs:
+      - targets:
+          - <tokenmeter-host>:8081
+        labels:
+          app: tokenmeter
+          service: tokenmeter-backend

@@ -50,6 +50,24 @@ Health check.
 
 Endpoint Spring Actuator alternativo: `GET /actuator/health`.
 
+También están disponibles probes Kubernetes-style: `GET /actuator/health/liveness` y `GET /actuator/health/readiness`.
+
+---
+
+## `GET /actuator/prometheus`
+
+Endpoint de métricas Prometheus generado por Spring Actuator + Micrometer.
+
+Pensado para ser consumido por un Prometheus externo al servidor de la app. Hay una configuración base en `deploy/prometheus/tokenmeter-scrape.yml` y un dashboard Grafana importable en `deploy/grafana/tokenmeter-backend-dashboard.json`.
+
+**200 OK** (`text/plain; version=0.0.4`)
+
+```text
+# HELP jvm_info JVM version info
+# TYPE jvm_info gauge
+jvm_info{...} 1.0
+```
+
 ---
 
 ## `POST /api/analyze`
