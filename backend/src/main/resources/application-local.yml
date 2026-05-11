@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/tokenmeter
-    username: tokenmeter
-    password: tokenmeter
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:${TOKENMETER_DB_PORT:5433}/tokenmeter}
+    username: ${DATABASE_USERNAME:${TOKENMETER_DB_USER:tokenmeter}}
+    password: ${DATABASE_PASSWORD:${TOKENMETER_DB_PASSWORD:tokenmeter}}
   jpa:
     hibernate:
       ddl-auto: validate
