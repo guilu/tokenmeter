@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+  <include resource="org/springframework/boot/logging/logback/defaults.xml" />
+
+  <springProperty scope="context" name="applicationName" source="spring.application.name" defaultValue="tokenmeter-backend" />
+
+  <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+      <customFields>{"service":"${applicationName}"}</customFields>
+    </encoder>
+  </appender>
+
+  <appender name="PLAIN_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>${CONSOLE_LOG_PATTERN}</pattern>
+      <charset>${CONSOLE_LOG_CHARSET}</charset>
+    </encoder>
+  </appender>
+
+  <springProfile name="local,test">
+    <root level="INFO">
+      <appender-ref ref="PLAIN_CONSOLE" />
+    </root>
+  </springProfile>
+
+  <springProfile name="!local &amp; !test">
+    <root level="INFO">
+      <appender-ref ref="JSON_CONSOLE" />
+    </root>
+  </springProfile>
+</configuration>

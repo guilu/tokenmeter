@@ -357,6 +357,7 @@ Los contenedores publican frontend/backend en la IP configurada por `TOKENMETER_
 |---|---|---|
 | Frontend | http://localhost:3001 | `TOKENMETER_FRONTEND_PORT` |
 | Backend API | http://localhost:8081 | `TOKENMETER_BACKEND_PORT` |
+| Backend Prometheus | http://localhost:8081/actuator/prometheus | `TOKENMETER_BACKEND_PORT` |
 | PostgreSQL | interno `db:5432` | — |
 
 Los puertos internos siguen siendo `frontend:80`, `backend:8080` y `db:5432`.
@@ -368,7 +369,7 @@ Los puertos internos siguen siendo `frontend:80`, `backend:8080` y `db:5432`.
 | Variable | Default | Descripción |
 |---|---|---|
 | `SPRING_PROFILES_ACTIVE` | `local` | `local` / `docker` / `prod` |
-| `TOKENMETER_BIND_ADDRESS` | `127.0.0.1` | IP host donde publicar frontend/backend. Si Nginx está en otra máquina, usar IP privada del host Docker o `0.0.0.0` con firewall |
+| `TOKENMETER_BIND_ADDRESS` | `127.0.0.1` | IP host donde publicar frontend/backend. Si Nginx, Prometheus o Grafana están en otra máquina, usar IP privada del host Docker o `0.0.0.0` con firewall |
 | `TOKENMETER_FRONTEND_PORT` | `3001` | Puerto host del frontend Docker |
 | `TOKENMETER_BACKEND_PORT` | `8081` | Puerto host del backend Docker |
 | `TOKENMETER_DB_NAME` / `TOKENMETER_DB_USER` / `TOKENMETER_DB_PASSWORD` | `tokenmeter` | Credenciales PostgreSQL Docker |
@@ -387,6 +388,31 @@ El [`docker-compose.yml`](docker-compose.yml) arranca PostgreSQL, backend y fron
 docker compose ps
 docker compose logs -f backend frontend
 ```
+
+---
+
+# 📈 Observabilidad externa
+
+TokenMeter no arranca Prometheus ni Grafana en este compose: se asume que viven en un servidor separado.
+
+El backend expone métricas Spring/Micrometer en:
+
+```text
+GET /actuator/prometheus
+```
+
+Si Prometheus corre fuera del host Docker, configura `TOKENMETER_BIND_ADDRESS` con una IP alcanzable desde el servidor de monitorización —por ejemplo la IP privada del host— y limita el acceso con firewall/security groups.
+
+Archivos incluidos para el servidor externo:
+
+| Archivo | Uso |
+|---|---|
+| [`deploy/prometheus/tokenmeter-scrape.yml`](deploy/prometheus/tokenmeter-scrape.yml) | `scrape_configs` para Prometheus externo |
+| [`deploy/grafana/tokenmeter-backend-dashboard.json`](deploy/grafana/tokenmeter-backend-dashboard.json) | Dashboard importable en Grafana |
+
+Healthchecks disponibles: `/actuator/health`, `/actuator/health/liveness` y `/actuator/health/readiness`.
+
+Los perfiles `docker` y `prod` emiten logs estructurados JSON por stdout. El perfil `local` mantiene logs legibles en consola.
 
 ---
 

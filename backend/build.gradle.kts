@@ -24,6 +24,8 @@ dependencies {
   implementation("org.springframework.boot:spring-boot-starter-web")
   implementation("org.flywaydb:flyway-core")
   implementation("org.flywaydb:flyway-database-postgresql")
+  implementation("io.micrometer:micrometer-registry-prometheus")
+  implementation("net.logstash.logback:logstash-logback-encoder:8.1")
   implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml")
   implementation("com.knuddels:jtokkit:1.1.0")
   runtimeOnly("org.postgresql:postgresql")
