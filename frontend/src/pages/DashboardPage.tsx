@@ -1,22 +1,63 @@
-import { useMemo, useState } from 'react'
-import type { FormEvent } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import type { FormEvent, ReactNode } from 'react'
 
-import { analyzeRepository, ApiError, DEFAULT_REPOSITORY_URL } from '../services/api'
+import { analyzeRepository, ApiError, DEFAULT_REPOSITORY_URL, getAnalysis } from '../services/api'
 import type { RepositoryAnalysisCostEstimateResponse, RepositoryAnalysisResponse } from '../types/api'
 
 const numberFormatter = new Intl.NumberFormat('en-US')
+const compactNumberFormatter = new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 })
 const currencyFormatter = new Intl.NumberFormat('en-US', {
   style: 'currency',
   currency: 'USD',
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 })
+const dateFormatter = new Intl.DateTimeFormat('en-US', {
+  dateStyle: 'medium',
+  timeStyle: 'short',
+})
+
+const costModes = ['raw', 'assisted', 'agentic'] as const
+type CostMode = (typeof costModes)[number]
+
+const modeCopy: Record<CostMode, string> = {
+  raw: 'Final repository output only — the absolute floor.',
+  assisted: 'Human-in-the-loop prompts, corrections and context overhead.',
+  agentic: 'Autonomous loops with heavier reasoning and tool usage overhead.',
+}
 
 export function DashboardPage() {
   const [repositoryUrl, setRepositoryUrl] = useState(DEFAULT_REPOSITORY_URL)
   const [analysis, setAnalysis] = useState<RepositoryAnalysisResponse | null>(null)
+  const [routeAnalysisId, setRouteAnalysisId] = useState(() => getAnalysisIdFromLocation())
   const [loading, setLoading] = useState(false)
+  const [sharedLoading, setSharedLoading] = useState(() => Boolean(getAnalysisIdFromLocation()))
   const [error, setError] = useState<string | null>(null)
+  const [sharedError, setSharedError] = useState<string | null>(null)
+
+  useEffect(() => {
+    function handlePopState() {
+      const nextAnalysisId = getAnalysisIdFromLocation()
+      setRouteAnalysisId(nextAnalysisId)
+      setSharedError(null)
+      setSharedLoading(Boolean(nextAnalysisId))
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
+
+  useEffect(() => {
+    if (!routeAnalysisId || analysis?.id === routeAnalysisId) return
+
+    getAnalysis(routeAnalysisId)
+      .then((result) => {
+        setAnalysis(result)
+        setRepositoryUrl(result.repositoryUrl)
+      })
+      .catch((reason: unknown) => setSharedError(toUserMessage(reason)))
+      .finally(() => setSharedLoading(false))
+  }, [analysis?.id, routeAnalysisId])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -33,7 +74,8 @@ export function DashboardPage() {
     try {
       const result = await analyzeRepository(trimmedUrl)
       setAnalysis(result)
-      window.history.pushState(null, '', `#results-${result.id}`)
+      setRouteAnalysisId(result.id)
+      window.history.pushState(null, '', analysisPath(result.id))
     } catch (reason) {
       setError(toUserMessage(reason))
     } finally {
@@ -41,8 +83,30 @@ export function DashboardPage() {
     }
   }
 
+  function handleNewAnalysis() {
+    setAnalysis(null)
+    setRouteAnalysisId(null)
+    setSharedError(null)
+    window.history.pushState(null, '', '/')
+    resetDocumentMetadata()
+  }
+
+  if (routeAnalysisId) {
+    if (analysis?.id === routeAnalysisId) {
+      return <ResultsView analysis={analysis} onNewAnalysis={handleNewAnalysis} />
+    }
+
+    return (
+      <SharedAnalysisState
+        error={sharedError}
+        loading={sharedLoading}
+        onBack={handleNewAnalysis}
+      />
+    )
+  }
+
   if (analysis) {
-    return <ResultsView analysis={analysis} onNewAnalysis={() => setAnalysis(null)} />
+    return <ResultsView analysis={analysis} onNewAnalysis={handleNewAnalysis} />
   }
 
   return (
@@ -99,14 +163,10 @@ export function DashboardPage() {
         <aside className="rounded-3xl border border-white/10 bg-slate-900/60 p-6 shadow-2xl shadow-black/30">
           <p className="text-sm text-slate-400">Workflow simulation</p>
           <div className="mt-6 space-y-4">
-            {[
-              ['Raw mode', 'Final repository output only — the absolute floor.'],
-              ['Assisted mode', 'Human-in-the-loop iterations, prompts, context and corrections.'],
-              ['Agentic mode', 'Autonomous loops with heavier reasoning and tool overhead.'],
-            ].map(([title, copy]) => (
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4" key={title}>
-                <p className="font-medium text-white">{title}</p>
-                <p className="mt-1 text-sm leading-6 text-slate-400">{copy}</p>
+            {costModes.map((mode) => (
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4" key={mode}>
+                <p className="font-medium text-white capitalize">{mode} mode</p>
+                <p className="mt-1 text-sm leading-6 text-slate-400">{modeCopy[mode]}</p>
               </div>
             ))}
           </div>
@@ -127,44 +187,129 @@ function LoadingState({ repositoryUrl }: { repositoryUrl: string }) {
   )
 }
 
+function SharedAnalysisState({ error, loading, onBack }: { error: string | null; loading: boolean; onBack: () => void }) {
+  return (
+    <section className="mx-auto max-w-3xl px-6 py-20">
+      <button className="text-sm text-cyan-200 transition hover:text-cyan-100" onClick={onBack} type="button">
+        ← Back to analyzer
+      </button>
+      <div className="mt-8 rounded-3xl border border-white/10 bg-white/[0.04] p-8 shadow-2xl shadow-black/20">
+        {loading && !error ? (
+          <div className="flex items-center gap-3 text-cyan-100">
+            <span className="h-3 w-3 animate-pulse rounded-full bg-cyan-300" />
+            <span>Loading public analysis…</span>
+          </div>
+        ) : null}
+        {error ? (
+          <>
+            <p className="text-sm text-red-200">Analysis not available</p>
+            <h1 className="mt-3 text-3xl font-semibold text-white">This public analysis could not be loaded.</h1>
+            <p className="mt-3 text-slate-400">{error}</p>
+          </>
+        ) : null}
+      </div>
+    </section>
+  )
+}
+
 function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysisResponse; onNewAnalysis: () => void }) {
-  const cheapestEstimate = useMemo(() => cheapest(analysis.costEstimates), [analysis.costEstimates])
-  const highestEstimate = useMemo(() => highest(analysis.costEstimates), [analysis.costEstimates])
-  const providers = new Set(analysis.costEstimates.map((estimate) => estimate.provider))
+  const [selectedMode, setSelectedMode] = useState<CostMode>('raw')
+  const publicUrl = typeof window === 'undefined' ? analysisPath(analysis.id) : new URL(analysisPath(analysis.id), window.location.origin).toString()
+
+  useEffect(() => {
+    updateDocumentMetadata(analysis, publicUrl)
+  }, [analysis, publicUrl])
+
+  const languages = useMemo(() => languageBreakdown(analysis), [analysis])
+  const estimatesForMode = useMemo(
+    () => analysis.costEstimates.filter((estimate) => estimate.mode === selectedMode),
+    [analysis.costEstimates, selectedMode],
+  )
+  const cheapestEstimate = useMemo(() => cheapest(estimatesForMode), [estimatesForMode])
+  const highestEstimate = useMemo(() => highest(estimatesForMode), [estimatesForMode])
+  const averageCost = average(estimatesForMode.map((estimate) => estimate.totalCost))
 
   return (
-    <section className="mx-auto max-w-6xl px-6 py-16" id="results">
+    <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-16" id="results">
       <button className="text-sm text-cyan-200 transition hover:text-cyan-100" onClick={onNewAnalysis} type="button">
         ← Analyze another repository
       </button>
-      <div className="mt-6 max-w-full lg:max-w-4xl">
-        <p className="mb-4 inline-flex rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-sm text-emerald-200">
-          Analysis complete
-        </p>
-        <h1
-          className="truncate text-xl font-semibold tracking-tight text-white sm:text-3xl lg:text-5xl"
-          title={analysis.repositoryUrl}
-        >
-          {analysis.repositoryUrl}
-        </h1>
-        <p className="mt-4 truncate text-sm text-slate-400 sm:text-base" title={analysis.id}>
-          Analysis id: {analysis.id}
-        </p>
+
+      <header className="mt-6 grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
+        <div className="min-w-0">
+          <p className="mb-4 inline-flex rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-sm text-emerald-200">
+            Analysis complete
+          </p>
+          <h1 className="truncate text-2xl font-semibold tracking-tight text-white sm:text-4xl" title={analysis.repositoryUrl}>
+            {analysis.repositoryUrl}
+          </h1>
+          <p className="mt-3 truncate text-sm text-slate-400" title={analysis.id}>
+            Analysis id: {analysis.id} · {dateFormatter.format(new Date(analysis.createdAt))}
+          </p>
+        </div>
+        <div className="grid gap-3">
+          <ModeSwitch selectedMode={selectedMode} onSelectMode={setSelectedMode} />
+          <button
+            className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-slate-200 transition hover:bg-white/10"
+            onClick={() => void copyPublicUrl(publicUrl)}
+            type="button"
+          >
+            Copy public URL
+          </button>
+        </div>
+      </header>
+
+      <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4" id="metrics">
+        <MetricCard label="Tokens" value={compactNumberFormatter.format(analysis.metrics.totalTokens)} hint={`${numberFormatter.format(analysis.metrics.totalTokens)} tracked`} />
+        <MetricCard label="Files" value={numberFormatter.format(analysis.metrics.totalFiles)} hint={`${numberFormatter.format(analysis.metrics.totalLines)} total lines`} />
+        <MetricCard label="Languages" value={numberFormatter.format(languages.length)} hint={`${analysis.metrics.tokenEncoding} encoding`} />
+        <MetricCard label="Avg. cost" value={currencyFormatter.format(averageCost)} hint={`${selectedMode} mode across ${estimatesForMode.length} models`} />
       </div>
 
-      <div className="mt-10 grid gap-4 sm:grid-cols-2 xl:grid-cols-4" id="metrics">
-        <MetricCard label="Tokens tracked" value={numberFormatter.format(analysis.metrics.totalTokens)} hint={`${numberFormatter.format(analysis.metrics.totalFiles)} files analyzed`} />
-        <MetricCard label="Lowest estimate" value={cheapestEstimate ? currencyFormatter.format(cheapestEstimate.totalCost) : '$0.00'} hint={cheapestEstimate ? `${cheapestEstimate.provider} · ${cheapestEstimate.model} · ${cheapestEstimate.mode}` : 'No estimates available'} />
-        <MetricCard label="Highest estimate" value={highestEstimate ? currencyFormatter.format(highestEstimate.totalCost) : '$0.00'} hint={highestEstimate ? `${highestEstimate.provider} · ${highestEstimate.model} · ${highestEstimate.mode}` : 'No estimates available'} />
-        <MetricCard label="Providers" value={numberFormatter.format(providers.size)} hint={`${analysis.costEstimates.length} model/mode estimates`} />
+      <div className="mt-8 grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
+        <Panel eyebrow="Language breakdown" title="Repository composition">
+          <BarList
+            emptyLabel="No language metrics available."
+            items={languages.slice(0, 8).map((language) => ({
+              label: language.language,
+              value: language.tokens,
+              helper: `${numberFormatter.format(language.files)} files · ${numberFormatter.format(language.lines)} lines`,
+              percent: percentOf(language.tokens, analysis.metrics.totalTokens),
+            }))}
+            valueFormatter={(value) => `${compactNumberFormatter.format(value)} tokens`}
+          />
+        </Panel>
+
+        <Panel eyebrow="AI costs" title={`${capitalize(selectedMode)} mode estimates`}>
+          <div className="mb-5 grid gap-3 sm:grid-cols-2">
+            <CostSummaryCard label="Lowest" estimate={cheapestEstimate} />
+            <CostSummaryCard label="Highest" estimate={highestEstimate} />
+          </div>
+          <BarList
+            emptyLabel="No cost estimates available for this mode."
+            items={estimatesForMode
+              .slice()
+              .sort((left, right) => right.totalCost - left.totalCost)
+              .map((estimate) => ({
+                label: estimate.model,
+                value: estimate.totalCost,
+                helper: estimate.provider,
+                percent: percentOf(estimate.totalCost, highestEstimate?.totalCost ?? 0),
+              }))}
+            valueFormatter={(value) => currencyFormatter.format(value)}
+          />
+        </Panel>
       </div>
 
-      <div className="mt-8 rounded-3xl border border-white/10 bg-white/[0.03] p-6">
-        <div className="flex items-center justify-between gap-4">
+      <div className="mt-8 rounded-3xl border border-white/10 bg-white/[0.03] p-4 sm:p-6">
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
             <p className="text-sm text-slate-400">Cost breakdown</p>
             <h2 className="mt-1 text-2xl font-semibold text-white">AI generation estimates</h2>
           </div>
+          <p className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-sm text-cyan-100">
+            {capitalize(selectedMode)} mode
+          </p>
         </div>
         <div className="mt-6 overflow-hidden rounded-2xl border border-white/10">
           <table className="min-w-full divide-y divide-white/10 text-sm">
@@ -178,7 +323,7 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
               </tr>
             </thead>
             <tbody className="divide-y divide-white/10 text-slate-200">
-              {analysis.costEstimates.slice(0, 12).map((estimate) => (
+              {estimatesForMode.map((estimate) => (
                 <tr key={`${estimate.provider}-${estimate.model}-${estimate.mode}`}>
                   <td className="hidden px-4 py-3 capitalize sm:table-cell">{estimate.provider}</td>
                   <td className="px-4 py-3">{estimate.model}</td>
@@ -195,14 +340,161 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
   )
 }
 
+function ModeSwitch({ selectedMode, onSelectMode }: { selectedMode: CostMode; onSelectMode: (mode: CostMode) => void }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-1">
+      <div className="grid grid-cols-3 gap-1">
+        {costModes.map((mode) => {
+          const active = selectedMode === mode
+          return (
+            <button
+              className={`rounded-xl px-3 py-2 text-sm font-medium capitalize transition ${
+                active ? 'bg-cyan-300 text-slate-950' : 'text-slate-300 hover:bg-white/10 hover:text-white'
+              }`}
+              key={mode}
+              onClick={() => onSelectMode(mode)}
+              type="button"
+            >
+              {mode}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 function MetricCard({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
-    <article className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 shadow-2xl shadow-black/20">
+    <article className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 shadow-2xl shadow-black/20 sm:p-6">
       <p className="text-sm text-slate-400">{label}</p>
       <p className="mt-3 text-3xl font-semibold text-white">{value}</p>
       <p className="mt-2 text-sm text-slate-500">{hint}</p>
     </article>
   )
+}
+
+function Panel({ eyebrow, title, children }: { eyebrow: string; title: string; children: ReactNode }) {
+  return (
+    <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-5 shadow-2xl shadow-black/20 sm:p-6">
+      <p className="text-sm text-slate-400">{eyebrow}</p>
+      <h2 className="mt-1 text-2xl font-semibold text-white">{title}</h2>
+      <div className="mt-6">{children}</div>
+    </section>
+  )
+}
+
+function BarList({
+  emptyLabel,
+  items,
+  valueFormatter,
+}: {
+  emptyLabel: string
+  items: Array<{ label: string; value: number; helper: string; percent: number }>
+  valueFormatter: (value: number) => string
+}) {
+  if (items.length === 0) {
+    return <p className="rounded-2xl border border-dashed border-white/10 p-6 text-sm text-slate-400">{emptyLabel}</p>
+  }
+
+  return (
+    <div className="space-y-4">
+      {items.map((item) => (
+        <div key={`${item.label}-${item.helper}`}>
+          <div className="mb-2 flex items-start justify-between gap-3 text-sm">
+            <div className="min-w-0">
+              <p className="truncate font-medium text-white" title={item.label}>
+                {item.label}
+              </p>
+              <p className="truncate text-slate-500" title={item.helper}>
+                {item.helper}
+              </p>
+            </div>
+            <p className="shrink-0 text-right font-medium text-cyan-100">{valueFormatter(item.value)}</p>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-white/10">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-cyan-300 to-emerald-300"
+              style={{ width: `${Math.max(2, Math.min(100, item.percent))}%` }}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function CostSummaryCard({ label, estimate }: { label: string; estimate: RepositoryAnalysisCostEstimateResponse | null }) {
+  return (
+    <article className="rounded-2xl border border-white/10 bg-slate-950/50 p-4">
+      <p className="text-sm text-slate-400">{label}</p>
+      <p className="mt-2 text-2xl font-semibold text-white">
+        {estimate ? currencyFormatter.format(estimate.totalCost) : '$0.00'}
+      </p>
+      <p className="mt-1 truncate text-sm text-slate-500" title={estimate ? `${estimate.provider} · ${estimate.model}` : undefined}>
+        {estimate ? `${estimate.provider} · ${estimate.model}` : 'No estimates available'}
+      </p>
+    </article>
+  )
+}
+
+function languageBreakdown(analysis: RepositoryAnalysisResponse) {
+  return Object.values(analysis.metrics.languages).sort((left, right) => right.tokens - left.tokens)
+}
+
+function getAnalysisIdFromLocation() {
+  const match = window.location.pathname.match(/^\/analysis\/([^/]+)\/?$/)
+  return match ? decodeURIComponent(match[1]) : null
+}
+
+function analysisPath(analysisId: string) {
+  return `/analysis/${encodeURIComponent(analysisId)}`
+}
+
+async function copyPublicUrl(publicUrl: string) {
+  if (!navigator.clipboard) return
+  await navigator.clipboard.writeText(publicUrl)
+}
+
+function updateDocumentMetadata(analysis: RepositoryAnalysisResponse, publicUrl: string) {
+  const title = `TokenMeter analysis for ${repositoryName(analysis.repositoryUrl)}`
+  const description = `${numberFormatter.format(analysis.metrics.totalTokens)} tokens, ${numberFormatter.format(analysis.metrics.totalFiles)} files and ${numberFormatter.format(analysis.metrics.totalLines)} lines analyzed.`
+
+  document.title = title
+  setMeta('description', description)
+  setMeta('og:title', title, 'property')
+  setMeta('og:description', description, 'property')
+  setMeta('og:type', 'website', 'property')
+  setMeta('og:url', publicUrl, 'property')
+  setMeta('twitter:card', 'summary_large_image')
+  setMeta('twitter:title', title)
+  setMeta('twitter:description', description)
+}
+
+function resetDocumentMetadata() {
+  document.title = 'TokenMeter — Repository AI cost intelligence'
+  setMeta('description', 'Analyze public GitHub repositories and estimate AI generation costs by model and workflow mode.')
+}
+
+function setMeta(key: string, content: string, attribute: 'name' | 'property' = 'name') {
+  let element = document.head.querySelector<HTMLMetaElement>(`meta[${attribute}="${key}"]`)
+
+  if (!element) {
+    element = document.createElement('meta')
+    element.setAttribute(attribute, key)
+    document.head.appendChild(element)
+  }
+
+  element.content = content
+}
+
+function repositoryName(repositoryUrl: string) {
+  try {
+    const url = new URL(repositoryUrl)
+    return url.pathname.replace(/^\//, '') || repositoryUrl
+  } catch {
+    return repositoryUrl
+  }
 }
 
 function cheapest(estimates: RepositoryAnalysisCostEstimateResponse[]) {
@@ -217,6 +509,20 @@ function highest(estimates: RepositoryAnalysisCostEstimateResponse[]) {
     if (best === null) return estimate
     return estimate.totalCost > best.totalCost ? estimate : best
   }, null)
+}
+
+function average(values: number[]) {
+  if (values.length === 0) return 0
+  return values.reduce((sum, value) => sum + value, 0) / values.length
+}
+
+function percentOf(value: number, total: number) {
+  if (total <= 0) return 0
+  return (value / total) * 100
+}
+
+function capitalize(value: string) {
+  return value.charAt(0).toUpperCase() + value.slice(1)
 }
 
 function isValidGitHubUrl(value: string) {

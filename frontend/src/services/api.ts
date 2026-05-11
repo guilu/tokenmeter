@@ -46,6 +46,16 @@ export async function analyzeRepository(
   return response.json() as Promise<RepositoryAnalysisResponse>
 }
 
+export async function getAnalysis(analysisId: string): Promise<RepositoryAnalysisResponse> {
+  const response = await fetch(`/api/analyze/${encodeURIComponent(analysisId)}`)
+
+  if (!response.ok) {
+    throw await toApiError(response, 'Analysis request failed')
+  }
+
+  return response.json() as Promise<RepositoryAnalysisResponse>
+}
+
 export async function getPricing(): Promise<PricingResponse> {
   const response = await fetch('/api/pricing')
 
