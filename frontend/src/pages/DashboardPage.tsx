@@ -21,9 +21,9 @@ const costModes = ['raw', 'assisted', 'agentic'] as const
 type CostMode = (typeof costModes)[number]
 
 const modeCopy: Record<CostMode, string> = {
-  raw: 'Final repository output only — the absolute floor.',
-  assisted: 'Human-in-the-loop prompts, corrections and context overhead.',
-  agentic: 'Autonomous loops with heavier reasoning and tool usage overhead.',
+  raw: 'Price the final codebase as if the repository appeared in one clean generation pass.',
+  assisted: 'Model the real workflow: prompts, reviews, fixes and context loaded by engineers.',
+  agentic: 'Estimate autonomous build loops with planning, tool calls, retries and reasoning overhead.',
 }
 
 export function DashboardPage() {
@@ -115,13 +115,13 @@ export function DashboardPage() {
       <div className="mx-auto grid max-w-6xl gap-12 px-6 py-16 lg:grid-cols-[1.1fr_0.9fr] lg:py-24">
         <div>
           <p className="mb-4 inline-flex rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-sm text-cyan-200">
-            Repository cost intelligence
+            AI repository cost intelligence
           </p>
           <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-6xl">
-            Estimate what a repository would cost to generate with AI.
+            Simulate the AI generation cost of any GitHub repository.
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-400">
-            Submit a public GitHub repository and TokenMeter will scan files, count tokens, and calculate raw, assisted, and agentic generation costs per AI model.
+            TokenMeter scans a public codebase, measures its token footprint and benchmarks what it would cost to generate with modern AI models across raw, assisted and agentic workflows.
           </p>
 
           <form
@@ -147,7 +147,7 @@ export function DashboardPage() {
                 disabled={loading}
                 type="submit"
               >
-                {loading ? 'Analyzing…' : 'Analyze repository'}
+                {loading ? 'Simulating…' : 'Simulate generation cost'}
               </button>
             </div>
             {error ? (
@@ -161,7 +161,7 @@ export function DashboardPage() {
         </div>
 
         <aside className="rounded-3xl border border-white/10 bg-slate-900/60 p-6 shadow-2xl shadow-black/30">
-          <p className="text-sm text-slate-400">Workflow simulation</p>
+          <p className="text-sm text-slate-400">Generation economics model</p>
           <div className="mt-6 space-y-4">
             {costModes.map((mode) => (
               <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4" key={mode}>
@@ -181,7 +181,7 @@ function LoadingState({ repositoryUrl }: { repositoryUrl: string }) {
     <div className="mt-6 rounded-3xl border border-cyan-300/20 bg-cyan-300/10 p-5 text-sm text-cyan-100">
       <div className="flex items-center gap-3">
         <span className="h-3 w-3 animate-pulse rounded-full bg-cyan-300" />
-        <span>Cloning, scanning and pricing {repositoryUrl.trim()}…</span>
+        <span>Cloning, scanning and simulating AI generation economics for {repositoryUrl.trim()}…</span>
       </div>
     </div>
   )
@@ -472,8 +472,8 @@ function updateDocumentMetadata(analysis: RepositoryAnalysisResponse, publicUrl:
 }
 
 function resetDocumentMetadata() {
-  document.title = 'TokenMeter — Repository AI cost intelligence'
-  setMeta('description', 'Analyze public GitHub repositories and estimate AI generation costs by model and workflow mode.')
+  document.title = 'TokenMeter — AI repository cost intelligence'
+  setMeta('description', 'Simulate the cost of generating public GitHub repositories with modern AI models and workflow modes.')
 }
 
 function setMeta(key: string, content: string, attribute: 'name' | 'property' = 'name') {

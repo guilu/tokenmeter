@@ -11,7 +11,7 @@ export function AppShell({ children }: PropsWithChildren) {
             </div>
             <div>
               <p className="text-sm font-semibold tracking-tight">TokenMeter</p>
-              <p className="text-xs text-slate-400">AI usage intelligence</p>
+              <p className="text-xs text-slate-400">Repository generation economics</p>
             </div>
           </div>
           <nav className="hidden items-center gap-6 text-sm text-slate-400 sm:flex">
