@@ -364,7 +364,9 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
   const [selectedMode, setSelectedMode] = useState<CostMode>('raw')
   const [comparisonSort, setComparisonSort] = useState<ComparisonSort>('cost')
   const [providerFilter, setProviderFilter] = useState<ProviderFilter>('all')
+  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle')
   const publicUrl = typeof window === 'undefined' ? analysisPath(analysis.id) : new URL(analysisPath(analysis.id), window.location.origin).toString()
+  const selectedOpenGraphImageUrl = openGraphImageUrl(analysis.id, publicUrl, selectedMode)
 
   useEffect(() => {
     updateDocumentMetadata(analysis, publicUrl)
@@ -387,6 +389,12 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
   const providersForMode = useMemo(() => uniqueProviders(estimatesForMode), [estimatesForMode])
   const averageCost = average(estimatesForMode.map((estimate) => estimate.totalCost))
 
+  async function handleCopyPublicUrl() {
+    const copied = await copyPublicUrl(publicUrl)
+    setCopyState(copied ? 'copied' : 'failed')
+    window.setTimeout(() => setCopyState('idle'), 2200)
+  }
+
   return (
     <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-16" id="results">
       <button className="text-sm text-cyan-200 transition hover:text-cyan-100" onClick={onNewAnalysis} type="button">
@@ -407,17 +415,33 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
         </div>
         <div className="grid gap-3">
           <ModeSwitch selectedMode={selectedMode} onSelectMode={setSelectedMode} />
-          <button
-            className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-slate-200 transition hover:bg-white/10"
-            onClick={() => void copyPublicUrl(publicUrl)}
-            type="button"
-          >
-            Copy public URL
-          </button>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
+            <button
+              className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-slate-200 transition hover:bg-white/10"
+              onClick={() => void handleCopyPublicUrl()}
+              type="button"
+            >
+              {copyState === 'copied' ? 'Copied public URL' : copyState === 'failed' ? 'Copy failed' : 'Copy public URL'}
+            </button>
+            <a
+              className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-3 text-center text-sm font-medium text-cyan-100 transition hover:bg-cyan-300/20"
+              href={selectedOpenGraphImageUrl}
+              rel="noreferrer"
+              target="_blank"
+            >
+              Open OG image
+            </a>
+          </div>
         </div>
       </header>
 
-      <CostHero analysis={analysis} estimate={primaryEstimate} selectedMode={selectedMode} topLanguage={topLanguage} />
+      <CostHero
+        analysis={analysis}
+        highestEstimate={highestEstimate}
+        lowestEstimate={cheapestEstimate}
+        selectedMode={selectedMode}
+        topLanguage={topLanguage}
+      />
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4" id="metrics">
         <MetricCard label="Tokens" value={compactNumberFormatter.format(analysis.metrics.totalTokens)} hint={`${numberFormatter.format(analysis.metrics.totalTokens)} tracked`} />
@@ -693,17 +717,20 @@ function TierBadge({ tier }: { tier: string }) {
 
 function CostHero({
   analysis,
-  estimate,
+  highestEstimate,
+  lowestEstimate,
   selectedMode,
   topLanguage,
 }: {
   analysis: RepositoryAnalysisResponse
-  estimate: RepositoryAnalysisCostEstimateResponse | null
+  highestEstimate: RepositoryAnalysisCostEstimateResponse | null
+  lowestEstimate: RepositoryAnalysisCostEstimateResponse | null
   selectedMode: CostMode
   topLanguage: ReturnType<typeof languageBreakdown>[number] | undefined
 }) {
   const repositoryLabel = repositoryName(analysis.repositoryUrl)
-  const modelLabel = estimate ? `${estimate.provider} · ${estimate.model}` : 'No model estimate available'
+  const costRange = costRangeLabel(lowestEstimate, highestEstimate)
+  const modelRange = modelRangeLabel(lowestEstimate, highestEstimate)
 
   return (
     <section className="relative mt-8 overflow-hidden rounded-[2rem] border border-cyan-300/20 bg-slate-950/90 p-6 shadow-2xl shadow-cyan-950/30 sm:p-8">
@@ -713,14 +740,14 @@ function CostHero({
       <div className="relative grid gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
         <div className="min-w-0">
           <p className="inline-flex rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-sm text-cyan-100">
-            Estimated generation cost
+            Estimated generation cost range
           </p>
-          <div className="mt-5 transition-all duration-500" key={`${selectedMode}-${estimate?.provider ?? 'none'}-${estimate?.model ?? 'none'}`}>
-            <p className="text-6xl font-semibold tracking-tight text-white sm:text-7xl">
-              {estimate ? currencyFormatter.format(estimate.totalCost) : '$0.00'}
+          <div className="mt-5 transition-all duration-500" key={`${selectedMode}-${lowestEstimate?.provider ?? 'none'}-${highestEstimate?.provider ?? 'none'}`}>
+            <p className="text-5xl font-semibold tracking-tight text-white sm:text-7xl">
+              {costRange}
             </p>
             <p className="mt-3 text-lg text-slate-300">
-              using <span className="font-medium text-cyan-100">{modelLabel}</span> in {selectedMode} workflow mode
+              from <span className="font-medium text-cyan-100">{modelRange}</span> in {selectedMode} workflow mode
             </p>
             <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-400">
               TokenMeter estimates what it would cost to regenerate {repositoryLabel} with AI, including repository size,
@@ -911,7 +938,10 @@ function languageBreakdown(analysis: RepositoryAnalysisResponse) {
 
 function getAnalysisIdFromLocation() {
   const match = window.location.pathname.match(/^\/analysis\/([^/]+)\/?$/)
-  return match ? decodeURIComponent(match[1]) : null
+  if (match) return decodeURIComponent(match[1])
+
+  const searchParams = new URLSearchParams(window.location.search)
+  return searchParams.get('analysis')
 }
 
 function analysisPath(analysisId: string) {
@@ -919,13 +949,41 @@ function analysisPath(analysisId: string) {
 }
 
 async function copyPublicUrl(publicUrl: string) {
-  if (!navigator.clipboard) return
-  await navigator.clipboard.writeText(publicUrl)
+  if (navigator.clipboard?.writeText && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(publicUrl)
+      return true
+    } catch {
+      // Fall back to the legacy selection path below.
+    }
+  }
+
+  const input = document.createElement('input')
+  input.value = publicUrl
+  input.setAttribute('readonly', '')
+  input.style.position = 'fixed'
+  input.style.left = '-9999px'
+  input.style.top = '0'
+  document.body.appendChild(input)
+  input.focus()
+  input.select()
+  input.setSelectionRange(0, input.value.length)
+
+  try {
+    return document.execCommand('copy')
+  } finally {
+    document.body.removeChild(input)
+  }
 }
 
 function updateDocumentMetadata(analysis: RepositoryAnalysisResponse, publicUrl: string) {
   const title = `TokenMeter analysis for ${repositoryName(analysis.repositoryUrl)}`
-  const description = `${numberFormatter.format(analysis.metrics.totalTokens)} tokens, ${numberFormatter.format(analysis.metrics.totalFiles)} files and ${numberFormatter.format(analysis.metrics.totalLines)} lines analyzed.`
+  const rawEstimates = analysis.costEstimates.filter((estimate) => estimate.mode === 'raw')
+  const lowestRawEstimate = cheapest(rawEstimates) ?? cheapest(analysis.costEstimates)
+  const highestRawEstimate = highest(rawEstimates) ?? highest(analysis.costEstimates)
+  const costSummary = lowestRawEstimate && highestRawEstimate ? `${costRangeLabel(lowestRawEstimate, highestRawEstimate)} across supported models` : 'AI generation cost benchmark'
+  const description = `${numberFormatter.format(analysis.metrics.totalTokens)} tokens, ${numberFormatter.format(analysis.metrics.totalFiles)} files and ${numberFormatter.format(analysis.metrics.totalLines)} lines analyzed. ${costSummary}.`
+  const imageUrl = openGraphImageUrl(analysis.id, publicUrl, lowestRawEstimate?.mode ?? 'raw')
 
   document.title = title
   setMeta('description', description)
@@ -933,14 +991,27 @@ function updateDocumentMetadata(analysis: RepositoryAnalysisResponse, publicUrl:
   setMeta('og:description', description, 'property')
   setMeta('og:type', 'website', 'property')
   setMeta('og:url', publicUrl, 'property')
+  setMeta('og:image', imageUrl, 'property')
+  setMeta('og:image:secure_url', imageUrl, 'property')
+  setMeta('og:image:type', 'image/png', 'property')
+  setMeta('og:image:width', '1200', 'property')
+  setMeta('og:image:height', '630', 'property')
   setMeta('twitter:card', 'summary_large_image')
   setMeta('twitter:title', title)
   setMeta('twitter:description', description)
+  setMeta('twitter:image', imageUrl)
 }
 
 function resetDocumentMetadata() {
   document.title = 'TokenMeter — AI repository cost intelligence'
   setMeta('description', 'Simulate the cost of generating public GitHub repositories with modern AI models and workflow modes.')
+  setMeta('og:image', '/favicon.svg', 'property')
+  setMeta('twitter:image', '/favicon.svg')
+}
+
+function openGraphImageUrl(analysisId: string, publicUrl: string, mode: CostMode) {
+  const publicUrlOrigin = new URL(publicUrl).origin
+  return new URL(`/api/analyze/${encodeURIComponent(analysisId)}/og-image.png?mode=${mode}&v=range`, publicUrlOrigin).toString()
 }
 
 function setMeta(key: string, content: string, attribute: 'name' | 'property' = 'name') {
@@ -973,6 +1044,26 @@ function repositoryNameFromUrl(repositoryUrl: string) {
   } catch {
     return repositoryUrl
   }
+}
+
+function costRangeLabel(
+  lowestEstimate: RepositoryAnalysisCostEstimateResponse | null,
+  highestEstimate: RepositoryAnalysisCostEstimateResponse | null,
+) {
+  if (!lowestEstimate || !highestEstimate) return '$0.00'
+  const lowest = currencyFormatter.format(lowestEstimate.totalCost)
+  const highest = currencyFormatter.format(highestEstimate.totalCost)
+  return lowest === highest ? lowest : `${lowest} – ${highest}`
+}
+
+function modelRangeLabel(
+  lowestEstimate: RepositoryAnalysisCostEstimateResponse | null,
+  highestEstimate: RepositoryAnalysisCostEstimateResponse | null,
+) {
+  if (!lowestEstimate || !highestEstimate) return 'No model estimate available'
+  const lowest = `${lowestEstimate.provider} · ${lowestEstimate.model}`
+  const highest = `${highestEstimate.provider} · ${highestEstimate.model}`
+  return lowest === highest ? lowest : `${lowest} to ${highest}`
 }
 
 function uniqueProviders(estimates: RepositoryAnalysisCostEstimateResponse[]) {
