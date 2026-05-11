@@ -341,6 +341,8 @@ npm run dev
 
 ## Docker Compose
 ```bash
+cp .env.example .env
+# ajusta .env si necesitas otros puertos/credenciales
 docker compose up --build -d
 ```
 
@@ -348,13 +350,17 @@ docker compose up --build -d
 
 ---
 
-# 🌍 Servicios
+# 🌍 Servicios Docker
 
-| Servicio | URL |
-|---|---|
-| Frontend | http://localhost:3000 |
-| Backend API | http://localhost:8080 |
-| PostgreSQL | localhost:5432 |
+Los contenedores publican frontend/backend en la IP configurada por `TOKENMETER_BIND_ADDRESS`. PostgreSQL queda interno en la red Docker, sin puerto host.
+
+| Servicio | Default | Variable |
+|---|---|---|
+| Frontend | http://localhost:3001 | `TOKENMETER_FRONTEND_PORT` |
+| Backend API | http://localhost:8081 | `TOKENMETER_BACKEND_PORT` |
+| PostgreSQL | interno `db:5432` | — |
+
+Los puertos internos siguen siendo `frontend:80`, `backend:8080` y `db:5432`.
 
 ---
 
@@ -363,63 +369,41 @@ docker compose up --build -d
 | Variable | Default | Descripción |
 |---|---|---|
 | `SPRING_PROFILES_ACTIVE` | `local` | `local` / `docker` / `prod` |
+| `TOKENMETER_BIND_ADDRESS` | `127.0.0.1` | IP host donde publicar frontend/backend. Si Nginx está en otra máquina, usar IP privada del host Docker o `0.0.0.0` con firewall |
+| `TOKENMETER_FRONTEND_PORT` | `3001` | Puerto host del frontend Docker |
+| `TOKENMETER_BACKEND_PORT` | `8081` | Puerto host del backend Docker |
+| `TOKENMETER_DB_NAME` / `TOKENMETER_DB_USER` / `TOKENMETER_DB_PASSWORD` | `tokenmeter` | Credenciales PostgreSQL Docker |
 | `TOKENMETER_WORKDIR` | `${java.io.tmpdir}/tokenmeter-repositories` | Directorio temporal para clones |
 | `TOKENMETER_MAX_REPOSITORY_BYTES` | `314572800` (300 MiB) | Tamaño máximo permitido al clonar |
 | `TOKENMETER_CLONE_TIMEOUT` | `120s` | Timeout de clonado |
-| `POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD` | `tokenmeter` | Solo para Docker Compose |
-| `DATABASE_URL` / `DATABASE_USERNAME` / `DATABASE_PASSWORD` | — | Solo perfil `prod` |
+| `DATABASE_URL` / `DATABASE_USERNAME` / `DATABASE_PASSWORD` | — | Sobrescritura explícita para datasource |
 
 ---
 
 # 🐳 Docker Compose
 
-El [`docker-compose.yml`](docker-compose.yml) en la raíz arranca todo el stack:
+El [`docker-compose.yml`](docker-compose.yml) arranca PostgreSQL, backend y frontend con healthchecks y puertos configurables vía `.env`.
 
-```yaml
-services:
-  db:
-    image: postgres:18-alpine
-    environment:
-      POSTGRES_DB: tokenmeter
-      POSTGRES_USER: tokenmeter
-      POSTGRES_PASSWORD: tokenmeter
-    ports: ["5432:5432"]
-
-  backend:
-    build: { context: ./backend }
-    environment:
-      SPRING_PROFILES_ACTIVE: docker
-    depends_on:
-      db: { condition: service_healthy }
-    ports: ["8080:8080"]
-
-  frontend:
-    build: { context: ./frontend }
-    depends_on: [backend]
-    ports: ["3000:80"]
+```bash
+docker compose ps
+docker compose logs -f backend frontend
 ```
 
 ---
 
-# 🚀 Despliegue producción
+# 🚀 Despliegue producción con Nginx
 
-Dominio previsto: <https://tokenmeter.backendtothefuture.com>
+Hay una plantilla en [`deploy/nginx/tokenmeter.conf.template`](deploy/nginx/tokenmeter.conf.template) para `tokenmeter.backendtothefuture.com`.
 
-Nginx (esquema):
+Si Nginx corre en otra máquina, copia la plantilla a `/etc/nginx/sites-available/tokenmeter.conf`, sustituye `${TOKENMETER_UPSTREAM_HOST}` por la IP/DNS privado del host Docker y activa el site desde `sites-enabled`. El frontend ya enruta `/api/*` al backend dentro de la red Docker.
 
-```nginx
-server {
-  server_name tokenmeter.backendtothefuture.com;
+Variables a sustituir en la plantilla:
 
-  location / {
-    proxy_pass http://localhost:3000;
-  }
-
-  location /api/ {
-    proxy_pass http://localhost:8080;
-  }
-}
-```
+| Placeholder | Ejemplo |
+|---|---|
+| `${TOKENMETER_UPSTREAM_HOST}` | `10.0.0.25` |
+| `${TOKENMETER_SSL_CERTIFICATE}` | `/etc/letsencrypt/live/tokenmeter.backendtothefuture.com/fullchain.pem` |
+| `${TOKENMETER_SSL_CERTIFICATE_KEY}` | `/etc/letsencrypt/live/tokenmeter.backendtothefuture.com/privkey.pem` |
 
 ---
 

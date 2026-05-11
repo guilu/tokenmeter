@@ -28,7 +28,7 @@ Servicio que clona un repositorio público de GitHub, cuenta tokens por archivo 
 ./gradlew check                # checkstyle + spotless + tests
 ./gradlew test                 # solo tests
 ./gradlew spotlessApply        # autoformat
-./gradlew bootRun              # arranca local (perfil `local`, db en localhost:5432)
+./gradlew bootRun              # arranca local (perfil `local`, db en localhost:${TOKENMETER_DB_PORT:-5433})
 ```
 
 ### Frontend (`cd frontend`)
@@ -44,7 +44,7 @@ npm run format
 ### Stack completo
 
 ```bash
-docker compose up --build -d   # frontend :3000, backend :8080, db :5432
+docker compose up --build -d   # frontend :3001, backend :8081; db interno sin puerto host
 ```
 
 ## Arquitectura (hexagonal)
@@ -123,10 +123,14 @@ Gitmojis comunes: ✨ feat · 🐛 fix · ♻️ refactor · 🧪 test · 📝 d
 | Variable | Default | Uso |
 |---|---|---|
 | `SPRING_PROFILES_ACTIVE` | `local` | `local` / `docker` / `prod` |
+| `TOKENMETER_BIND_ADDRESS` | `127.0.0.1` | IP host donde publicar frontend/backend |
+| `TOKENMETER_FRONTEND_PORT` | `3001` | Puerto host del frontend Docker |
+| `TOKENMETER_BACKEND_PORT` | `8081` | Puerto host del backend Docker |
+| `TOKENMETER_DB_NAME` / `TOKENMETER_DB_USER` / `TOKENMETER_DB_PASSWORD` | `tokenmeter` | Credenciales PostgreSQL Docker |
 | `TOKENMETER_WORKDIR` | `${java.io.tmpdir}/tokenmeter-repositories` | Directorio temporal para clones |
 | `TOKENMETER_MAX_REPOSITORY_BYTES` | `314572800` (300 MiB) | Tamaño máximo del repo |
 | `TOKENMETER_CLONE_TIMEOUT` | `120s` | Timeout de clone |
-| `DATABASE_URL` / `DATABASE_USERNAME` / `DATABASE_PASSWORD` | — | Solo perfil `prod` |
+| `DATABASE_URL` / `DATABASE_USERNAME` / `DATABASE_PASSWORD` | — | Sobrescritura explícita datasource |
 
 ## No-go zones para asistentes IA
 
