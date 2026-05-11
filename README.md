@@ -1,4 +1,3 @@
-<h1 align="center">TokenMeter</h1>
 <p align="center">
  <img src="./docs/assets/tokenmeter-logo.png" alt="TokenMeter Logo" width="280"/>
 </p>
