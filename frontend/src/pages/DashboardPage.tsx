@@ -26,6 +26,17 @@ const modeCopy: Record<CostMode, string> = {
   agentic: 'Estimate autonomous build loops with planning, tool calls, retries and reasoning overhead.',
 }
 
+const analysisStages = [
+  { label: 'Cloning repository', detail: 'Opening a clean workspace and fetching the public Git history.' },
+  { label: 'Detecting languages', detail: 'Classifying source files, frameworks and generated artifacts.' },
+  { label: 'Parsing files', detail: 'Filtering noise and preparing a normalized code corpus.' },
+  { label: 'Counting tokens', detail: 'Measuring the repository footprint with model-compatible encoding.' },
+  { label: 'Building context windows', detail: 'Estimating prompt chunks and context required to recreate the project.' },
+  { label: 'Simulating AI workflows', detail: 'Comparing raw, assisted and agentic generation strategies.' },
+  { label: 'Calculating pricing models', detail: 'Applying input, output and workflow overhead across model families.' },
+  { label: 'Generating estimates', detail: 'Compiling the cost intelligence report and shareable analysis.' },
+] as const
+
 export function DashboardPage() {
   const [repositoryUrl, setRepositoryUrl] = useState(DEFAULT_REPOSITORY_URL)
   const [analysis, setAnalysis] = useState<RepositoryAnalysisResponse | null>(null)
@@ -177,11 +188,108 @@ export function DashboardPage() {
 }
 
 function LoadingState({ repositoryUrl }: { repositoryUrl: string }) {
+  const [activeStage, setActiveStage] = useState(0)
+  const trimmedRepositoryUrl = repositoryUrl.trim()
+  const repositoryLabel = repositoryNameFromUrl(trimmedRepositoryUrl)
+  const progress = Math.round(((activeStage + 1) / analysisStages.length) * 100)
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setActiveStage((currentStage) => Math.min(currentStage + 1, analysisStages.length - 1))
+    }, 1500)
+
+    return () => window.clearInterval(intervalId)
+  }, [])
+
+  const liveStats = useMemo(() => {
+    const seed = repositoryLabel.length || trimmedRepositoryUrl.length || 12
+    const files = Math.min(2400, Math.round((activeStage + 1) * seed * 7.4))
+    const tokens = Math.min(1_900_000, files * 690 + activeStage * seed * 173)
+    const contextWindows = Math.max(1, Math.ceil(tokens / 120_000))
+
+    return [
+      { label: 'Files inspected', value: compactNumberFormatter.format(files) },
+      { label: 'Tokens sampled', value: compactNumberFormatter.format(tokens) },
+      { label: 'Context windows', value: numberFormatter.format(contextWindows) },
+    ]
+  }, [activeStage, repositoryLabel.length, trimmedRepositoryUrl.length])
+
   return (
-    <div className="mt-6 rounded-3xl border border-cyan-300/20 bg-cyan-300/10 p-5 text-sm text-cyan-100">
-      <div className="flex items-center gap-3">
-        <span className="h-3 w-3 animate-pulse rounded-full bg-cyan-300" />
-        <span>Cloning, scanning and simulating AI generation economics for {repositoryUrl.trim()}…</span>
+    <div className="relative mt-8 overflow-hidden rounded-3xl border border-cyan-300/20 bg-slate-950/90 p-5 shadow-2xl shadow-cyan-950/30">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.18),_transparent_35%),linear-gradient(120deg,_rgba(15,23,42,0),_rgba(34,211,238,0.08),_rgba(15,23,42,0))]" />
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300/70 to-transparent" />
+
+      <div className="relative space-y-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-[0.28em] text-cyan-200/80">AI analysis pipeline</p>
+            <h2 className="mt-2 text-xl font-semibold text-white">Scanning {repositoryLabel}</h2>
+            <p className="mt-1 text-sm text-slate-400">Simulating repository generation economics in real time.</p>
+          </div>
+          <div className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-2 text-right">
+            <p className="text-2xl font-semibold text-cyan-100">{progress}%</p>
+            <p className="text-xs text-cyan-200/70">pipeline progress</p>
+          </div>
+        </div>
+
+        <div className="h-2 overflow-hidden rounded-full bg-white/10">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-cyan-300 via-sky-300 to-emerald-300 transition-all duration-700 ease-out"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          {liveStats.map((stat) => (
+            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3" key={stat.label}>
+              <p className="text-lg font-semibold text-white">{stat.value}</p>
+              <p className="mt-1 text-xs text-slate-400">{stat.label}</p>
+            </div>
+          ))}
+        </div>
+
+        <ol className="space-y-2">
+          {analysisStages.map((stage, index) => {
+            const complete = index < activeStage
+            const active = index === activeStage
+
+            return (
+              <li
+                className={`rounded-2xl border p-3 transition-all duration-500 ${
+                  active
+                    ? 'border-cyan-300/40 bg-cyan-300/10 shadow-lg shadow-cyan-950/30'
+                    : complete
+                      ? 'border-emerald-300/20 bg-emerald-300/5'
+                      : 'border-white/10 bg-white/[0.025] opacity-70'
+                }`}
+                key={stage.label}
+              >
+                <div className="flex items-start gap-3">
+                  <span
+                    className={`mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                      complete
+                        ? 'bg-emerald-300 text-slate-950'
+                        : active
+                          ? 'animate-pulse bg-cyan-300 text-slate-950'
+                          : 'bg-white/10 text-slate-500'
+                    }`}
+                  >
+                    {complete ? '✓' : index + 1}
+                  </span>
+                  <div>
+                    <p className="text-sm font-medium text-white">{stage.label}</p>
+                    <p className="mt-1 text-xs leading-5 text-slate-400">{stage.detail}</p>
+                  </div>
+                </div>
+              </li>
+            )
+          })}
+        </ol>
+
+        <div className="rounded-2xl border border-white/10 bg-black/20 p-4 font-mono text-xs text-cyan-100/80">
+          <p>&gt; pipeline.run --repository {trimmedRepositoryUrl || repositoryLabel}</p>
+          <p className="mt-1 text-slate-400">&gt; stage.{activeStage + 1}: {analysisStages[activeStage].label.toLowerCase()}...</p>
+        </div>
       </div>
     </div>
   )
@@ -489,6 +597,17 @@ function setMeta(key: string, content: string, attribute: 'name' | 'property' = 
 }
 
 function repositoryName(repositoryUrl: string) {
+  try {
+    const url = new URL(repositoryUrl)
+    return url.pathname.replace(/^\//, '') || repositoryUrl
+  } catch {
+    return repositoryUrl
+  }
+}
+
+function repositoryNameFromUrl(repositoryUrl: string) {
+  if (!repositoryUrl) return 'repository'
+
   try {
     const url = new URL(repositoryUrl)
     return url.pathname.replace(/^\//, '') || repositoryUrl
