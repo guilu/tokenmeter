@@ -19,6 +19,8 @@ const dateFormatter = new Intl.DateTimeFormat('en-US', {
 
 const costModes = ['raw', 'assisted', 'agentic'] as const
 type CostMode = (typeof costModes)[number]
+type ComparisonSort = 'cost' | 'relative' | 'efficiency' | 'model'
+type ProviderFilter = 'all' | string
 
 const modeCopy: Record<CostMode, string> = {
   raw: 'Price the final codebase as if the repository appeared in one clean generation pass.',
@@ -360,6 +362,8 @@ function SharedAnalysisState({ error, loading, onBack }: { error: string | null;
 
 function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysisResponse; onNewAnalysis: () => void }) {
   const [selectedMode, setSelectedMode] = useState<CostMode>('raw')
+  const [comparisonSort, setComparisonSort] = useState<ComparisonSort>('cost')
+  const [providerFilter, setProviderFilter] = useState<ProviderFilter>('all')
   const publicUrl = typeof window === 'undefined' ? analysisPath(analysis.id) : new URL(analysisPath(analysis.id), window.location.origin).toString()
 
   useEffect(() => {
@@ -380,6 +384,7 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
   const rawBaselineEstimate = useMemo(() => cheapest(rawEstimates), [rawEstimates])
   const primaryEstimate = cheapestEstimate ?? estimatesForMode[0] ?? null
   const topLanguage = languages[0]
+  const providersForMode = useMemo(() => uniqueProviders(estimatesForMode), [estimatesForMode])
   const averageCost = average(estimatesForMode.map((estimate) => estimate.totalCost))
 
   return (
@@ -458,6 +463,16 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
 
       <WorkflowAssumptions selectedMode={selectedMode} estimate={primaryEstimate} rawBaselineEstimate={rawBaselineEstimate} />
 
+      <ModelComparison
+        estimates={estimatesForMode}
+        providerFilter={providerFilter}
+        providers={providersForMode}
+        selectedMode={selectedMode}
+        sortBy={comparisonSort}
+        onFilterProvider={setProviderFilter}
+        onSort={setComparisonSort}
+      />
+
       <div className="mt-8 rounded-3xl border border-white/10 bg-white/[0.03] p-4 sm:p-6">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
@@ -495,6 +510,185 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
       </div>
     </section>
   )
+}
+
+function ModelComparison({
+  estimates,
+  providerFilter,
+  providers,
+  selectedMode,
+  sortBy,
+  onFilterProvider,
+  onSort,
+}: {
+  estimates: RepositoryAnalysisCostEstimateResponse[]
+  providerFilter: ProviderFilter
+  providers: string[]
+  selectedMode: CostMode
+  sortBy: ComparisonSort
+  onFilterProvider: (provider: ProviderFilter) => void
+  onSort: (sort: ComparisonSort) => void
+}) {
+  const cheapestEstimate = cheapest(estimates)
+  const highestEstimate = highest(estimates)
+  const comparisonRows = useMemo(() => {
+    const baselineCost = cheapestEstimate?.totalCost ?? 0
+    const maxCost = highestEstimate?.totalCost ?? 0
+
+    return estimates
+      .filter((estimate) => providerFilter === 'all' || estimate.provider === providerFilter)
+      .map((estimate) => ({
+        estimate,
+        relativeCost: baselineCost > 0 ? estimate.totalCost / baselineCost : 1,
+        costPercent: percentOf(estimate.totalCost, maxCost),
+        efficiencyScore: maxCost > 0 ? 1 - estimate.totalCost / maxCost : 1,
+        tier: modelTier(estimate, baselineCost, maxCost),
+        note: modelComparisonNote(estimate, baselineCost, maxCost),
+      }))
+      .sort((left, right) => {
+        if (sortBy === 'model') return left.estimate.model.localeCompare(right.estimate.model)
+        if (sortBy === 'relative') return left.relativeCost - right.relativeCost
+        if (sortBy === 'efficiency') return right.efficiencyScore - left.efficiencyScore
+        return left.estimate.totalCost - right.estimate.totalCost
+      })
+  }, [cheapestEstimate, estimates, highestEstimate, providerFilter, sortBy])
+
+  return (
+    <section className="mt-8 rounded-3xl border border-white/10 bg-white/[0.03] p-5 shadow-2xl shadow-black/20 sm:p-6">
+      <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
+        <div>
+          <p className="text-sm text-slate-400">Model benchmark</p>
+          <h2 className="mt-1 text-2xl font-semibold text-white">AI model comparison</h2>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
+            Compare {selectedMode} generation estimates side-by-side by provider, cost, relative efficiency and quality tier.
+          </p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="grid gap-1 text-sm text-slate-400">
+            Provider
+            <select
+              className="rounded-2xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white outline-none transition focus:border-cyan-300/60"
+              onChange={(event) => onFilterProvider(event.target.value)}
+              value={providerFilter}
+            >
+              <option value="all">All providers</option>
+              {providers.map((provider) => (
+                <option key={provider} value={provider}>
+                  {capitalize(provider)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="grid gap-1 text-sm text-slate-400">
+            Sort by
+            <select
+              className="rounded-2xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white outline-none transition focus:border-cyan-300/60"
+              onChange={(event) => onSort(event.target.value as ComparisonSort)}
+              value={sortBy}
+            >
+              <option value="cost">Lowest cost</option>
+              <option value="relative">Relative cost</option>
+              <option value="efficiency">Efficiency</option>
+              <option value="model">Model name</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <div className="mt-6 grid gap-3 lg:hidden">
+        {comparisonRows.map((row) => (
+          <ModelComparisonCard key={`${row.estimate.provider}-${row.estimate.model}`} row={row} />
+        ))}
+      </div>
+
+      <div className="mt-6 hidden overflow-hidden rounded-2xl border border-white/10 lg:block">
+        <table className="min-w-full divide-y divide-white/10 text-sm">
+          <thead className="bg-white/[0.04] text-left text-slate-400">
+            <tr>
+              <th className="px-4 py-3 font-medium">Model</th>
+              <th className="px-4 py-3 font-medium">Provider</th>
+              <th className="px-4 py-3 text-right font-medium">Estimated cost</th>
+              <th className="px-4 py-3 font-medium">Relative cost</th>
+              <th className="px-4 py-3 font-medium">Efficiency tier</th>
+              <th className="px-4 py-3 font-medium">Notes</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-white/10 text-slate-200">
+            {comparisonRows.map((row) => (
+              <tr className="transition hover:bg-white/[0.03]" key={`${row.estimate.provider}-${row.estimate.model}`}>
+                <td className="px-4 py-3 font-medium text-white">{row.estimate.model}</td>
+                <td className="px-4 py-3 capitalize text-slate-300">{row.estimate.provider}</td>
+                <td className="px-4 py-3 text-right font-medium text-white">{currencyFormatter.format(row.estimate.totalCost)}</td>
+                <td className="px-4 py-3">
+                  <RelativeCostBar percent={row.costPercent} label={`${row.relativeCost.toFixed(1)}×`} />
+                </td>
+                <td className="px-4 py-3"><TierBadge tier={row.tier} /></td>
+                <td className="px-4 py-3 text-slate-400">{row.note}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  )
+}
+
+type ModelComparisonRow = {
+  estimate: RepositoryAnalysisCostEstimateResponse
+  relativeCost: number
+  costPercent: number
+  efficiencyScore: number
+  tier: string
+  note: string
+}
+
+function ModelComparisonCard({ row }: { row: ModelComparisonRow }) {
+  return (
+    <article className="rounded-2xl border border-white/10 bg-slate-950/45 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate font-medium text-white" title={row.estimate.model}>{row.estimate.model}</p>
+          <p className="mt-1 text-sm capitalize text-slate-500">{row.estimate.provider}</p>
+        </div>
+        <p className="shrink-0 text-lg font-semibold text-white">{currencyFormatter.format(row.estimate.totalCost)}</p>
+      </div>
+      <div className="mt-4">
+        <RelativeCostBar percent={row.costPercent} label={`${row.relativeCost.toFixed(1)}× vs cheapest`} />
+      </div>
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <TierBadge tier={row.tier} />
+        <span className="text-sm text-slate-400">{row.note}</span>
+      </div>
+    </article>
+  )
+}
+
+function RelativeCostBar({ percent, label }: { percent: number; label: string }) {
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between gap-3 text-xs text-slate-400">
+        <span>Relative cost</span>
+        <span className="font-medium text-cyan-100">{label}</span>
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-white/10">
+        <div className="h-full rounded-full bg-gradient-to-r from-emerald-300 via-cyan-300 to-amber-300" style={{ width: `${Math.max(4, Math.min(100, percent))}%` }} />
+      </div>
+    </div>
+  )
+}
+
+function TierBadge({ tier }: { tier: string }) {
+  const tone = tier === 'Cheapest' ? 'emerald' : tier === 'Premium' || tier === 'High reasoning' ? 'amber' : tier === 'Experimental' ? 'violet' : 'cyan'
+  const className =
+    tone === 'emerald'
+      ? 'border-emerald-300/20 bg-emerald-300/10 text-emerald-100'
+      : tone === 'amber'
+        ? 'border-amber-300/20 bg-amber-300/10 text-amber-100'
+        : tone === 'violet'
+          ? 'border-violet-300/20 bg-violet-300/10 text-violet-100'
+          : 'border-cyan-300/20 bg-cyan-300/10 text-cyan-100'
+
+  return <span className={`rounded-full border px-3 py-1 text-xs font-medium ${className}`}>{tier}</span>
 }
 
 function CostHero({
@@ -779,6 +973,32 @@ function repositoryNameFromUrl(repositoryUrl: string) {
   } catch {
     return repositoryUrl
   }
+}
+
+function uniqueProviders(estimates: RepositoryAnalysisCostEstimateResponse[]) {
+  return Array.from(new Set(estimates.map((estimate) => estimate.provider))).sort((left, right) => left.localeCompare(right))
+}
+
+function modelTier(estimate: RepositoryAnalysisCostEstimateResponse, baselineCost: number, maxCost: number) {
+  const model = estimate.model.toLowerCase()
+  const provider = estimate.provider.toLowerCase()
+  const relativeCost = baselineCost > 0 ? estimate.totalCost / baselineCost : 1
+  const premiumThreshold = maxCost * 0.82
+
+  if (relativeCost <= 1.05) return 'Cheapest'
+  if (model.includes('reason') || model.includes('opus') || model.includes('o1') || model.includes('o3')) return 'High reasoning'
+  if (model.includes('preview') || model.includes('experimental') || provider.includes('xai')) return 'Experimental'
+  if (estimate.totalCost >= premiumThreshold) return 'Premium'
+  return 'Balanced'
+}
+
+function modelComparisonNote(estimate: RepositoryAnalysisCostEstimateResponse, baselineCost: number, maxCost: number) {
+  const tier = modelTier(estimate, baselineCost, maxCost)
+  if (tier === 'Cheapest') return 'Lowest simulated cost for this workflow.'
+  if (tier === 'High reasoning') return 'Higher reasoning profile; useful for complex repositories.'
+  if (tier === 'Premium') return 'Higher cost option, likely best reserved for quality-sensitive work.'
+  if (tier === 'Experimental') return 'Useful benchmark candidate; validate quality before relying on it.'
+  return 'Middle-ground cost profile for routine generation workflows.'
 }
 
 function cheapest(estimates: RepositoryAnalysisCostEstimateResponse[]) {
