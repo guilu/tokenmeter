@@ -48,6 +48,7 @@ class RepositoryAnalysisControllerTest {
 
   @MockitoBean private RepositoryAnalysisService analysisService;
   @MockitoBean private PricingProvider pricingProvider;
+  @MockitoBean private LeaderboardService leaderboardService;
 
   @Test
   void returnsStandardSuccessResponseForValidRequest() throws Exception {
@@ -166,6 +167,27 @@ class RepositoryAnalysisControllerTest {
         .andExpect(jsonPath("$.models[0].modes[0].mode").value("raw"))
         .andExpect(jsonPath("$.models[0].modes[1].mode").value("assisted"))
         .andExpect(jsonPath("$.models[0].modes[2].mode").value("agentic"));
+  }
+
+  @Test
+  void returnsPublicLeaderboardPageHtmlWithSeoMetadata() throws Exception {
+    mockMvc
+        .perform(get("/leaderboards").header("Host", "tokenmeter.example"))
+        .andExpect(status().isOk())
+        .andExpect(
+            result ->
+                org.assertj.core.api.Assertions.assertThat(result.getResponse().getContentType())
+                    .contains(MediaType.TEXT_HTML_VALUE))
+        .andExpect(
+            result ->
+                org.assertj.core.api.Assertions.assertThat(
+                        result.getResponse().getContentAsString())
+                    .contains("TokenMeter repository leaderboards"))
+        .andExpect(
+            result ->
+                org.assertj.core.api.Assertions.assertThat(
+                        result.getResponse().getContentAsString())
+                    .contains("http://tokenmeter.example/leaderboards"));
   }
 
   @Test

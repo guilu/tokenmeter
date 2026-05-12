@@ -35,16 +35,19 @@ public class RepositoryAnalysisController {
   private final RepositoryAnalysisMapper mapper;
   private final CostBreakdownMapper costBreakdownMapper;
   private final OpenGraphImageRenderer openGraphImageRenderer;
+  private final LeaderboardService leaderboardService;
 
   public RepositoryAnalysisController(
       RepositoryAnalysisService analysisService,
       RepositoryAnalysisMapper mapper,
       CostBreakdownMapper costBreakdownMapper,
-      OpenGraphImageRenderer openGraphImageRenderer) {
+      OpenGraphImageRenderer openGraphImageRenderer,
+      LeaderboardService leaderboardService) {
     this.analysisService = analysisService;
     this.mapper = mapper;
     this.costBreakdownMapper = costBreakdownMapper;
     this.openGraphImageRenderer = openGraphImageRenderer;
+    this.leaderboardService = leaderboardService;
   }
 
   @PostMapping("/api/analyze")
@@ -61,6 +64,65 @@ public class RepositoryAnalysisController {
   @GetMapping("/api/analyze/{id}/cost-breakdown")
   public CostBreakdownResponse getCostBreakdown(@PathVariable UUID id) {
     return costBreakdownMapper.toResponse(analysisService.findById(id));
+  }
+
+  @GetMapping("/api/leaderboards")
+  public LeaderboardPageResponse getLeaderboard(
+      @RequestParam(defaultValue = "most-expensive") String category,
+      @RequestParam(defaultValue = "0") int page,
+      @RequestParam(defaultValue = "12") int size,
+      @RequestParam(required = false) String mode,
+      @RequestParam(required = false) String provider,
+      @RequestParam(required = false) String model) {
+    return leaderboardService.getLeaderboard(
+        LeaderboardCategory.fromSlug(category), page, size, mode, provider, model);
+  }
+
+  @GetMapping(value = "/leaderboards", produces = MediaType.TEXT_HTML_VALUE)
+  public ResponseEntity<String> getPublicLeaderboardsPage(HttpServletRequest request) {
+    String origin = publicOrigin(request);
+    String publicPath = origin + "/leaderboards";
+    String title = "TokenMeter repository leaderboards";
+    String description =
+        "Explore public AI generation cost rankings for analyzed GitHub repositories.";
+
+    String html =
+        """
+        <!doctype html>
+        <html lang=\"en\">
+          <head>
+            <meta charset=\"UTF-8\" />
+            <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />
+            <meta name=\"description\" content=\"%s\" />
+            <meta property=\"og:title\" content=\"%s\" />
+            <meta property=\"og:description\" content=\"%s\" />
+            <meta property=\"og:type\" content=\"website\" />
+            <meta property=\"og:url\" content=\"%s\" />
+            <meta name=\"twitter:card\" content=\"summary\" />
+            <meta name=\"twitter:title\" content=\"%s\" />
+            <meta name=\"twitter:description\" content=\"%s\" />
+            <title>%s</title>
+            <script>window.location.replace('/?leaderboards=true')</script>
+          </head>
+          <body>
+            <h1>TokenMeter repository leaderboards</h1>
+            <p>Loading public rankings…</p>
+          </body>
+        </html>
+        """
+            .formatted(
+                html(description),
+                html(title),
+                html(description),
+                html(publicPath),
+                html(title),
+                html(description),
+                html(title));
+
+    return ResponseEntity.ok()
+        .contentType(MediaType.TEXT_HTML)
+        .cacheControl(CacheControl.maxAge(Duration.ofMinutes(5)).cachePublic())
+        .body(html);
   }
 
   @GetMapping(value = "/analysis/{id}", produces = MediaType.TEXT_HTML_VALUE)
