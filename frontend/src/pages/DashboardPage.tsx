@@ -1005,8 +1005,8 @@ function updateDocumentMetadata(analysis: RepositoryAnalysisResponse, publicUrl:
 function resetDocumentMetadata() {
   document.title = 'TokenMeter — AI repository cost intelligence'
   setMeta('description', 'Simulate the cost of generating public GitHub repositories with modern AI models and workflow modes.')
-  setMeta('og:image', '/favicon.svg', 'property')
-  setMeta('twitter:image', '/favicon.svg')
+  setMeta('og:image', '/tokenmeter-logo.png', 'property')
+  setMeta('twitter:image', '/tokenmeter-logo.png')
 }
 
 function openGraphImageUrl(analysisId: string, publicUrl: string, mode: CostMode) {
