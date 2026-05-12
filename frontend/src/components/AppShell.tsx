@@ -7,7 +7,7 @@ export function AppShell({ children }: PropsWithChildren) {
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <a className="group flex items-center gap-3" href="/">
             <span className="flex h-9 w-9 items-center justify-center">
-              <img alt="TokenMeter logo" className="h-full w-full object-contain" src="/tokenmeter-logo.png" />
+              <img alt="TokenMeter logo" className="h-full w-full object-contain" src="/logo-white.png" />
             </span>
             <span>
               <span className="block text-sm font-semibold tracking-tight transition group-hover:text-cyan-200">TokenMeter</span>
