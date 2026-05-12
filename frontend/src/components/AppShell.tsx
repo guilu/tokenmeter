@@ -10,7 +10,9 @@ export function AppShell({ children }: PropsWithChildren) {
               TM
             </div>
             <div>
-              <p className="text-sm font-semibold tracking-tight">TokenMeter</p>
+              <a className="text-sm font-semibold tracking-tight transition hover:text-cyan-200" href="/">
+                TokenMeter
+              </a>
               <p className="text-xs text-slate-400">Repository generation economics</p>
             </div>
           </div>

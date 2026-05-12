@@ -429,7 +429,7 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
               rel="noreferrer"
               target="_blank"
             >
-              Open OG image
+              Download your badge
             </a>
           </div>
         </div>
