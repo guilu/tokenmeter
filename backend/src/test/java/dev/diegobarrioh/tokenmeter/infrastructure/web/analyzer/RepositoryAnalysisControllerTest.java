@@ -40,6 +40,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @Import({
   RepositoryAnalysisMapper.class,
   CostBreakdownMapper.class,
+  OpenGraphImageRenderer.class,
   RepositoryIntakeExceptionHandler.class
 })
 class RepositoryAnalysisControllerTest {
@@ -165,6 +166,62 @@ class RepositoryAnalysisControllerTest {
         .andExpect(jsonPath("$.models[0].modes[0].mode").value("raw"))
         .andExpect(jsonPath("$.models[0].modes[1].mode").value("assisted"))
         .andExpect(jsonPath("$.models[0].modes[2].mode").value("agentic"));
+  }
+
+  @Test
+  void returnsDynamicPublicAnalysisHtmlWithOpenGraphMetadata() throws Exception {
+    UUID id = UUID.randomUUID();
+    when(analysisService.findById(id)).thenReturn(sampleAnalysis(id, sampleCostEstimates()));
+
+    mockMvc
+        .perform(get("/analysis/{id}", id).header("Host", "tokenmeter.example"))
+        .andExpect(status().isOk())
+        .andExpect(
+            result ->
+                org.assertj.core.api.Assertions.assertThat(result.getResponse().getContentType())
+                    .contains(MediaType.TEXT_HTML_VALUE))
+        .andExpect(
+            result ->
+                org.assertj.core.api.Assertions.assertThat(
+                        result.getResponse().getContentAsString())
+                    .contains("TokenMeter analysis for guilu/tokenmeter"))
+        .andExpect(
+            result ->
+                org.assertj.core.api.Assertions.assertThat(
+                        result.getResponse().getContentAsString())
+                    .contains(
+                        "http://tokenmeter.example/api/analyze/"
+                            + id
+                            + "/og-image.png?mode=raw&amp;v=range"))
+        .andExpect(
+            result ->
+                org.assertj.core.api.Assertions.assertThat(
+                        result.getResponse().getContentAsString())
+                    .contains("window.location.replace('/?analysis=" + id + "')"));
+  }
+
+  @Test
+  void returnsDynamicOpenGraphPngForAnalysis() throws Exception {
+    UUID id = UUID.randomUUID();
+    when(analysisService.findById(id)).thenReturn(sampleAnalysis(id, sampleCostEstimates()));
+
+    mockMvc
+        .perform(get("/api/analyze/{id}/og-image.png", id).param("mode", "agentic"))
+        .andExpect(status().isOk())
+        .andExpect(
+            result ->
+                org.assertj.core.api.Assertions.assertThat(result.getResponse().getContentType())
+                    .isEqualTo(MediaType.IMAGE_PNG_VALUE))
+        .andExpect(
+            result ->
+                org.assertj.core.api.Assertions.assertThat(
+                        result.getResponse().getHeader("Cache-Control"))
+                    .contains("max-age=86400"))
+        .andExpect(
+            result ->
+                org.assertj.core.api.Assertions.assertThat(
+                        result.getResponse().getContentAsByteArray())
+                    .startsWith(new byte[] {(byte) 0x89, 0x50, 0x4e, 0x47}));
   }
 
   @Test
