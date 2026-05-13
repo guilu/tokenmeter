@@ -45,6 +45,22 @@ export interface RepositoryAnalysisCostEstimateResponse {
   outputCost: number
   totalCost: number
   formula: string
+  engineeringEffort: EngineeringEffortEstimateResponse
+}
+
+export interface EngineeringEffortEstimateResponse {
+  seniorEngineerHours: number
+  engineeringDays: number
+  manualImplementationEffort: string
+  summary: string
+  formula: string
+  assumptions: EngineeringEffortAssumptionsResponse
+}
+
+export interface EngineeringEffortAssumptionsResponse {
+  tokensPerSeniorEngineerHour: number
+  hoursPerEngineeringDay: number
+  modeComplexityMultiplier: number
 }
 
 export interface LeaderboardPageResponse {

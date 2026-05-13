@@ -1,6 +1,8 @@
 package dev.diegobarrioh.tokenmeter.infrastructure.web.analyzer;
 
 import dev.diegobarrioh.tokenmeter.application.analyzer.RepositoryAnalysisResult;
+import dev.diegobarrioh.tokenmeter.application.cost.EngineeringEffortEstimate;
+import dev.diegobarrioh.tokenmeter.application.cost.EngineeringEffortEstimator;
 import dev.diegobarrioh.tokenmeter.domain.analyzer.LanguageStatistics;
 import dev.diegobarrioh.tokenmeter.domain.cost.ModelCostEstimate;
 import dev.diegobarrioh.tokenmeter.domain.tokenizer.LanguageTokenMetrics;
@@ -10,6 +12,12 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class RepositoryAnalysisMapper {
+  private final EngineeringEffortEstimator engineeringEffortEstimator;
+
+  public RepositoryAnalysisMapper(EngineeringEffortEstimator engineeringEffortEstimator) {
+    this.engineeringEffortEstimator = engineeringEffortEstimator;
+  }
+
   public RepositoryAnalysisResponse toResponse(RepositoryAnalysisResult result) {
     var scan = result.scan();
     var tokenization = result.tokenization();
@@ -39,7 +47,22 @@ public class RepositoryAnalysisMapper {
         estimate.inputCost(),
         estimate.outputCost(),
         estimate.totalCost(),
-        estimate.formula());
+        estimate.formula(),
+        toEngineeringEffort(engineeringEffortEstimator.estimate(estimate)));
+  }
+
+  private EngineeringEffortEstimateResponse toEngineeringEffort(
+      EngineeringEffortEstimate estimate) {
+    return new EngineeringEffortEstimateResponse(
+        estimate.seniorEngineerHours(),
+        estimate.engineeringDays(),
+        estimate.manualImplementationEffort(),
+        estimate.summary(),
+        estimate.formula(),
+        new EngineeringEffortAssumptionsResponse(
+            estimate.assumptions().tokensPerSeniorEngineerHour(),
+            estimate.assumptions().hoursPerEngineeringDay(),
+            estimate.assumptions().modeComplexityMultiplier()));
   }
 
   private Map<String, RepositoryAnalysisLanguageMetricsResponse> toLanguageMetrics(
