@@ -10,6 +10,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import dev.diegobarrioh.tokenmeter.application.analyzer.AnalysisNotFoundException;
 import dev.diegobarrioh.tokenmeter.application.analyzer.RepositoryAnalysisResult;
 import dev.diegobarrioh.tokenmeter.application.analyzer.RepositoryAnalysisService;
+import dev.diegobarrioh.tokenmeter.application.cost.EngineeringEffortEstimator;
+import dev.diegobarrioh.tokenmeter.application.cost.EngineeringEffortProperties;
 import dev.diegobarrioh.tokenmeter.application.pricing.PricingProvider;
 import dev.diegobarrioh.tokenmeter.domain.analyzer.LanguageStatistics;
 import dev.diegobarrioh.tokenmeter.domain.analyzer.RepositoryScanResult;
@@ -30,6 +32,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
@@ -40,9 +43,11 @@ import org.springframework.test.web.servlet.MockMvc;
 @Import({
   RepositoryAnalysisMapper.class,
   CostBreakdownMapper.class,
+  EngineeringEffortEstimator.class,
   OpenGraphImageRenderer.class,
   RepositoryIntakeExceptionHandler.class
 })
+@EnableConfigurationProperties(EngineeringEffortProperties.class)
 class RepositoryAnalysisControllerTest {
   @Autowired private MockMvc mockMvc;
 
@@ -108,7 +113,11 @@ class RepositoryAnalysisControllerTest {
         .andExpect(jsonPath("$.costEstimates[0].model").value("gpt-4o"))
         .andExpect(jsonPath("$.costEstimates[0].mode").value("raw"))
         .andExpect(jsonPath("$.costEstimates[0].estimatedOutputTokens").value(25))
-        .andExpect(jsonPath("$.costEstimates[0].totalCost").value(0.000250));
+        .andExpect(jsonPath("$.costEstimates[0].totalCost").value(0.000250))
+        .andExpect(jsonPath("$.costEstimates[0].engineeringEffort.seniorEngineerHours").value(0.00))
+        .andExpect(
+            jsonPath("$.costEstimates[0].engineeringEffort.summary")
+                .value("Equivalent to less than 10 minutes of senior engineering work"));
   }
 
   @Test

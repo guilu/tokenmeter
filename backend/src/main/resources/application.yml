@@ -27,3 +27,10 @@ tokenmeter:
     temp-directory: ${TOKENMETER_WORKDIR:${java.io.tmpdir}/tokenmeter-repositories}
     max-repository-bytes: ${TOKENMETER_MAX_REPOSITORY_BYTES:314572800}
     clone-timeout: ${TOKENMETER_CLONE_TIMEOUT:120s}
+  engineering-effort:
+    tokens-per-senior-engineer-hour: ${TOKENMETER_ENGINEERING_TOKENS_PER_HOUR:18000}
+    hours-per-engineering-day: ${TOKENMETER_ENGINEERING_HOURS_PER_DAY:6.5}
+    mode-complexity-multipliers:
+      raw: ${TOKENMETER_ENGINEERING_RAW_MULTIPLIER:0.55}
+      assisted: ${TOKENMETER_ENGINEERING_ASSISTED_MULTIPLIER:0.80}
+      agentic: ${TOKENMETER_ENGINEERING_AGENTIC_MULTIPLIER:1.00}

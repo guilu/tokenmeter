@@ -12,4 +12,5 @@ public record RepositoryAnalysisCostEstimateResponse(
     BigDecimal inputCost,
     BigDecimal outputCost,
     BigDecimal totalCost,
-    String formula) {}
+    String formula,
+    EngineeringEffortEstimateResponse engineeringEffort) {}
