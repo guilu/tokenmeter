@@ -1,6 +1,7 @@
 import type {
   AnalyzeRepositoryRequest,
   HealthResponse,
+  LeaderboardPageResponse,
   PricingResponse,
   RepositoryAnalysisResponse,
 } from '../types/api'
@@ -64,6 +65,32 @@ export async function getPricing(): Promise<PricingResponse> {
   }
 
   return response.json() as Promise<PricingResponse>
+}
+
+export async function getLeaderboard(params: {
+  category: string
+  page?: number
+  size?: number
+  mode?: string
+  provider?: string
+  model?: string
+}): Promise<LeaderboardPageResponse> {
+  const searchParams = new URLSearchParams({
+    category: params.category,
+    page: String(params.page ?? 0),
+    size: String(params.size ?? 12),
+  })
+  if (params.mode) searchParams.set('mode', params.mode)
+  if (params.provider) searchParams.set('provider', params.provider)
+  if (params.model) searchParams.set('model', params.model)
+
+  const response = await fetch(`/api/leaderboards?${searchParams.toString()}`)
+
+  if (!response.ok) {
+    throw await toApiError(response, 'Leaderboard request failed')
+  }
+
+  return response.json() as Promise<LeaderboardPageResponse>
 }
 
 async function toApiError(response: Response, fallbackMessage: string) {

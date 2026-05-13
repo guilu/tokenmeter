@@ -47,6 +47,35 @@ export interface RepositoryAnalysisCostEstimateResponse {
   formula: string
 }
 
+export interface LeaderboardPageResponse {
+  category: string
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+  filters: Record<string, string>
+  entries: LeaderboardEntryResponse[]
+}
+
+export interface LeaderboardEntryResponse {
+  rank: number
+  analysisId: string
+  repositoryUrl: string
+  owner: string
+  name: string
+  analyzedAt: string
+  totalFiles: number
+  totalLines: number
+  totalBytes: number
+  totalTokens: number
+  analysisCount: number
+  provider?: string | null
+  model?: string | null
+  mode?: 'raw' | 'assisted' | 'agentic' | null
+  totalCost?: number | null
+  costPerMillionTokens?: number | null
+}
+
 export interface PricingResponse {
   models: PricingModelResponse[]
 }

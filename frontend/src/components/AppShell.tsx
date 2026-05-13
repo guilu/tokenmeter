@@ -15,13 +15,13 @@ export function AppShell({ children }: PropsWithChildren) {
             </span>
           </a>
           <nav className="hidden items-center gap-6 text-sm text-slate-400 sm:flex">
-            <a className="transition hover:text-white" href="#overview">
+            <a className="transition hover:text-white" href="/#overview">
               Overview
             </a>
-            <a className="transition hover:text-white" href="#metrics">
-              Metrics
+            <a className="transition hover:text-white" href="/leaderboards">
+              Leaderboards
             </a>
-            <a className="transition hover:text-white" href="#settings">
+            <a className="transition hover:text-white" href="/#settings">
               Settings
             </a>
           </nav>
