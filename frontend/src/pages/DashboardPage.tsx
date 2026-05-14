@@ -230,7 +230,7 @@ export function DashboardPage() {
         <div className="grid gap-4 sm:grid-cols-3">
           {costModes.map((mode) => (
             <div
-              className="relative rounded-2xl border border-white/10 bg-slate-900/60 p-5 shadow-xl shadow-black/20"
+              className="relative rounded-2xl bg-slate-900/60 p-5 shadow-xl shadow-black/20"
               key={mode}
             >
               {mode === 'assisted' ? (
@@ -303,7 +303,7 @@ function LoadingState({ repositoryUrl }: { repositoryUrl: string }) {
 
         <div className="grid gap-3 sm:grid-cols-3">
           {liveStats.map((stat) => (
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3" key={stat.label}>
+            <div className="rounded-2xl bg-white/[0.04] p-3" key={stat.label}>
               <p className="text-lg font-semibold text-white">{stat.value}</p>
               <p className="mt-1 text-xs text-slate-400">{stat.label}</p>
             </div>
@@ -338,7 +338,7 @@ function SharedAnalysisState({ error, loading, onBack }: { error: string | null;
       <button className="text-sm text-cyan-200 transition hover:text-cyan-100" onClick={onBack} type="button">
         ← Back to analyzer
       </button>
-      <div className="mt-8 rounded-3xl border border-white/10 bg-white/[0.04] p-8 shadow-2xl shadow-black/20">
+      <div className="mt-8 rounded-3xl bg-white/[0.04] p-8 shadow-2xl shadow-black/20">
         {loading && !error ? (
           <div className="flex items-center gap-3 text-cyan-100">
             <span className="h-3 w-3 animate-pulse rounded-full bg-cyan-300" />
@@ -506,7 +506,7 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
         onSort={setComparisonSort}
       />
 
-      <div className="mt-8 rounded-3xl border border-white/10 bg-white/[0.03] p-4 sm:p-6">
+      <div className="mt-8 rounded-3xl bg-white/[0.03] p-4 sm:p-6">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
             <p className="text-sm text-slate-400">Cost breakdown</p>
@@ -516,7 +516,7 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
             {capitalize(selectedMode)} mode
           </p>
         </div>
-        <div className="mt-6 overflow-hidden rounded-2xl border border-white/10">
+        <div className="mt-6 overflow-hidden rounded-2xl">
           <table className="min-w-full divide-y divide-white/10 text-sm">
             <thead className="bg-white/[0.04] text-left text-slate-400">
               <tr>
@@ -627,7 +627,7 @@ function ModelComparison({
   }, [cheapestEstimate, estimates, highestEstimate, providerFilter, sortBy])
 
   return (
-    <section className="mt-8 rounded-3xl border border-white/10 bg-white/[0.03] p-5 shadow-2xl shadow-black/20 sm:p-6">
+    <section className="mt-8 rounded-3xl bg-white/[0.03] p-5 shadow-2xl shadow-black/20 sm:p-6">
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
         <div>
           <p className="text-sm text-slate-400">Model benchmark</p>
@@ -674,7 +674,7 @@ function ModelComparison({
         ))}
       </div>
 
-      <div className="mt-6 hidden overflow-hidden rounded-2xl border border-white/10 lg:block">
+      <div className="mt-6 hidden overflow-hidden rounded-2xl lg:block">
         <table className="min-w-full divide-y divide-white/10 text-sm">
           <thead className="bg-white/[0.04] text-left text-slate-400">
             <tr>
@@ -717,7 +717,7 @@ type ModelComparisonRow = {
 
 function ModelComparisonCard({ row }: { row: ModelComparisonRow }) {
   return (
-    <article className="rounded-2xl border border-white/10 bg-slate-950/45 p-4">
+    <article className="rounded-2xl bg-slate-950/45 p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate font-medium text-white" title={row.estimate.model}>{row.estimate.model}</p>
@@ -818,7 +818,7 @@ function CostHero({
 
 function HeroMeta({ label, value }: { label: string; value: string }) {
   return (
-    <article className="min-w-0 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+    <article className="min-w-0 rounded-2xl bg-white/[0.04] p-4">
       <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{label}</p>
       <p className="mt-2 truncate text-lg font-semibold text-white" title={value}>
         {value}
@@ -840,7 +840,7 @@ function WorkflowAssumptions({
   const multiplier = estimate && rawBaselineEstimate && rawBaselineEstimate.totalCost > 0 ? estimate.totalCost / rawBaselineEstimate.totalCost : null
 
   return (
-    <section className="mt-8 rounded-3xl border border-white/10 bg-white/[0.03] p-5 shadow-2xl shadow-black/20 sm:p-6">
+    <section className="mt-8 rounded-3xl bg-white/[0.03] p-5 shadow-2xl shadow-black/20 sm:p-6">
       <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
         <div>
           <p className="text-sm text-slate-400">Workflow assumptions</p>
@@ -862,7 +862,7 @@ function WorkflowAssumptions({
           </div>
           <ul className="grid gap-2">
             {assumptions.items.map((item) => (
-              <li className="flex gap-3 rounded-2xl border border-white/10 bg-slate-950/45 p-3 text-sm leading-6 text-slate-300" key={item}>
+              <li className="flex gap-3 rounded-2xl bg-slate-950/45 p-3 text-sm leading-6 text-slate-300" key={item}>
                 <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-300" />
                 <span>{item}</span>
               </li>
@@ -876,7 +876,7 @@ function WorkflowAssumptions({
 
 function AssumptionMetric({ label, value }: { label: string; value: string }) {
   return (
-    <article className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+    <article className="rounded-2xl bg-white/[0.04] p-4">
       <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{label}</p>
       <p className="mt-2 text-lg font-semibold text-white">{value}</p>
     </article>
@@ -909,7 +909,7 @@ function ModeSwitch({ selectedMode, onSelectMode }: { selectedMode: CostMode; on
 
 function MetricCard({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
-    <article className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 shadow-2xl shadow-black/20 sm:p-6">
+    <article className="rounded-2xl bg-white/[0.03] p-5 shadow-2xl shadow-black/20 sm:p-6">
       <p className="text-sm text-slate-400">{label}</p>
       <p className="mt-3 text-3xl font-semibold text-white">{value}</p>
       <p className="mt-2 text-sm text-slate-500">{hint}</p>
@@ -919,7 +919,7 @@ function MetricCard({ label, value, hint }: { label: string; value: string; hint
 
 function Panel({ eyebrow, title, children }: { eyebrow: string; title: string; children: ReactNode }) {
   return (
-    <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-5 shadow-2xl shadow-black/20 sm:p-6">
+    <section className="rounded-3xl bg-white/[0.03] p-5 shadow-2xl shadow-black/20 sm:p-6">
       <p className="text-sm text-slate-400">{eyebrow}</p>
       <h2 className="mt-1 text-2xl font-semibold text-white">{title}</h2>
       <div className="mt-6">{children}</div>
@@ -969,7 +969,7 @@ function BarList({
 
 function CostSummaryCard({ label, estimate }: { label: string; estimate: RepositoryAnalysisCostEstimateResponse | null }) {
   return (
-    <article className="rounded-2xl border border-white/10 bg-slate-950/50 p-4">
+    <article className="rounded-2xl bg-slate-950/50 p-4">
       <p className="text-sm text-slate-400">{label}</p>
       <p className="mt-2 text-2xl font-semibold text-white">
         {estimate ? currencyFormatter.format(estimate.totalCost) : '$0.00'}
