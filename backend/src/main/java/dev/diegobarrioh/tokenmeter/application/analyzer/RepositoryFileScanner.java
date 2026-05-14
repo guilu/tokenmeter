@@ -6,6 +6,7 @@ import dev.diegobarrioh.tokenmeter.domain.analyzer.RepositoryScanResult;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.charset.MalformedInputException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
@@ -90,7 +91,11 @@ public class RepositoryFileScanner {
     @Override
     public FileVisitResult visitFile(Path file, BasicFileAttributes attributes) throws IOException {
       if (attributes.isRegularFile() && !binaryFileDetector.isBinary(file)) {
-        files.add(toMetric(file, attributes));
+        try {
+          files.add(toMetric(file, attributes));
+        } catch (MalformedInputException ignored) {
+          // non-UTF-8 encoding slipped past binary detector — skip
+        }
       }
       return FileVisitResult.CONTINUE;
     }
