@@ -170,15 +170,15 @@ export function DashboardPage() {
   return (
     <section className="relative overflow-hidden" id="overview">
       <div className="absolute inset-x-0 top-0 -z-10 h-[32rem] bg-[radial-gradient(circle_at_top,_rgba(34,211,238,0.18),_transparent_55%)]" />
-      <div className="mx-auto max-w-4xl px-6 pt-20 pb-6 text-center">
+      <div className="mx-auto max-w-4xl px-6 pt-10 pb-6 text-center sm:pt-20">
         <p className="mb-4 inline-flex rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-sm text-cyan-200">
           AI repository cost intelligence
         </p>
         <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-6xl">
-          Simulate the AI generation cost of any GitHub repository.
+          AI generation cost of any GitHub repository.
         </h1>
-        <p className="mt-6 text-lg leading-8 text-slate-400">
-          TokenMeter scans a public codebase, measures its token footprint and benchmarks what it would cost to generate with modern AI models across raw, assisted and agentic workflows.
+        <p className="mt-4 text-base leading-7 text-slate-400">
+          Token footprint and AI generation cost benchmark across raw, assisted and agentic workflows.
         </p>
       </div>
 
