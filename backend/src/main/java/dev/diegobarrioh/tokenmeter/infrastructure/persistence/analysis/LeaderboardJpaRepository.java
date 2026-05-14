@@ -5,6 +5,7 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.Repository;
 import org.springframework.data.repository.query.Param;
+import org.springframework.lang.Nullable;
 
 public interface LeaderboardJpaRepository extends Repository<AnalysisEntity, UUID> {
 
@@ -41,9 +42,9 @@ public interface LeaderboardJpaRepository extends Repository<AnalysisEntity, UUI
           """,
       nativeQuery = true)
   List<LeaderboardRow> findMostExpensive(
-      @Param("mode") String mode,
-      @Param("provider") String provider,
-      @Param("model") String model,
+      @Nullable @Param("mode") String mode,
+      @Nullable @Param("provider") String provider,
+      @Nullable @Param("model") String model,
       @Param("limit") int limit,
       @Param("offset") long offset);
 
@@ -80,9 +81,9 @@ public interface LeaderboardJpaRepository extends Repository<AnalysisEntity, UUI
           """,
       nativeQuery = true)
   List<LeaderboardRow> findCheapest(
-      @Param("mode") String mode,
-      @Param("provider") String provider,
-      @Param("model") String model,
+      @Nullable @Param("mode") String mode,
+      @Nullable @Param("provider") String provider,
+      @Nullable @Param("model") String model,
       @Param("limit") int limit,
       @Param("offset") long offset);
 
@@ -120,9 +121,9 @@ public interface LeaderboardJpaRepository extends Repository<AnalysisEntity, UUI
           """,
       nativeQuery = true)
   List<LeaderboardRow> findBestCostEfficiency(
-      @Param("mode") String mode,
-      @Param("provider") String provider,
-      @Param("model") String model,
+      @Nullable @Param("mode") String mode,
+      @Nullable @Param("provider") String provider,
+      @Nullable @Param("model") String model,
       @Param("limit") int limit,
       @Param("offset") long offset);
 
@@ -159,9 +160,9 @@ public interface LeaderboardJpaRepository extends Repository<AnalysisEntity, UUI
           """,
       nativeQuery = true)
   List<LeaderboardRow> findLargest(
-      @Param("mode") String mode,
-      @Param("provider") String provider,
-      @Param("model") String model,
+      @Nullable @Param("mode") String mode,
+      @Nullable @Param("provider") String provider,
+      @Nullable @Param("model") String model,
       @Param("limit") int limit,
       @Param("offset") long offset);
 
@@ -198,9 +199,9 @@ public interface LeaderboardJpaRepository extends Repository<AnalysisEntity, UUI
           """,
       nativeQuery = true)
   List<LeaderboardRow> findHighestTokenCount(
-      @Param("mode") String mode,
-      @Param("provider") String provider,
-      @Param("model") String model,
+      @Nullable @Param("mode") String mode,
+      @Nullable @Param("provider") String provider,
+      @Nullable @Param("model") String model,
       @Param("limit") int limit,
       @Param("offset") long offset);
 
@@ -267,7 +268,9 @@ public interface LeaderboardJpaRepository extends Repository<AnalysisEntity, UUI
           """,
       nativeQuery = true)
   long countCostFiltered(
-      @Param("mode") String mode, @Param("provider") String provider, @Param("model") String model);
+      @Nullable @Param("mode") String mode,
+      @Nullable @Param("provider") String provider,
+      @Nullable @Param("model") String model);
 
   @Query(value = "SELECT COUNT(*) FROM analysis", nativeQuery = true)
   long countAll();
