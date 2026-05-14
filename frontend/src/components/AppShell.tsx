@@ -21,9 +21,6 @@ export function AppShell({ children }: PropsWithChildren) {
             <a className="transition hover:text-white" href="/leaderboards">
               Leaderboards
             </a>
-            <a className="transition hover:text-white" href="/#settings">
-              Settings
-            </a>
           </nav>
         </div>
       </header>
