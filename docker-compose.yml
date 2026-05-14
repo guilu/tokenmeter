@@ -3,8 +3,8 @@ services:
     image: postgres:18-alpine
     environment:
       POSTGRES_DB: ${TOKENMETER_DB_NAME:-tokenmeter}
-      POSTGRES_USER: ${TOKENMETER_DB_USER:-tokenmeter}
-      POSTGRES_PASSWORD: ${TOKENMETER_DB_PASSWORD:-tokenmeter}
+      POSTGRES_USER: ${TOKENMETER_DB_USER:?TOKENMETER_DB_USER must be set (see .env.example)}
+      POSTGRES_PASSWORD: ${TOKENMETER_DB_PASSWORD:?TOKENMETER_DB_PASSWORD must be set (see .env.example)}
     healthcheck:
       test:
         [
@@ -23,8 +23,8 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: docker
       DATABASE_URL: jdbc:postgresql://db:5432/${TOKENMETER_DB_NAME:-tokenmeter}
-      DATABASE_USERNAME: ${TOKENMETER_DB_USER:-tokenmeter}
-      DATABASE_PASSWORD: ${TOKENMETER_DB_PASSWORD:-tokenmeter}
+      DATABASE_USERNAME: ${TOKENMETER_DB_USER:?TOKENMETER_DB_USER must be set (see .env.example)}
+      DATABASE_PASSWORD: ${TOKENMETER_DB_PASSWORD:?TOKENMETER_DB_PASSWORD must be set (see .env.example)}
       TOKENMETER_WORKDIR: ${TOKENMETER_WORKDIR:-/tmp/tokenmeter-repositories}
       TOKENMETER_MAX_REPOSITORY_BYTES: ${TOKENMETER_MAX_REPOSITORY_BYTES:-314572800}
       TOKENMETER_CLONE_TIMEOUT: ${TOKENMETER_CLONE_TIMEOUT:-120s}

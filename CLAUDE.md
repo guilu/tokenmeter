@@ -126,7 +126,9 @@ Gitmojis comunes: ✨ feat · 🐛 fix · ♻️ refactor · 🧪 test · 📝 d
 | `TOKENMETER_BIND_ADDRESS` | `127.0.0.1` | IP host donde publicar frontend/backend |
 | `TOKENMETER_FRONTEND_PORT` | `3001` | Puerto host del frontend Docker |
 | `TOKENMETER_BACKEND_PORT` | `8081` | Puerto host del backend Docker |
-| `TOKENMETER_DB_NAME` / `TOKENMETER_DB_USER` / `TOKENMETER_DB_PASSWORD` | `tokenmeter` | Credenciales PostgreSQL Docker |
+| `TOKENMETER_DB_NAME` | `tokenmeter` | Nombre de la BBDD PostgreSQL (Docker) |
+| `TOKENMETER_DB_USER` | **obligatorio** | Usuario PostgreSQL (Docker). `docker compose up` falla si no está definido. |
+| `TOKENMETER_DB_PASSWORD` | **obligatorio** | Contraseña PostgreSQL (Docker). Generar con `openssl rand -base64 32`. `docker compose up` falla si no está definida. |
 | `TOKENMETER_WORKDIR` | `${java.io.tmpdir}/tokenmeter-repositories` | Directorio temporal para clones |
 | `TOKENMETER_MAX_REPOSITORY_BYTES` | `314572800` (300 MiB) | Tamaño máximo del repo |
 | `TOKENMETER_CLONE_TIMEOUT` | `120s` | Timeout de clone |
