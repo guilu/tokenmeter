@@ -28,8 +28,14 @@ services:
       TOKENMETER_WORKDIR: ${TOKENMETER_WORKDIR:-/tmp/tokenmeter-repositories}
       TOKENMETER_MAX_REPOSITORY_BYTES: ${TOKENMETER_MAX_REPOSITORY_BYTES:-314572800}
       TOKENMETER_CLONE_TIMEOUT: ${TOKENMETER_CLONE_TIMEOUT:-120s}
+    read_only: true
     tmpfs:
+      - /tmp:size=64m,mode=0700,uid=1001
       - ${TOKENMETER_WORKDIR:-/tmp/tokenmeter-repositories}:size=${TOKENMETER_WORKDIR_TMPFS_SIZE:-1g},mode=0700,uid=1001
+    cap_drop:
+      - ALL
+    security_opt:
+      - "no-new-privileges:true"
     depends_on:
       db:
         condition: service_healthy
