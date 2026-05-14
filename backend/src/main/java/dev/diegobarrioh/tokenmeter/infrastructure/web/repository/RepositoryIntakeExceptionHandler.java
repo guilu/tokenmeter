@@ -5,6 +5,8 @@ import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeErrorCode;
 import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -14,6 +16,9 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 
 @RestControllerAdvice
 public class RepositoryIntakeExceptionHandler {
+  private static final Logger LOGGER =
+      LoggerFactory.getLogger(RepositoryIntakeExceptionHandler.class);
+
   @ExceptionHandler(RepositoryIntakeException.class)
   public ResponseEntity<RepositoryIntakeErrorResponse> handleRepositoryIntakeException(
       RepositoryIntakeException exception, HttpServletRequest request) {
@@ -76,6 +81,20 @@ public class RepositoryIntakeExceptionHandler {
                 RepositoryIntakeErrorCode.INVALID_URL.name(),
                 "Repository URL is required",
                 HttpStatus.BAD_REQUEST.value(),
+                request.getRequestURI(),
+                Instant.now()));
+  }
+
+  @ExceptionHandler(Exception.class)
+  public ResponseEntity<RepositoryIntakeErrorResponse> handleUnexpectedException(
+      Exception exception, HttpServletRequest request) {
+    LOGGER.error("Unexpected error processing request {}", request.getRequestURI(), exception);
+    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .body(
+            new RepositoryIntakeErrorResponse(
+                "ANALYSIS_FAILED",
+                "Analysis failed due to an unexpected error. The team has been notified.",
+                HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 request.getRequestURI(),
                 Instant.now()));
   }

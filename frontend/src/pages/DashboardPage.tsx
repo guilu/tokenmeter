@@ -1190,10 +1190,16 @@ function isValidGitHubUrl(value: string) {
 
 function toUserMessage(reason: unknown) {
   if (reason instanceof ApiError) {
-    if (reason.code === 'INVALID_URL') return 'That repository URL is not valid. Use a public GitHub repository URL.'
-    if (reason.code === 'REPOSITORY_NOT_ACCESSIBLE') return 'TokenMeter could not access that repository. Check that it is public and exists.'
-    if (reason.code === 'CLONE_TIMEOUT') return 'The repository took too long to clone. Try a smaller repository.'
+    if (reason.code === 'INVALID_URL') return 'That repository URL is not valid. Use a public GitHub repository URL, e.g. https://github.com/owner/repo.'
+    if (reason.code === 'REPOSITORY_NOT_ACCESSIBLE') return 'TokenMeter could not access that repository. Make sure it is public and the URL is correct.'
+    if (reason.code === 'CLONE_TIMEOUT') return 'The repository took too long to clone. Try a smaller or shallower repository.'
+    if (reason.code === 'REPOSITORY_TOO_LARGE') return 'That repository exceeds the size limit (300 MiB). Try a smaller repository.'
+    if (reason.code === 'CLONE_FAILED') return `Repository clone failed. ${reason.message}`
+    if (reason.code === 'RATE_LIMITED') return 'Too many requests. Wait a moment and try again.'
+    if (reason.code === 'ANALYSIS_NOT_FOUND') return 'Analysis not found. It may have been removed or the ID is incorrect.'
+    if (reason.code === 'ANALYSIS_FAILED') return 'Analysis failed due to an unexpected error. Try again or pick a different repository.'
+    if (reason.code === 'INVALID_REQUEST') return reason.message
     return reason.message
   }
-  return 'Something went wrong while analyzing the repository. Try again.'
+  return 'Something went wrong. Try again or pick a different repository.'
 }
