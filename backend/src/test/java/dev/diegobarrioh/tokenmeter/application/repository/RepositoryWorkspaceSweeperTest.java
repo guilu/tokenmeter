@@ -42,6 +42,27 @@ class RepositoryWorkspaceSweeperTest {
     assertThat(tempDir).isEmptyDirectory();
   }
 
+  @Test
+  void doesNotDeleteEntriesNotMatchingClonePattern() throws IOException {
+    Path safeDir = Files.createDirectory(tempDir.resolve("my-config"));
+    Path cloneDir = Files.createDirectory(tempDir.resolve("owner-repo-abc123"));
+
+    new RepositoryWorkspaceSweeper(properties()).sweep();
+
+    assertThat(safeDir).exists();
+    assertThat(cloneDir).doesNotExist();
+  }
+
+  @Test
+  void doesNotDeleteSymlinks() throws IOException {
+    Path target = Files.createDirectory(tempDir.resolve("target"));
+    Path link = Files.createSymbolicLink(tempDir.resolve("owner-repo-symlink-"), target);
+
+    new RepositoryWorkspaceSweeper(properties()).sweep();
+
+    assertThat(link).exists();
+  }
+
   private RepositoryIntakeProperties properties() {
     return new RepositoryIntakeProperties(tempDir, 1024, Duration.ofSeconds(2));
   }
