@@ -431,6 +431,14 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
             >
               Download your badge
             </a>
+            <a
+              className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-3 text-center text-sm font-medium text-cyan-100 transition hover:bg-cyan-300/20"
+              href={`/api/analyze/${analysis.id}/badge.svg`}
+              rel="noreferrer"
+              target="_blank"
+            >
+              Download your mini badge
+            </a>
           </div>
         </div>
       </header>
