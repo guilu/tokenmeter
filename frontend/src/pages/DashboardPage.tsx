@@ -389,49 +389,50 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
 
   return (
     <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-16" id="results">
-      <button className="text-sm text-cyan-200 transition hover:text-cyan-100" onClick={onNewAnalysis} type="button">
-        ← Analyze another repository
-      </button>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <button className="text-sm text-cyan-200 transition hover:text-cyan-100" onClick={onNewAnalysis} type="button">
+          ← Analyze another repository
+        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-slate-200 transition hover:bg-white/10"
+            onClick={() => void handleCopyPublicUrl()}
+            type="button"
+          >
+            {copyState === 'copied' ? 'Copied!' : copyState === 'failed' ? 'Copy failed' : 'Copy public URL'}
+          </button>
+          <a
+            className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-2 text-sm font-medium text-cyan-100 transition hover:bg-cyan-300/20"
+            href={selectedOpenGraphImageUrl}
+            rel="noreferrer"
+            target="_blank"
+          >
+            Download badge
+          </a>
+          <a
+            className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-2 text-sm font-medium text-cyan-100 transition hover:bg-cyan-300/20"
+            href={`/api/analyze/${analysis.id}/badge.svg`}
+            rel="noreferrer"
+            target="_blank"
+          >
+            Download mini badge
+          </a>
+        </div>
+      </div>
 
-      <header className="mt-6 grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
-        <div className="min-w-0">
-          <p className="mb-4 inline-flex rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-sm text-emerald-200">
-            Analysis complete
-          </p>
-          <h1 className="truncate text-2xl font-semibold tracking-tight text-white sm:text-4xl" title={analysis.repositoryUrl}>
-            {analysis.repositoryUrl}
-          </h1>
-          <p className="mt-3 truncate text-sm text-slate-400" title={analysis.id}>
-            Analysis id: {analysis.id} · {dateFormatter.format(new Date(analysis.createdAt))}
-          </p>
-        </div>
-        <div className="grid gap-3">
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
-            <button
-              className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-slate-200 transition hover:bg-white/10"
-              onClick={() => void handleCopyPublicUrl()}
-              type="button"
-            >
-              {copyState === 'copied' ? 'Copied public URL' : copyState === 'failed' ? 'Copy failed' : 'Copy public URL'}
-            </button>
-            <a
-              className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-3 text-center text-sm font-medium text-cyan-100 transition hover:bg-cyan-300/20"
-              href={selectedOpenGraphImageUrl}
-              rel="noreferrer"
-              target="_blank"
-            >
-              Download your badge
-            </a>
-            <a
-              className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-3 text-center text-sm font-medium text-cyan-100 transition hover:bg-cyan-300/20"
-              href={`/api/analyze/${analysis.id}/badge.svg`}
-              rel="noreferrer"
-              target="_blank"
-            >
-              Download your mini badge
-            </a>
-          </div>
-        </div>
+      <header className="mt-6">
+        <p className="mb-4 inline-flex rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-sm text-emerald-200">
+          Analysis complete
+        </p>
+        <h1 className="flex items-center gap-3 text-2xl font-semibold tracking-tight text-white sm:text-4xl">
+          <svg aria-hidden="true" className="h-7 w-7 shrink-0 text-slate-400 sm:h-9 sm:w-9" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
+          </svg>
+          <span className="break-all">{analysis.repositoryUrl}</span>
+        </h1>
+        <p className="mt-3 text-sm text-slate-400">
+          Analysis id: {analysis.id} · {dateFormatter.format(new Date(analysis.createdAt))}
+        </p>
       </header>
 
       <ModeSwitch selectedMode={selectedMode} onSelectMode={setSelectedMode} />
