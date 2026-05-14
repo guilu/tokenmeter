@@ -63,7 +63,7 @@ class LeaderboardServiceTest {
   @Test
   void invalidModeFilterIsIgnored() {
     LeaderboardService service = new LeaderboardService(leaderboardRepository);
-    when(leaderboardRepository.countAll()).thenReturn(1L);
+    when(leaderboardRepository.countDistinctRepositories()).thenReturn(1L);
     when(leaderboardRepository.findLargest(any(), any(), any(), anyInt(), anyLong()))
         .thenReturn(List.of(row("repo", BigDecimal.ONE, 50_000)));
 

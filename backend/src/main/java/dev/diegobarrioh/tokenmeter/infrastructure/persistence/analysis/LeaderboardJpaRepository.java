@@ -130,32 +130,39 @@ public interface LeaderboardJpaRepository extends Repository<AnalysisEntity, UUI
   @Query(
       value =
           """
-          SELECT a.id,
-                 a.repository_url,
-                 a.owner_name,
-                 a.repository_name,
-                 a.created_at,
-                 a.total_files,
-                 a.total_lines,
-                 a.total_bytes,
-                 a.total_tokens,
+          WITH deduped AS (
+              SELECT DISTINCT ON (repository_url)
+                     id, repository_url, owner_name, repository_name, created_at,
+                     total_files, total_lines, total_bytes, total_tokens
+              FROM analysis
+              ORDER BY repository_url, total_bytes DESC, created_at DESC
+          )
+          SELECT d.id,
+                 d.repository_url,
+                 d.owner_name,
+                 d.repository_name,
+                 d.created_at,
+                 d.total_files,
+                 d.total_lines,
+                 d.total_bytes,
+                 d.total_tokens,
                  CAST(1 AS BIGINT) AS analysis_count,
                  ce.provider,
                  ce.model,
                  ce.mode,
                  ce.total_cost
-          FROM analysis a
+          FROM deduped d
           LEFT JOIN LATERAL (
               SELECT provider, model, mode, total_cost
               FROM cost_estimates
-              WHERE analysis_id = a.id
+              WHERE analysis_id = d.id
                 AND (:mode IS NULL OR mode = :mode)
                 AND (:provider IS NULL OR provider = :provider)
                 AND (:model IS NULL OR LOWER(model) = LOWER(:model))
               ORDER BY total_cost ASC
               LIMIT 1
           ) ce ON true
-          ORDER BY a.total_bytes DESC, a.created_at DESC
+          ORDER BY d.total_bytes DESC, d.created_at DESC
           LIMIT :limit OFFSET :offset
           """,
       nativeQuery = true)
@@ -169,32 +176,39 @@ public interface LeaderboardJpaRepository extends Repository<AnalysisEntity, UUI
   @Query(
       value =
           """
-          SELECT a.id,
-                 a.repository_url,
-                 a.owner_name,
-                 a.repository_name,
-                 a.created_at,
-                 a.total_files,
-                 a.total_lines,
-                 a.total_bytes,
-                 a.total_tokens,
+          WITH deduped AS (
+              SELECT DISTINCT ON (repository_url)
+                     id, repository_url, owner_name, repository_name, created_at,
+                     total_files, total_lines, total_bytes, total_tokens
+              FROM analysis
+              ORDER BY repository_url, total_tokens DESC, created_at DESC
+          )
+          SELECT d.id,
+                 d.repository_url,
+                 d.owner_name,
+                 d.repository_name,
+                 d.created_at,
+                 d.total_files,
+                 d.total_lines,
+                 d.total_bytes,
+                 d.total_tokens,
                  CAST(1 AS BIGINT) AS analysis_count,
                  ce.provider,
                  ce.model,
                  ce.mode,
                  ce.total_cost
-          FROM analysis a
+          FROM deduped d
           LEFT JOIN LATERAL (
               SELECT provider, model, mode, total_cost
               FROM cost_estimates
-              WHERE analysis_id = a.id
+              WHERE analysis_id = d.id
                 AND (:mode IS NULL OR mode = :mode)
                 AND (:provider IS NULL OR provider = :provider)
                 AND (:model IS NULL OR LOWER(model) = LOWER(:model))
               ORDER BY total_cost ASC
               LIMIT 1
           ) ce ON true
-          ORDER BY a.total_tokens DESC, a.created_at DESC
+          ORDER BY d.total_tokens DESC, d.created_at DESC
           LIMIT :limit OFFSET :offset
           """,
       nativeQuery = true)

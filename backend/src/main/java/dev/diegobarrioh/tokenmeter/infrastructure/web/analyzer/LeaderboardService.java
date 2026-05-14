@@ -63,7 +63,7 @@ public class LeaderboardService {
   private long countFor(LeaderboardCategory category, String mode, String provider, String model) {
     return switch (category) {
       case MOST_ANALYZED -> leaderboardRepository.countDistinctRepositories();
-      case LARGEST, HIGHEST_TOKEN_COUNT -> leaderboardRepository.countAll();
+      case LARGEST, HIGHEST_TOKEN_COUNT -> leaderboardRepository.countDistinctRepositories();
       case MOST_EXPENSIVE, CHEAPEST, BEST_COST_EFFICIENCY ->
           leaderboardRepository.countCostFiltered(mode, provider, model);
     };
