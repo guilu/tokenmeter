@@ -183,7 +183,7 @@ export function DashboardPage() {
 
       <div className="mx-auto max-w-4xl px-6 pb-6">
         <form
-          className="rounded-3xl border border-white/10 bg-white/[0.04] p-3 shadow-2xl shadow-cyan-950/30 backdrop-blur"
+          className="rounded-3xl bg-white/[0.04] p-3 shadow-2xl shadow-cyan-950/30 backdrop-blur"
           onSubmit={handleSubmit}
         >
           <label className="sr-only" htmlFor="repository-url">
