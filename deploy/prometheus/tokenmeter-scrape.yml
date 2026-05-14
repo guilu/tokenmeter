@@ -6,7 +6,7 @@ scrape_configs:
     scheme: http
     static_configs:
       - targets:
-          - <tokenmeter-host>:8081
+          - <tokenmeter-host>:8090
         labels:
           app: tokenmeter
           service: tokenmeter-backend

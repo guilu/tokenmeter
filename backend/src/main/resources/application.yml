@@ -8,6 +8,8 @@ spring:
     locations: classpath:db/migration
 
 management:
+  server:
+    port: ${TOKENMETER_MANAGEMENT_PORT:8090}
   endpoint:
     health:
       probes:
@@ -15,7 +17,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,prometheus
+        include: health,prometheus
   prometheus:
     metrics:
       export:
