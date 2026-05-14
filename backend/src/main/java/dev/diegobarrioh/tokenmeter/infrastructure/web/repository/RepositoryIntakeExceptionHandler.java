@@ -54,6 +54,19 @@ public class RepositoryIntakeExceptionHandler {
                 Instant.now()));
   }
 
+  @ExceptionHandler(IllegalArgumentException.class)
+  public ResponseEntity<RepositoryIntakeErrorResponse> handleIllegalArgumentException(
+      IllegalArgumentException exception, HttpServletRequest request) {
+    return ResponseEntity.badRequest()
+        .body(
+            new RepositoryIntakeErrorResponse(
+                "INVALID_REQUEST",
+                exception.getMessage(),
+                HttpStatus.BAD_REQUEST.value(),
+                request.getRequestURI(),
+                Instant.now()));
+  }
+
   @ExceptionHandler(MethodArgumentNotValidException.class)
   public ResponseEntity<RepositoryIntakeErrorResponse> handleValidationException(
       MethodArgumentNotValidException exception, HttpServletRequest request) {

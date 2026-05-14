@@ -362,6 +362,14 @@ class RepositoryAnalysisControllerTest {
         .andExpect(jsonPath("$.code").value("CLONE_TIMEOUT"));
   }
 
+  @Test
+  void mapsUnknownLeaderboardCategoryToBadRequest() throws Exception {
+    mockMvc
+        .perform(get("/api/leaderboards").param("category", "not-a-real-category"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+  }
+
   private static RepositoryAnalysisResult sampleAnalysis(
       UUID id, List<ModelCostEstimate> costEstimates) {
     return new RepositoryAnalysisResult(
