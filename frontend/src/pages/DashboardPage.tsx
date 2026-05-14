@@ -778,8 +778,6 @@ function CostHero({
   topLanguage: ReturnType<typeof languageBreakdown>[number] | undefined
 }) {
   const repositoryLabel = repositoryName(analysis.repositoryUrl)
-  const costRange = costRangeLabel(lowestEstimate, highestEstimate)
-  const modelRange = modelRangeLabel(lowestEstimate, highestEstimate)
 
   return (
     <section className="relative mt-8 overflow-hidden rounded-[2rem] border border-cyan-300/20 bg-slate-950/90 p-6 shadow-2xl shadow-cyan-950/30 sm:p-8">
