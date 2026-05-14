@@ -414,7 +414,6 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
           </p>
         </div>
         <div className="grid gap-3">
-          <ModeSwitch selectedMode={selectedMode} onSelectMode={setSelectedMode} />
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
             <button
               className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-slate-200 transition hover:bg-white/10"
@@ -442,6 +441,8 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
           </div>
         </div>
       </header>
+
+      <ModeSwitch selectedMode={selectedMode} onSelectMode={setSelectedMode} />
 
       <CostHero
         analysis={analysis}
@@ -886,14 +887,14 @@ function AssumptionMetric({ label, value }: { label: string; value: string }) {
 
 function ModeSwitch({ selectedMode, onSelectMode }: { selectedMode: CostMode; onSelectMode: (mode: CostMode) => void }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-1">
-      <div className="grid grid-cols-3 gap-1">
+    <div className="mt-6 rounded-2xl border border-white/10 bg-slate-950/60 p-1.5">
+      <div className="grid grid-cols-3 gap-1.5">
         {costModes.map((mode) => {
           const active = selectedMode === mode
           return (
             <button
-              className={`rounded-xl px-3 py-2 text-sm font-medium capitalize transition ${
-                active ? 'bg-cyan-300 text-slate-950' : 'text-slate-300 hover:bg-white/10 hover:text-white'
+              className={`rounded-xl px-4 py-3 text-base font-semibold capitalize transition ${
+                active ? 'bg-cyan-300 text-slate-950 shadow-lg shadow-cyan-300/20' : 'text-slate-300 hover:bg-white/10 hover:text-white'
               }`}
               key={mode}
               onClick={() => onSelectMode(mode)}
