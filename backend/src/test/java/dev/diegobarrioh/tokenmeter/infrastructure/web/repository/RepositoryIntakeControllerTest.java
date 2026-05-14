@@ -6,18 +6,25 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import dev.diegobarrioh.tokenmeter.application.analyzer.AnalyzeThrottleProperties;
 import dev.diegobarrioh.tokenmeter.application.repository.RepositoryIntakeResult;
 import dev.diegobarrioh.tokenmeter.application.repository.RepositoryIntakeService;
 import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeErrorCode;
 import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeException;
+import dev.diegobarrioh.tokenmeter.infrastructure.web.WebMvcConfiguration;
+import dev.diegobarrioh.tokenmeter.infrastructure.web.analyzer.AnalyzeRateLimitInterceptor;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(RepositoryIntakeController.class)
+@Import({AnalyzeRateLimitInterceptor.class, WebMvcConfiguration.class})
+@EnableConfigurationProperties(AnalyzeThrottleProperties.class)
 class RepositoryIntakeControllerTest {
   @Autowired private MockMvc mockMvc;
 

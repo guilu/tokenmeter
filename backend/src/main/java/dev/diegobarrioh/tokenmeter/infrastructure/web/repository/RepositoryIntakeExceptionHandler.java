@@ -74,6 +74,7 @@ public class RepositoryIntakeExceptionHandler {
       case REPOSITORY_TOO_LARGE -> HttpStatus.PAYLOAD_TOO_LARGE;
       case CLONE_TIMEOUT -> HttpStatus.GATEWAY_TIMEOUT;
       case CLONE_FAILED -> HttpStatus.BAD_GATEWAY;
+      case RATE_LIMITED -> HttpStatus.TOO_MANY_REQUESTS;
     };
   }
 }

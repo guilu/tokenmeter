@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import dev.diegobarrioh.tokenmeter.application.analyzer.AnalysisNotFoundException;
+import dev.diegobarrioh.tokenmeter.application.analyzer.AnalyzeThrottleProperties;
 import dev.diegobarrioh.tokenmeter.application.analyzer.RepositoryAnalysisResult;
 import dev.diegobarrioh.tokenmeter.application.analyzer.RepositoryAnalysisService;
 import dev.diegobarrioh.tokenmeter.application.cost.EngineeringEffortEstimator;
@@ -23,6 +24,7 @@ import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeErrorCode;
 import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeException;
 import dev.diegobarrioh.tokenmeter.domain.tokenizer.LanguageTokenMetrics;
 import dev.diegobarrioh.tokenmeter.domain.tokenizer.RepositoryTokenizationResult;
+import dev.diegobarrioh.tokenmeter.infrastructure.web.WebMvcConfiguration;
 import dev.diegobarrioh.tokenmeter.infrastructure.web.repository.RepositoryIntakeExceptionHandler;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -45,9 +47,11 @@ import org.springframework.test.web.servlet.MockMvc;
   CostBreakdownMapper.class,
   EngineeringEffortEstimator.class,
   OpenGraphImageRenderer.class,
-  RepositoryIntakeExceptionHandler.class
+  RepositoryIntakeExceptionHandler.class,
+  AnalyzeRateLimitInterceptor.class,
+  WebMvcConfiguration.class,
 })
-@EnableConfigurationProperties(EngineeringEffortProperties.class)
+@EnableConfigurationProperties({EngineeringEffortProperties.class, AnalyzeThrottleProperties.class})
 class RepositoryAnalysisControllerTest {
   @Autowired private MockMvc mockMvc;
 

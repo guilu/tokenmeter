@@ -23,6 +23,10 @@ management:
 
 
 tokenmeter:
+  analyze-throttle:
+    max-concurrent: ${TOKENMETER_MAX_CONCURRENT_ANALYSES:3}
+    rate-limit-requests-per-window: ${TOKENMETER_RATE_LIMIT_REQUESTS:5}
+    rate-limit-window-duration: ${TOKENMETER_RATE_LIMIT_WINDOW:60s}
   repository-intake:
     temp-directory: ${TOKENMETER_WORKDIR:${java.io.tmpdir}/tokenmeter-repositories}
     max-repository-bytes: ${TOKENMETER_MAX_REPOSITORY_BYTES:314572800}

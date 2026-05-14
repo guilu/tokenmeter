@@ -39,7 +39,8 @@ class RepositoryAnalysisServiceTest {
             scanner(),
             tokenizationService(),
             persistenceService(),
-            costEstimationService());
+            costEstimationService(),
+            unlimitedGuard());
 
     RepositoryAnalysisResult result = service.analyze("https://github.com/guilu/tokenmeter");
 
@@ -73,7 +74,8 @@ class RepositoryAnalysisServiceTest {
             scanner(),
             tokenizationService(),
             persistenceService(),
-            costEstimationService());
+            costEstimationService(),
+            unlimitedGuard());
 
     assertThatThrownBy(() -> service.analyze("https://github.com/guilu/slow"))
         .isInstanceOf(RepositoryIntakeException.class)
@@ -92,7 +94,8 @@ class RepositoryAnalysisServiceTest {
             scanner(),
             tokenizationService(),
             persistenceService(),
-            costEstimationService());
+            costEstimationService(),
+            unlimitedGuard());
 
     assertThatThrownBy(() -> service.analyze("https://github.com/guilu/huge"))
         .isInstanceOf(RepositoryIntakeException.class)
@@ -103,6 +106,10 @@ class RepositoryAnalysisServiceTest {
 
   private RepositoryIntakeProperties properties(long maxBytes, Duration timeout) {
     return new RepositoryIntakeProperties(tempDir, maxBytes, timeout);
+  }
+
+  private static AnalysisConcurrencyGuard unlimitedGuard() {
+    return new AnalysisConcurrencyGuard(new AnalyzeThrottleProperties(Integer.MAX_VALUE, 0, null));
   }
 
   private static RepositoryFileScanner scanner() {

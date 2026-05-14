@@ -38,6 +38,7 @@ public class RepositoryAnalysisService {
   private final AnalysisPersistenceService persistenceService;
   private final RepositoryCostEstimationService costEstimationService;
   private final RepositorySizeCalculator sizeCalculator;
+  private final AnalysisConcurrencyGuard concurrencyGuard;
 
   @Autowired
   public RepositoryAnalysisService(
@@ -46,7 +47,8 @@ public class RepositoryAnalysisService {
       RepositoryFileScanner fileScanner,
       RepositoryTokenizationService tokenizationService,
       AnalysisPersistenceService persistenceService,
-      RepositoryCostEstimationService costEstimationService) {
+      RepositoryCostEstimationService costEstimationService,
+      AnalysisConcurrencyGuard concurrencyGuard) {
     this(
         cloner,
         properties,
@@ -54,7 +56,8 @@ public class RepositoryAnalysisService {
         tokenizationService,
         persistenceService,
         costEstimationService,
-        new RepositorySizeCalculator());
+        new RepositorySizeCalculator(),
+        concurrencyGuard);
   }
 
   RepositoryAnalysisService(
@@ -64,7 +67,8 @@ public class RepositoryAnalysisService {
       RepositoryTokenizationService tokenizationService,
       AnalysisPersistenceService persistenceService,
       RepositoryCostEstimationService costEstimationService,
-      RepositorySizeCalculator sizeCalculator) {
+      RepositorySizeCalculator sizeCalculator,
+      AnalysisConcurrencyGuard concurrencyGuard) {
     this.cloner = cloner;
     this.properties = properties;
     this.fileScanner = fileScanner;
@@ -72,12 +76,13 @@ public class RepositoryAnalysisService {
     this.persistenceService = persistenceService;
     this.costEstimationService = costEstimationService;
     this.sizeCalculator = sizeCalculator;
+    this.concurrencyGuard = concurrencyGuard;
   }
 
   public RepositoryAnalysisResult analyze(String rawRepositoryUrl) {
     GitHubRepositoryUrl repositoryUrl = GitHubRepositoryUrl.parse(rawRepositoryUrl);
+    concurrencyGuard.acquire();
     Path cloneDirectory = createCloneDirectory(repositoryUrl);
-
     try {
       cloneWithTimeout(repositoryUrl, cloneDirectory);
       enforceSizeLimit(sizeCalculator.summarize(cloneDirectory));
@@ -95,6 +100,7 @@ public class RepositoryAnalysisService {
               tokenization,
               costEstimates));
     } finally {
+      concurrencyGuard.release();
       if (!deleteRecursively(cloneDirectory)) {
         LOGGER.warn("Could not fully clean temporary analysis directory {}", cloneDirectory);
       }
