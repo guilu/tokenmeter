@@ -790,18 +790,32 @@ function CostHero({
         <p className="inline-flex rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-sm text-cyan-100">
           Estimated generation cost range
         </p>
-        <div className="mt-5 transition-all duration-500" key={`${selectedMode}-${lowestEstimate?.provider ?? 'none'}-${highestEstimate?.provider ?? 'none'}`}>
-          <p className="text-5xl font-semibold tracking-tight text-white sm:text-7xl">
-            {costRange}
-          </p>
-          <p className="mt-3 text-lg text-slate-300">
-            from <span className="font-medium text-cyan-100">{modelRange}</span> in {selectedMode} workflow mode
-          </p>
-          <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-400">
-            TokenMeter estimates what it would cost to regenerate {repositoryLabel} with AI, including repository size,
-            token footprint and workflow overhead for the selected mode.
-          </p>
+        <div
+          className="mt-5 grid gap-4 transition-all duration-500 sm:grid-cols-2"
+          key={`${selectedMode}-${lowestEstimate?.provider ?? 'none'}-${highestEstimate?.provider ?? 'none'}`}
+        >
+          <div className="min-w-0 rounded-2xl bg-white/[0.04] p-5">
+            <p className="text-5xl font-semibold tracking-tight text-white sm:text-6xl">
+              {lowestEstimate ? currencyFormatter.format(lowestEstimate.totalCost) : '—'}
+            </p>
+            <p className="mt-3 truncate text-sm text-slate-400">
+              {lowestEstimate ? `${lowestEstimate.provider} · ${lowestEstimate.model} · ${selectedMode} workflow mode` : 'No estimate'}
+            </p>
+          </div>
+          <div className="min-w-0 rounded-2xl bg-white/[0.04] p-5">
+            <p className="text-5xl font-semibold tracking-tight text-white sm:text-6xl">
+              {highestEstimate ? currencyFormatter.format(highestEstimate.totalCost) : '—'}
+            </p>
+            <p className="mt-3 truncate text-sm text-slate-400">
+              {highestEstimate ? `${highestEstimate.provider} · ${highestEstimate.model} · ${selectedMode} workflow mode` : 'No estimate'}
+            </p>
+          </div>
         </div>
+
+        <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-400">
+          TokenMeter estimates what it would cost to regenerate {repositoryLabel} with AI, including repository size,
+          token footprint and workflow overhead for the selected mode.
+        </p>
 
         <div className="mt-6 grid gap-3 sm:grid-cols-4">
           <HeroMeta label="Repository" value={repositoryLabel} />
