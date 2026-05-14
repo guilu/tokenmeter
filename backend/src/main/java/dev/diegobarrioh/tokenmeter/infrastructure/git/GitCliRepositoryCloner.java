@@ -8,10 +8,15 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 @Component
 public class GitCliRepositoryCloner implements GitRepositoryCloner {
+  private static final Logger LOGGER = LoggerFactory.getLogger(GitCliRepositoryCloner.class);
+
   @Override
   public void clone(GitHubRepositoryUrl repositoryUrl, Path targetDirectory) {
     Process process = null;
@@ -54,13 +59,15 @@ public class GitCliRepositoryCloner implements GitRepositoryCloner {
 
   private static RepositoryIntakeException cloneFailure(byte[] output) {
     String message = new String(output, StandardCharsets.UTF_8).trim();
+    String ref = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+    LOGGER.warn("Git clone failed [ref={}]: {}", ref, message);
     if (isAccessError(message)) {
       return new RepositoryIntakeException(
           RepositoryIntakeErrorCode.REPOSITORY_NOT_ACCESSIBLE,
-          "Repository is private, nonexistent or not accessible: " + message);
+          "Repository is private, nonexistent or not accessible [ref:" + ref + "]");
     }
     return new RepositoryIntakeException(
-        RepositoryIntakeErrorCode.CLONE_FAILED, "Repository clone failed: " + message);
+        RepositoryIntakeErrorCode.CLONE_FAILED, "Repository clone failed [ref:" + ref + "]");
   }
 
   private static boolean isAccessError(String message) {
