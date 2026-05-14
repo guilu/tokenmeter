@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 public class BadgeRenderer {
 
   private static final int PADDING = 10;
-  private static final String LABEL = "AI regen cost";
+  private static final String LABEL = "AI gen cost";
 
   public String render(RepositoryAnalysisResult analysis) {
     List<ModelCostEstimate> estimates = rawEstimates(analysis);
