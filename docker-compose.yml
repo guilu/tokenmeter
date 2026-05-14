@@ -29,7 +29,7 @@ services:
       TOKENMETER_MAX_REPOSITORY_BYTES: ${TOKENMETER_MAX_REPOSITORY_BYTES:-314572800}
       TOKENMETER_CLONE_TIMEOUT: ${TOKENMETER_CLONE_TIMEOUT:-120s}
     tmpfs:
-      - ${TOKENMETER_WORKDIR:-/tmp/tokenmeter-repositories}:size=${TOKENMETER_WORKDIR_TMPFS_SIZE:-1g},mode=1700
+      - ${TOKENMETER_WORKDIR:-/tmp/tokenmeter-repositories}:size=${TOKENMETER_WORKDIR_TMPFS_SIZE:-1g},mode=0700,uid=1001
     depends_on:
       db:
         condition: service_healthy
