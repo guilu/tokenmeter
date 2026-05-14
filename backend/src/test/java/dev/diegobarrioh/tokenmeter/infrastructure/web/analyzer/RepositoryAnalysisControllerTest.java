@@ -237,7 +237,8 @@ class RepositoryAnalysisControllerTest {
             result ->
                 org.assertj.core.api.Assertions.assertThat(
                         result.getResponse().getContentAsString())
-                    .contains("window.location.replace('/?analysis=" + id + "')"));
+                    .contains("url=/?analysis=" + id)
+                    .doesNotContain("<script>"));
   }
 
   @Test

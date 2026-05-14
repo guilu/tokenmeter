@@ -104,8 +104,8 @@ public class RepositoryAnalysisController {
             <meta name=\"twitter:card\" content=\"summary\" />
             <meta name=\"twitter:title\" content=\"%s\" />
             <meta name=\"twitter:description\" content=\"%s\" />
+            <meta http-equiv="refresh" content="0; url=/?leaderboards=true" />
             <title>%s</title>
-            <script>window.location.replace('/?leaderboards=true')</script>
           </head>
           <body>
             <h1>TokenMeter repository leaderboards</h1>
@@ -125,6 +125,7 @@ public class RepositoryAnalysisController {
     return ResponseEntity.ok()
         .contentType(MediaType.TEXT_HTML)
         .cacheControl(CacheControl.maxAge(Duration.ofMinutes(5)).cachePublic())
+        .headers(securityHeaders())
         .body(html);
   }
 
@@ -158,8 +159,8 @@ public class RepositoryAnalysisController {
             <meta name=\"twitter:title\" content=\"%s\" />
             <meta name=\"twitter:description\" content=\"%s\" />
             <meta name=\"twitter:image\" content=\"%s\" />
+            <meta http-equiv="refresh" content="0; url=/?analysis=%s" />
             <title>%s</title>
-            <script>window.location.replace('/?analysis=%s')</script>
           </head>
           <body>
             <p>Loading TokenMeter analysis…</p>
@@ -176,12 +177,13 @@ public class RepositoryAnalysisController {
                 html(title),
                 html(description),
                 html(imagePath),
-                html(title),
-                id);
+                id,
+                html(title));
 
     return ResponseEntity.ok()
         .contentType(MediaType.TEXT_HTML)
         .cacheControl(CacheControl.maxAge(Duration.ofMinutes(5)).cachePublic())
+        .headers(securityHeaders())
         .body(html);
   }
 
@@ -243,6 +245,15 @@ public class RepositoryAnalysisController {
     String lowest = CURRENCY_FORMATTER.format(range.lowest().totalCost());
     String highest = CURRENCY_FORMATTER.format(range.highest().totalCost());
     return lowest.equals(highest) ? lowest : lowest + "–" + highest;
+  }
+
+  private static HttpHeaders securityHeaders() {
+    HttpHeaders headers = new HttpHeaders();
+    headers.add("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'");
+    headers.add("X-Frame-Options", "DENY");
+    headers.add("X-Content-Type-Options", "nosniff");
+    headers.add("Referrer-Policy", "no-referrer");
+    return headers;
   }
 
   private static String html(String value) {
