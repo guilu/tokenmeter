@@ -40,6 +40,15 @@ class GitHubRepositoryUrlTest {
   }
 
   @Test
+  void rejectsUrlWithCredentials() {
+    assertThatThrownBy(
+            () -> GitHubRepositoryUrl.parse("https://user:pass@github.com/guilu/tokenmeter"))
+        .isInstanceOf(RepositoryIntakeException.class)
+        .extracting("errorCode")
+        .isEqualTo(RepositoryIntakeErrorCode.INVALID_URL);
+  }
+
+  @Test
   void rejectsUrlWithExtraPath() {
     assertThatThrownBy(
             () -> GitHubRepositoryUrl.parse("https://github.com/guilu/tokenmeter/issues"))

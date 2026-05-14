@@ -1,6 +1,7 @@
 package dev.diegobarrioh.tokenmeter.domain.repository;
 
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Locale;
 import java.util.regex.Pattern;
 
@@ -19,9 +20,13 @@ public record GitHubRepositoryUrl(String owner, String name) {
 
     URI uri;
     try {
-      uri = URI.create(rawUrl.trim());
-    } catch (IllegalArgumentException exception) {
+      uri = new URI(rawUrl.trim()).parseServerAuthority();
+    } catch (URISyntaxException exception) {
       throw RepositoryIntakeException.invalidUrl("Repository URL is malformed", exception);
+    }
+
+    if (uri.getUserInfo() != null) {
+      throw RepositoryIntakeException.invalidUrl("Repository URL must not contain credentials");
     }
 
     if (!"https".equalsIgnoreCase(uri.getScheme())) {
