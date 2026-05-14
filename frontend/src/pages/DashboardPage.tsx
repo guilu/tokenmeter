@@ -786,26 +786,24 @@ function CostHero({
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.2),_transparent_38%),radial-gradient(circle_at_bottom_right,_rgba(16,185,129,0.16),_transparent_36%)]" />
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300/80 to-transparent" />
 
-      <div className="relative grid gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
-        <div className="min-w-0">
-          <p className="inline-flex rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-sm text-cyan-100">
-            Estimated generation cost range
+      <div className="relative">
+        <p className="inline-flex rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-sm text-cyan-100">
+          Estimated generation cost range
+        </p>
+        <div className="mt-5 transition-all duration-500" key={`${selectedMode}-${lowestEstimate?.provider ?? 'none'}-${highestEstimate?.provider ?? 'none'}`}>
+          <p className="text-5xl font-semibold tracking-tight text-white sm:text-7xl">
+            {costRange}
           </p>
-          <div className="mt-5 transition-all duration-500" key={`${selectedMode}-${lowestEstimate?.provider ?? 'none'}-${highestEstimate?.provider ?? 'none'}`}>
-            <p className="text-5xl font-semibold tracking-tight text-white sm:text-7xl">
-              {costRange}
-            </p>
-            <p className="mt-3 text-lg text-slate-300">
-              from <span className="font-medium text-cyan-100">{modelRange}</span> in {selectedMode} workflow mode
-            </p>
-            <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-400">
-              TokenMeter estimates what it would cost to regenerate {repositoryLabel} with AI, including repository size,
-              token footprint and workflow overhead for the selected mode.
-            </p>
-          </div>
+          <p className="mt-3 text-lg text-slate-300">
+            from <span className="font-medium text-cyan-100">{modelRange}</span> in {selectedMode} workflow mode
+          </p>
+          <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-400">
+            TokenMeter estimates what it would cost to regenerate {repositoryLabel} with AI, including repository size,
+            token footprint and workflow overhead for the selected mode.
+          </p>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+        <div className="mt-6 grid gap-3 sm:grid-cols-4">
           <HeroMeta label="Repository" value={repositoryLabel} />
           <HeroMeta label="Total tokens" value={compactNumberFormatter.format(analysis.metrics.totalTokens)} />
           <HeroMeta label="Files · languages" value={`${numberFormatter.format(analysis.metrics.totalFiles)} · ${numberFormatter.format(Object.keys(analysis.metrics.languages).length)}`} />
