@@ -3,6 +3,7 @@ package dev.diegobarrioh.tokenmeter.application.cost;
 import dev.diegobarrioh.tokenmeter.domain.cost.ModelCostEstimate;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Locale;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -53,11 +54,11 @@ public class EngineeringEffortEstimator {
       return "about %s minutes of senior engineering work".formatted(minutes.toPlainString());
     }
     if (hours.compareTo(new BigDecimal("6.5")) < 0) {
-      return "%.1f senior engineer hours".formatted(hours.doubleValue());
+      return String.format(Locale.ROOT, "%.1f senior engineer hours", hours.doubleValue());
     }
     if (days.compareTo(new BigDecimal("1.25")) < 0) {
       return "about 1 engineering day";
     }
-    return "%.1f engineering days".formatted(days.doubleValue());
+    return String.format(Locale.ROOT, "%.1f engineering days", days.doubleValue());
   }
 }
