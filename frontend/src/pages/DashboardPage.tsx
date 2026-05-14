@@ -230,17 +230,19 @@ export function DashboardPage() {
           onClick={() => setShowModes((v) => !v)}
           type="button"
         >
-          <p className="text-sm font-medium text-slate-300">Generation Economics Model</p>
-          <svg
-            aria-hidden="true"
-            className={`h-4 w-4 text-slate-500 transition-transform duration-300 ${showModes ? 'rotate-180' : ''}`}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            viewBox="0 0 24 24"
-          >
-            <path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+          <span className="flex items-center gap-2 text-sm font-medium text-slate-300">
+            Generation Economics Model
+            <svg
+              aria-hidden="true"
+              className={`h-4 w-4 text-slate-500 transition-transform duration-300 ${showModes ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              viewBox="0 0 24 24"
+            >
+              <path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </span>
         </button>
         {showModes ? (
           <div className="grid gap-4 sm:grid-cols-3">
