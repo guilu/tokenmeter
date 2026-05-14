@@ -1115,16 +1115,6 @@ function costRangeLabel(
   return lowest === highest ? lowest : `${lowest} – ${highest}`
 }
 
-function modelRangeLabel(
-  lowestEstimate: RepositoryAnalysisCostEstimateResponse | null,
-  highestEstimate: RepositoryAnalysisCostEstimateResponse | null,
-) {
-  if (!lowestEstimate || !highestEstimate) return 'No model estimate available'
-  const lowest = `${lowestEstimate.provider} · ${lowestEstimate.model}`
-  const highest = `${highestEstimate.provider} · ${highestEstimate.model}`
-  return lowest === highest ? lowest : `${lowest} to ${highest}`
-}
-
 function uniqueProviders(estimates: RepositoryAnalysisCostEstimateResponse[]) {
   return Array.from(new Set(estimates.map((estimate) => estimate.provider))).sort((left, right) => left.localeCompare(right))
 }
