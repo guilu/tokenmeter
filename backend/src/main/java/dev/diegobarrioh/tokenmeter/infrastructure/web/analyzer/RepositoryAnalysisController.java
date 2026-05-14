@@ -37,6 +37,7 @@ public class RepositoryAnalysisController {
   private final OpenGraphImageRenderer openGraphImageRenderer;
   private final LeaderboardService leaderboardService;
   private final PublicOriginProperties publicOriginProperties;
+  private final BadgeRenderer badgeRenderer;
 
   public RepositoryAnalysisController(
       RepositoryAnalysisService analysisService,
@@ -44,13 +45,15 @@ public class RepositoryAnalysisController {
       CostBreakdownMapper costBreakdownMapper,
       OpenGraphImageRenderer openGraphImageRenderer,
       LeaderboardService leaderboardService,
-      PublicOriginProperties publicOriginProperties) {
+      PublicOriginProperties publicOriginProperties,
+      BadgeRenderer badgeRenderer) {
     this.analysisService = analysisService;
     this.mapper = mapper;
     this.costBreakdownMapper = costBreakdownMapper;
     this.openGraphImageRenderer = openGraphImageRenderer;
     this.leaderboardService = leaderboardService;
     this.publicOriginProperties = publicOriginProperties;
+    this.badgeRenderer = badgeRenderer;
   }
 
   @PostMapping("/api/analyze")
@@ -198,6 +201,16 @@ public class RepositoryAnalysisController {
         .cacheControl(CacheControl.maxAge(Duration.ofHours(24)).cachePublic())
         .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=tokenmeter-" + id + "-og.png")
         .body(image);
+  }
+
+  @GetMapping(value = "/api/analyze/{id}/badge.svg", produces = "image/svg+xml")
+  public ResponseEntity<String> getAnalysisBadge(@PathVariable UUID id) {
+    RepositoryAnalysisResult analysis = analysisService.findById(id);
+    return ResponseEntity.ok()
+        .contentType(MediaType.parseMediaType("image/svg+xml"))
+        .cacheControl(CacheControl.maxAge(Duration.ofHours(1)).cachePublic())
+        .header("Content-Disposition", "inline")
+        .body(badgeRenderer.render(analysis));
   }
 
   private static String openGraphDescription(RepositoryAnalysisResult analysis) {

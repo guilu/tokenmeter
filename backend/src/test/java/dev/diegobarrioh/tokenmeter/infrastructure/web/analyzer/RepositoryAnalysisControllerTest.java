@@ -1,5 +1,6 @@
 package dev.diegobarrioh.tokenmeter.infrastructure.web.analyzer;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -48,6 +49,7 @@ import org.springframework.test.web.servlet.MockMvc;
   CostBreakdownMapper.class,
   EngineeringEffortEstimator.class,
   OpenGraphImageRenderer.class,
+  BadgeRenderer.class,
   RepositoryIntakeExceptionHandler.class,
   AnalyzeRateLimitInterceptor.class,
   WebMvcConfiguration.class,
@@ -63,6 +65,7 @@ class RepositoryAnalysisControllerTest {
   @MockitoBean private RepositoryAnalysisService analysisService;
   @MockitoBean private PricingProvider pricingProvider;
   @MockitoBean private LeaderboardService leaderboardService;
+  @MockitoBean private BadgeRenderer badgeRenderer;
 
   @Test
   void returnsStandardSuccessResponseForValidRequest() throws Exception {
@@ -369,6 +372,26 @@ class RepositoryAnalysisControllerTest {
         .perform(get("/api/leaderboards").param("category", "not-a-real-category"))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+  }
+
+  @Test
+  void returnsSvgBadgeForAnalysis() throws Exception {
+    UUID id = UUID.randomUUID();
+    when(analysisService.findById(id)).thenReturn(sampleAnalysis(id, sampleCostEstimates()));
+    when(badgeRenderer.render(any())).thenReturn("<svg>badge</svg>");
+
+    mockMvc
+        .perform(get("/api/analyze/{id}/badge.svg", id))
+        .andExpect(status().isOk())
+        .andExpect(
+            result ->
+                org.assertj.core.api.Assertions.assertThat(result.getResponse().getContentType())
+                    .contains("image/svg+xml"))
+        .andExpect(
+            result ->
+                org.assertj.core.api.Assertions.assertThat(
+                        result.getResponse().getContentAsString())
+                    .contains("<svg>"));
   }
 
   private static RepositoryAnalysisResult sampleAnalysis(
