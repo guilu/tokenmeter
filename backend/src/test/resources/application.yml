@@ -1,4 +1,5 @@
 tokenmeter:
+  public-origin: http://localhost
   analyze-throttle:
     max-concurrent: 1000
     rate-limit-requests-per-window: 10000

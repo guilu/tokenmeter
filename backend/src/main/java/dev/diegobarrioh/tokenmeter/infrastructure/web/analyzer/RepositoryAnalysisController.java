@@ -4,7 +4,7 @@ import dev.diegobarrioh.tokenmeter.application.analyzer.RepositoryAnalysisResult
 import dev.diegobarrioh.tokenmeter.application.analyzer.RepositoryAnalysisService;
 import dev.diegobarrioh.tokenmeter.domain.cost.CostEstimationMode;
 import dev.diegobarrioh.tokenmeter.domain.cost.ModelCostEstimate;
-import jakarta.servlet.http.HttpServletRequest;
+import dev.diegobarrioh.tokenmeter.infrastructure.web.PublicOriginProperties;
 import jakarta.validation.Valid;
 import java.text.NumberFormat;
 import java.time.Duration;
@@ -36,18 +36,21 @@ public class RepositoryAnalysisController {
   private final CostBreakdownMapper costBreakdownMapper;
   private final OpenGraphImageRenderer openGraphImageRenderer;
   private final LeaderboardService leaderboardService;
+  private final PublicOriginProperties publicOriginProperties;
 
   public RepositoryAnalysisController(
       RepositoryAnalysisService analysisService,
       RepositoryAnalysisMapper mapper,
       CostBreakdownMapper costBreakdownMapper,
       OpenGraphImageRenderer openGraphImageRenderer,
-      LeaderboardService leaderboardService) {
+      LeaderboardService leaderboardService,
+      PublicOriginProperties publicOriginProperties) {
     this.analysisService = analysisService;
     this.mapper = mapper;
     this.costBreakdownMapper = costBreakdownMapper;
     this.openGraphImageRenderer = openGraphImageRenderer;
     this.leaderboardService = leaderboardService;
+    this.publicOriginProperties = publicOriginProperties;
   }
 
   @PostMapping("/api/analyze")
@@ -79,8 +82,8 @@ public class RepositoryAnalysisController {
   }
 
   @GetMapping(value = "/leaderboards", produces = MediaType.TEXT_HTML_VALUE)
-  public ResponseEntity<String> getPublicLeaderboardsPage(HttpServletRequest request) {
-    String origin = publicOrigin(request);
+  public ResponseEntity<String> getPublicLeaderboardsPage() {
+    String origin = publicOriginProperties.publicOrigin();
     String publicPath = origin + "/leaderboards";
     String title = "TokenMeter repository leaderboards";
     String description =
@@ -126,10 +129,9 @@ public class RepositoryAnalysisController {
   }
 
   @GetMapping(value = "/analysis/{id}", produces = MediaType.TEXT_HTML_VALUE)
-  public ResponseEntity<String> getPublicAnalysisPage(
-      @PathVariable UUID id, HttpServletRequest request) {
+  public ResponseEntity<String> getPublicAnalysisPage(@PathVariable UUID id) {
     RepositoryAnalysisResult analysis = analysisService.findById(id);
-    String origin = publicOrigin(request);
+    String origin = publicOriginProperties.publicOrigin();
     String publicPath = origin + "/analysis/" + id;
     String imagePath = origin + "/api/analyze/" + id + "/og-image.png?mode=raw&v=range";
     String title = "TokenMeter analysis for " + analysis.owner() + "/" + analysis.name();
@@ -194,18 +196,6 @@ public class RepositoryAnalysisController {
         .cacheControl(CacheControl.maxAge(Duration.ofHours(24)).cachePublic())
         .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=tokenmeter-" + id + "-og.png")
         .body(image);
-  }
-
-  private static String publicOrigin(HttpServletRequest request) {
-    String protocol =
-        Optional.ofNullable(request.getHeader("X-Forwarded-Proto")).orElse(request.getScheme());
-    String host =
-        Optional.ofNullable(request.getHeader("X-Forwarded-Host"))
-            .orElse(request.getHeader("Host"));
-    if (host == null || host.isBlank()) {
-      host = request.getServerName() + ":" + request.getServerPort();
-    }
-    return protocol + "://" + host;
   }
 
   private static String openGraphDescription(RepositoryAnalysisResult analysis) {

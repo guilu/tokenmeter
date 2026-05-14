@@ -24,6 +24,7 @@ import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeErrorCode;
 import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeException;
 import dev.diegobarrioh.tokenmeter.domain.tokenizer.LanguageTokenMetrics;
 import dev.diegobarrioh.tokenmeter.domain.tokenizer.RepositoryTokenizationResult;
+import dev.diegobarrioh.tokenmeter.infrastructure.web.PublicOriginProperties;
 import dev.diegobarrioh.tokenmeter.infrastructure.web.WebMvcConfiguration;
 import dev.diegobarrioh.tokenmeter.infrastructure.web.repository.RepositoryIntakeExceptionHandler;
 import java.math.BigDecimal;
@@ -51,7 +52,11 @@ import org.springframework.test.web.servlet.MockMvc;
   AnalyzeRateLimitInterceptor.class,
   WebMvcConfiguration.class,
 })
-@EnableConfigurationProperties({EngineeringEffortProperties.class, AnalyzeThrottleProperties.class})
+@EnableConfigurationProperties({
+  EngineeringEffortProperties.class,
+  AnalyzeThrottleProperties.class,
+  PublicOriginProperties.class
+})
 class RepositoryAnalysisControllerTest {
   @Autowired private MockMvc mockMvc;
 
@@ -185,7 +190,7 @@ class RepositoryAnalysisControllerTest {
   @Test
   void returnsPublicLeaderboardPageHtmlWithSeoMetadata() throws Exception {
     mockMvc
-        .perform(get("/leaderboards").header("Host", "tokenmeter.example"))
+        .perform(get("/leaderboards"))
         .andExpect(status().isOk())
         .andExpect(
             result ->
@@ -200,7 +205,7 @@ class RepositoryAnalysisControllerTest {
             result ->
                 org.assertj.core.api.Assertions.assertThat(
                         result.getResponse().getContentAsString())
-                    .contains("http://tokenmeter.example/leaderboards"));
+                    .contains("http://localhost/leaderboards"));
   }
 
   @Test
@@ -209,7 +214,7 @@ class RepositoryAnalysisControllerTest {
     when(analysisService.findById(id)).thenReturn(sampleAnalysis(id, sampleCostEstimates()));
 
     mockMvc
-        .perform(get("/analysis/{id}", id).header("Host", "tokenmeter.example"))
+        .perform(get("/analysis/{id}", id))
         .andExpect(status().isOk())
         .andExpect(
             result ->
@@ -225,7 +230,7 @@ class RepositoryAnalysisControllerTest {
                 org.assertj.core.api.Assertions.assertThat(
                         result.getResponse().getContentAsString())
                     .contains(
-                        "http://tokenmeter.example/api/analyze/"
+                        "http://localhost/api/analyze/"
                             + id
                             + "/og-image.png?mode=raw&amp;v=range"))
         .andExpect(

@@ -23,6 +23,7 @@ management:
 
 
 tokenmeter:
+  public-origin: ${TOKENMETER_PUBLIC_ORIGIN:http://localhost:8081}
   analyze-throttle:
     max-concurrent: ${TOKENMETER_MAX_CONCURRENT_ANALYSES:3}
     rate-limit-requests-per-window: ${TOKENMETER_RATE_LIMIT_REQUESTS:5}
