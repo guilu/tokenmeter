@@ -305,43 +305,18 @@ function LoadingState({ repositoryUrl }: { repositoryUrl: string }) {
           ))}
         </div>
 
-        <ol className="space-y-2">
-          {analysisStages.map((stage, index) => {
-            const complete = index < activeStage
-            const active = index === activeStage
-
-            return (
-              <li
-                className={`rounded-2xl border p-3 transition-all duration-500 ${
-                  active
-                    ? 'border-cyan-300/40 bg-cyan-300/10 shadow-lg shadow-cyan-950/30'
-                    : complete
-                      ? 'border-emerald-300/20 bg-emerald-300/5'
-                      : 'border-white/10 bg-white/[0.025] opacity-70'
-                }`}
-                key={stage.label}
-              >
-                <div className="flex items-start gap-3">
-                  <span
-                    className={`mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
-                      complete
-                        ? 'bg-emerald-300 text-slate-950'
-                        : active
-                          ? 'animate-pulse bg-cyan-300 text-slate-950'
-                          : 'bg-white/10 text-slate-500'
-                    }`}
-                  >
-                    {complete ? '✓' : index + 1}
-                  </span>
-                  <div>
-                    <p className="text-sm font-medium text-white">{stage.label}</p>
-                    <p className="mt-1 text-xs leading-5 text-slate-400">{stage.detail}</p>
-                  </div>
-                </div>
-              </li>
-            )
-          })}
-        </ol>
+        <div className="stage-enter rounded-2xl border border-cyan-300/40 bg-cyan-300/10 p-4 shadow-lg shadow-cyan-950/30" key={activeStage}>
+          <div className="flex items-center gap-3">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full animate-pulse bg-cyan-300 text-[10px] font-bold text-slate-950">
+              {activeStage + 1}
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-white">{analysisStages[activeStage].label}</p>
+              <p className="mt-0.5 text-xs leading-5 text-slate-400">{analysisStages[activeStage].detail}</p>
+            </div>
+            <p className="ml-auto text-xs text-slate-500 tabular-nums">{activeStage + 1} / {analysisStages.length}</p>
+          </div>
+        </div>
 
         <div className="rounded-2xl border border-white/10 bg-black/20 p-4 font-mono text-xs text-cyan-100/80">
           <p>&gt; pipeline.run --repository {trimmedRepositoryUrl || repositoryLabel}</p>
