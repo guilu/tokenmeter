@@ -1,14 +1,13 @@
 package dev.diegobarrioh.tokenmeter.infrastructure.web.analyzer;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.when;
 
-import dev.diegobarrioh.tokenmeter.domain.cost.CostEstimationMode;
-import dev.diegobarrioh.tokenmeter.domain.pricing.AiProvider;
-import dev.diegobarrioh.tokenmeter.infrastructure.persistence.analysis.AnalysisEntity;
-import dev.diegobarrioh.tokenmeter.infrastructure.persistence.analysis.AnalysisJpaRepository;
-import dev.diegobarrioh.tokenmeter.infrastructure.persistence.analysis.AnalysisStatus;
-import dev.diegobarrioh.tokenmeter.infrastructure.persistence.analysis.CostEstimateEntity;
+import dev.diegobarrioh.tokenmeter.infrastructure.persistence.analysis.LeaderboardJpaRepository;
+import dev.diegobarrioh.tokenmeter.infrastructure.persistence.analysis.LeaderboardRow;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -20,18 +19,17 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class LeaderboardServiceTest {
-  @Mock private AnalysisJpaRepository repository;
+  @Mock private LeaderboardJpaRepository leaderboardRepository;
 
   @Test
-  void ranksMostExpensiveRepositoriesUsingHighestMatchingCostEstimate() {
-    LeaderboardService service = new LeaderboardService(repository);
-    AnalysisEntity cheaper = analysis("https://github.com/acme/small", "acme", "small", 10_000, 10);
-    cheaper.addCostEstimate(cost("gpt-4o", new BigDecimal("1.00")));
-    AnalysisEntity expensive =
-        analysis("https://github.com/acme/large", "acme", "large", 20_000, 20);
-    expensive.addCostEstimate(cost("gpt-4o", new BigDecimal("5.00")));
-    expensive.addCostEstimate(cost("cheap-model", new BigDecimal("0.10")));
-    when(repository.findAll()).thenReturn(List.of(cheaper, expensive));
+  void ranksMostExpensiveInOrderReturnedByRepository() {
+    LeaderboardService service = new LeaderboardService(leaderboardRepository);
+    when(leaderboardRepository.countCostFiltered(any(), any(), any())).thenReturn(2L);
+    when(leaderboardRepository.findMostExpensive(any(), any(), any(), anyInt(), anyLong()))
+        .thenReturn(
+            List.of(
+                row("large", new BigDecimal("5.00"), 20_000),
+                row("small", new BigDecimal("1.00"), 10_000)));
 
     LeaderboardPageResponse response =
         service.getLeaderboard(LeaderboardCategory.MOST_EXPENSIVE, 0, 10, "raw", "openai", null);
@@ -43,14 +41,14 @@ class LeaderboardServiceTest {
   }
 
   @Test
-  void groupsMostAnalyzedRepositoriesByRepositoryUrl() {
-    LeaderboardService service = new LeaderboardService(repository);
-    AnalysisEntity first =
-        analysis("https://github.com/acme/repeated", "acme", "repeated", 10_000, 10);
-    AnalysisEntity second =
-        analysis("https://github.com/acme/repeated", "acme", "repeated", 12_000, 12);
-    AnalysisEntity other = analysis("https://github.com/acme/other", "acme", "other", 15_000, 15);
-    when(repository.findAll()).thenReturn(List.of(first, second, other));
+  void mostAnalyzedUsesDistinctRepositoryCount() {
+    LeaderboardService service = new LeaderboardService(leaderboardRepository);
+    when(leaderboardRepository.countDistinctRepositories()).thenReturn(2L);
+    when(leaderboardRepository.findMostAnalyzed(anyInt(), anyLong()))
+        .thenReturn(
+            List.of(
+                rowWithCount("repeated", new BigDecimal("1.00"), 10_000, 2),
+                rowWithCount("other", new BigDecimal("0.50"), 5_000, 1)));
 
     LeaderboardPageResponse response =
         service.getLeaderboard(LeaderboardCategory.MOST_ANALYZED, 0, 10, null, null, null);
@@ -59,40 +57,84 @@ class LeaderboardServiceTest {
         .extracting(LeaderboardEntryResponse::name)
         .containsExactly("repeated", "other");
     assertThat(response.entries().getFirst().analysisCount()).isEqualTo(2);
+    assertThat(response.totalElements()).isEqualTo(2L);
   }
 
-  private static AnalysisEntity analysis(
-      String repositoryUrl,
-      String owner,
-      String name,
-      long totalTokens,
-      long createdOffsetSeconds) {
-    return new AnalysisEntity(
-        UUID.randomUUID(),
-        repositoryUrl,
-        repositoryUrl + ".git",
-        owner,
-        name,
-        AnalysisStatus.SUCCESS,
-        4,
-        100,
-        totalTokens * 2,
-        "o200k_base",
-        totalTokens,
-        Instant.parse("2026-05-12T20:00:00Z").plusSeconds(createdOffsetSeconds));
+  @Test
+  void invalidModeFilterIsIgnored() {
+    LeaderboardService service = new LeaderboardService(leaderboardRepository);
+    when(leaderboardRepository.countAll()).thenReturn(1L);
+    when(leaderboardRepository.findLargest(any(), any(), any(), anyInt(), anyLong()))
+        .thenReturn(List.of(row("repo", BigDecimal.ONE, 50_000)));
+
+    LeaderboardPageResponse response =
+        service.getLeaderboard(LeaderboardCategory.LARGEST, 0, 10, "not_a_valid_mode", null, null);
+
+    assertThat(response.filters()).doesNotContainKey("mode");
   }
 
-  private static CostEstimateEntity cost(String model, BigDecimal totalCost) {
-    return new CostEstimateEntity(
-        AiProvider.OPENAI,
-        model,
-        CostEstimationMode.RAW,
-        1_000,
-        0,
-        1_000,
-        BigDecimal.ZERO,
-        totalCost,
-        totalCost,
-        "test");
+  private static LeaderboardRow row(String name, BigDecimal totalCost, long totalTokens) {
+    return rowWithCount(name, totalCost, totalTokens, 1);
+  }
+
+  private static LeaderboardRow rowWithCount(
+      String name, BigDecimal totalCost, long totalTokens, long analysisCount) {
+    return new LeaderboardRow() {
+      public UUID getId() {
+        return UUID.randomUUID();
+      }
+
+      public String getRepositoryUrl() {
+        return "https://github.com/acme/" + name;
+      }
+
+      public String getOwnerName() {
+        return "acme";
+      }
+
+      public String getRepositoryName() {
+        return name;
+      }
+
+      public Instant getCreatedAt() {
+        return Instant.now();
+      }
+
+      public long getTotalFiles() {
+        return 10;
+      }
+
+      public long getTotalLines() {
+        return 100;
+      }
+
+      public long getTotalBytes() {
+        return totalTokens * 2;
+      }
+
+      public long getTotalTokens() {
+        return totalTokens;
+      }
+
+      public long getAnalysisCount() {
+        return analysisCount;
+      }
+
+      public String getProvider() {
+        return "OPENAI";
+      }
+
+      public String getModel() {
+        return "gpt-4o";
+      }
+
+      public String getMode() {
+        return "RAW";
+      }
+
+      public BigDecimal getTotalCost() {
+        return totalCost;
+      }
+    };
   }
 }
