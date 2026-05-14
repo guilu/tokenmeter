@@ -91,6 +91,7 @@ export function DashboardPage() {
   const [sharedLoading, setSharedLoading] = useState(() => Boolean(getAnalysisIdFromLocation()))
   const [error, setError] = useState<string | null>(null)
   const [sharedError, setSharedError] = useState<string | null>(null)
+  const [showModes, setShowModes] = useState(false)
 
   useEffect(() => {
     function handlePopState() {
@@ -224,26 +225,42 @@ export function DashboardPage() {
       </div>
 
       <div className="mx-auto max-w-4xl px-6 pb-20">
-        <div className="mb-4 flex items-center justify-between">
+        <button
+          className="mb-4 flex w-full items-center justify-between text-left"
+          onClick={() => setShowModes((v) => !v)}
+          type="button"
+        >
           <p className="text-sm font-medium text-slate-300">Generation Economics Model</p>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-3">
-          {costModes.map((mode) => (
-            <div
-              className="relative rounded-2xl bg-slate-900/60 p-5 shadow-xl shadow-black/20"
-              key={mode}
-            >
-              {mode === 'assisted' ? (
-                <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-full border border-cyan-400/30 bg-cyan-400/20 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-cyan-200">
-                  Default
-                </span>
-              ) : null}
-              <p className="font-semibold text-white capitalize">{mode}</p>
-              <p className="mt-2 text-sm leading-6 text-slate-400">{modeCopy[mode]}</p>
-              <p className="mt-4 text-xs text-slate-500">{modeMultiplierLabel[mode]}</p>
-            </div>
-          ))}
-        </div>
+          <svg
+            aria-hidden="true"
+            className={`h-4 w-4 text-slate-500 transition-transform duration-300 ${showModes ? 'rotate-180' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            viewBox="0 0 24 24"
+          >
+            <path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+        {showModes ? (
+          <div className="grid gap-4 sm:grid-cols-3">
+            {costModes.map((mode) => (
+              <div
+                className="relative rounded-2xl bg-slate-900/60 p-5 shadow-xl shadow-black/20"
+                key={mode}
+              >
+                {mode === 'assisted' ? (
+                  <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-full border border-cyan-400/30 bg-cyan-400/20 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-cyan-200">
+                    Default
+                  </span>
+                ) : null}
+                <p className="font-semibold text-white capitalize">{mode}</p>
+                <p className="mt-2 text-sm leading-6 text-slate-400">{modeCopy[mode]}</p>
+                <p className="mt-4 text-xs text-slate-500">{modeMultiplierLabel[mode]}</p>
+              </div>
+            ))}
+          </div>
+        ) : null}
       </div>
     </section>
   )
