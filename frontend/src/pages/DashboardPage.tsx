@@ -28,6 +28,12 @@ const modeCopy: Record<CostMode, string> = {
   agentic: 'Estimate autonomous build loops with planning, tool calls, retries and reasoning overhead.',
 }
 
+const modeMultiplierLabel: Record<CostMode, string> = {
+  raw: '1× output tokens — baseline floor',
+  assisted: '5× output + 1× input — workflow overhead',
+  agentic: '20× output + 4× input — autonomous loop',
+}
+
 const workflowAssumptions: Record<CostMode, { title: string; summary: string; multiplierLabel: string; items: string[] }> = {
   raw: {
     title: 'Raw mode assumptions',
@@ -162,66 +168,77 @@ export function DashboardPage() {
 
   return (
     <section className="relative overflow-hidden" id="overview">
-      <div className="absolute inset-x-0 top-0 -z-10 h-96 bg-[radial-gradient(circle_at_top,_rgba(34,211,238,0.18),_transparent_55%)]" />
-      <div className="mx-auto grid max-w-6xl gap-12 px-6 py-16 lg:grid-cols-[1.1fr_0.9fr] lg:py-24">
-        <div>
-          <p className="mb-4 inline-flex rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-sm text-cyan-200">
-            AI repository cost intelligence
-          </p>
-          <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-6xl">
-            Simulate the AI generation cost of any GitHub repository.
-          </h1>
-          <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-400">
-            TokenMeter scans a public codebase, measures its token footprint and benchmarks what it would cost to generate with modern AI models across raw, assisted and agentic workflows.
-          </p>
+      <div className="absolute inset-x-0 top-0 -z-10 h-[32rem] bg-[radial-gradient(circle_at_top,_rgba(34,211,238,0.18),_transparent_55%)]" />
+      <div className="mx-auto max-w-4xl px-6 pt-20 pb-6 text-center">
+        <p className="mb-4 inline-flex rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-sm text-cyan-200">
+          AI repository cost intelligence
+        </p>
+        <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-6xl">
+          Simulate the AI generation cost of any GitHub repository.
+        </h1>
+        <p className="mt-6 text-lg leading-8 text-slate-400">
+          TokenMeter scans a public codebase, measures its token footprint and benchmarks what it would cost to generate with modern AI models across raw, assisted and agentic workflows.
+        </p>
+      </div>
 
-          <form
-            className="mt-10 rounded-3xl border border-white/10 bg-white/[0.04] p-3 shadow-2xl shadow-cyan-950/30 backdrop-blur"
-            onSubmit={handleSubmit}
-          >
-            <label className="sr-only" htmlFor="repository-url">
-              Repository URL
-            </label>
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <input
-                className="min-h-12 flex-1 rounded-2xl border border-white/10 bg-slate-950/80 px-4 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300/70 focus:ring-4 focus:ring-cyan-400/10"
-                disabled={loading}
-                id="repository-url"
-                inputMode="url"
-                onChange={(event) => setRepositoryUrl(event.target.value)}
-                placeholder="https://github.com/user/repo"
-                type="url"
-                value={repositoryUrl}
-              />
-              <button
-                className="min-h-12 rounded-2xl bg-cyan-300 px-6 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={loading}
-                type="submit"
-              >
-                {loading ? 'Simulating…' : 'Simulate generation cost'}
-              </button>
-            </div>
-            {error ? (
-              <p className="mt-3 rounded-2xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-200">
-                {error}
-              </p>
-            ) : null}
-          </form>
-
-          {loading ? <LoadingState repositoryUrl={repositoryUrl} /> : null}
-        </div>
-
-        <aside className="rounded-3xl border border-white/10 bg-slate-900/60 p-6 shadow-2xl shadow-black/30">
-          <p className="text-sm text-slate-400">Generation economics model</p>
-          <div className="mt-6 space-y-4">
-            {costModes.map((mode) => (
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4" key={mode}>
-                <p className="font-medium text-white capitalize">{mode} mode</p>
-                <p className="mt-1 text-sm leading-6 text-slate-400">{modeCopy[mode]}</p>
-              </div>
-            ))}
+      <div className="mx-auto max-w-4xl px-6 pb-6">
+        <form
+          className="rounded-3xl border border-white/10 bg-white/[0.04] p-3 shadow-2xl shadow-cyan-950/30 backdrop-blur"
+          onSubmit={handleSubmit}
+        >
+          <label className="sr-only" htmlFor="repository-url">
+            Repository URL
+          </label>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <input
+              className="min-h-12 flex-1 rounded-2xl border border-white/10 bg-slate-950/80 px-4 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300/70 focus:ring-4 focus:ring-cyan-400/10"
+              disabled={loading}
+              id="repository-url"
+              inputMode="url"
+              onChange={(event) => setRepositoryUrl(event.target.value)}
+              placeholder="https://github.com/user/repo"
+              type="url"
+              value={repositoryUrl}
+            />
+            <button
+              className="min-h-12 rounded-2xl bg-cyan-300 px-6 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={loading}
+              type="submit"
+            >
+              {loading ? 'Simulating…' : 'Simulate generation cost'}
+            </button>
           </div>
-        </aside>
+          {error ? (
+            <p className="mt-3 rounded-2xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-200">
+              {error}
+            </p>
+          ) : null}
+        </form>
+
+        {loading ? <LoadingState repositoryUrl={repositoryUrl} /> : null}
+      </div>
+
+      <div className="mx-auto max-w-4xl px-6 pb-20">
+        <div className="mb-4 flex items-center justify-between">
+          <p className="text-sm font-medium text-slate-300">Generation Economics Model</p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-3">
+          {costModes.map((mode) => (
+            <div
+              className="relative rounded-2xl border border-white/10 bg-slate-900/60 p-5 shadow-xl shadow-black/20"
+              key={mode}
+            >
+              {mode === 'assisted' ? (
+                <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-full border border-cyan-400/30 bg-cyan-400/20 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-cyan-200">
+                  Default
+                </span>
+              ) : null}
+              <p className="font-semibold text-white capitalize">{mode}</p>
+              <p className="mt-2 text-sm leading-6 text-slate-400">{modeCopy[mode]}</p>
+              <p className="mt-4 text-xs text-slate-500">{modeMultiplierLabel[mode]}</p>
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   )
