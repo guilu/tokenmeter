@@ -41,7 +41,10 @@ export function AppShell({ children }: PropsWithChildren) {
             <span className="flex h-8 w-8 items-center justify-center">
               <img alt="TokenMeter logo" className="h-full w-full object-contain" src={isDark ? '/logo-dark.png' : '/logo-light.png'} />
             </span>
-            <span className={isDark ? 'text-white' : 'text-primary'}>tokenmeter</span>
+            <span className="flex flex-col leading-tight">
+              <span className={isDark ? 'text-white' : 'text-primary'}>tokenmeter</span>
+              <span className="text-[10px] font-normal text-text/50">by diegobarrioh</span>
+            </span>
           </a>
 
           {/* Desktop links */}
