@@ -5,7 +5,7 @@ import { ThemeToggle } from './ThemeToggle'
 import { useTheme } from '../hooks/useTheme'
 
 export function AppShell({ children }: PropsWithChildren) {
-  useTheme()
+  const { isDark } = useTheme()
   const [menuOpen, setMenuOpen] = useState(false)
   const path = window.location.pathname
   const searchParams = new URLSearchParams(window.location.search)
@@ -39,9 +39,9 @@ export function AppShell({ children }: PropsWithChildren) {
           {/* Logo */}
           <a className="flex items-center gap-2.5 text-lg font-extrabold tracking-tight" href="/">
             <span className="flex h-8 w-8 items-center justify-center">
-              <img alt="TokenMeter logo" className="h-full w-full object-contain" src="/logo-white.png" />
+              <img alt="TokenMeter logo" className="h-full w-full object-contain" src={isDark ? '/logo-dark.png' : '/logo-light.png'} />
             </span>
-            TokenMeter
+            <span className={isDark ? 'text-white' : 'text-primary'}>tokenmeter</span>
           </a>
 
           {/* Desktop links */}
