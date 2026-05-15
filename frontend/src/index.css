@@ -7,6 +7,7 @@
   --tm-secondary: #748b8b;
   --tm-accent: #f1c24b;
   --tm-card: #f0e9da;
+  --tm-input: rgba(255, 255, 255, 0.65);
   color-scheme: light;
 }
 
@@ -17,6 +18,7 @@
   --tm-secondary: #699ac3;
   --tm-accent: #c93b3d;
   --tm-card: #233748;
+  --tm-input: #233748;
   color-scheme: dark;
 }
 
