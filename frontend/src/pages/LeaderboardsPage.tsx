@@ -98,16 +98,26 @@ export function LeaderboardsPage() {
         <div className="mb-6 grid gap-3 rounded-2xl border border-text/10 bg-card/60 p-4 sm:grid-cols-3">
           <label className="text-xs font-semibold uppercase tracking-[0.2em] text-text/60">
             Mode
-            <select className="mt-2 w-full rounded-xl border border-text/10 bg-bg px-3 py-2 text-sm text-text" value={mode} onChange={(event) => { setMode(event.target.value); setPage(0) }}>
-              {modes.map((item) => <option key={item} value={item}>{item}</option>)}
-            </select>
+            <div className="relative mt-2">
+              <select className="w-full appearance-none rounded-xl border border-text/10 bg-bg px-3 py-2 pr-8 text-sm text-text" value={mode} onChange={(event) => { setMode(event.target.value); setPage(0) }}>
+                {modes.map((item) => <option key={item} value={item}>{item}</option>)}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center">
+                <svg className="h-4 w-4 text-text/50" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              </div>
+            </div>
           </label>
           <label className="text-xs font-semibold uppercase tracking-[0.2em] text-text/60">
             Provider
-            <select className="mt-2 w-full rounded-xl border border-text/10 bg-bg px-3 py-2 text-sm text-text" value={provider} onChange={(event) => { setProvider(event.target.value); setPage(0) }}>
-              <option value="">All providers</option>
-              {providers.map((item) => <option key={item} value={item}>{item}</option>)}
-            </select>
+            <div className="relative mt-2">
+              <select className="w-full appearance-none rounded-xl border border-text/10 bg-bg px-3 py-2 pr-8 text-sm text-text" value={provider} onChange={(event) => { setProvider(event.target.value); setPage(0) }}>
+                <option value="">All providers</option>
+                {providers.map((item) => <option key={item} value={item}>{item}</option>)}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center">
+                <svg className="h-4 w-4 text-text/50" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              </div>
+            </div>
           </label>
           <label className="text-xs font-semibold uppercase tracking-[0.2em] text-text/60">
             Model

@@ -664,31 +664,41 @@ function ModelComparison({
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="grid gap-1 text-sm text-text/60">
             Provider
-            <select
-              className="rounded-2xl border border-text/10 bg-bg px-3 py-2 text-sm text-text outline-none transition focus:border-primary/60"
-              onChange={(event) => onFilterProvider(event.target.value)}
-              value={providerFilter}
-            >
-              <option value="all">All providers</option>
-              {providers.map((provider) => (
-                <option key={provider} value={provider}>
-                  {capitalize(provider)}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                className="w-full appearance-none rounded-2xl border border-text/10 bg-bg px-3 py-2 pr-8 text-sm text-text outline-none transition focus:border-primary/60"
+                onChange={(event) => onFilterProvider(event.target.value)}
+                value={providerFilter}
+              >
+                <option value="all">All providers</option>
+                {providers.map((provider) => (
+                  <option key={provider} value={provider}>
+                    {capitalize(provider)}
+                  </option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center">
+                <svg className="h-4 w-4 text-text/50" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              </div>
+            </div>
           </label>
           <label className="grid gap-1 text-sm text-text/60">
             Sort by
-            <select
-              className="rounded-2xl border border-text/10 bg-bg px-3 py-2 text-sm text-text outline-none transition focus:border-primary/60"
-              onChange={(event) => onSort(event.target.value as ComparisonSort)}
-              value={sortBy}
-            >
-              <option value="cost">Lowest cost</option>
-              <option value="relative">Relative cost</option>
-              <option value="efficiency">Efficiency</option>
-              <option value="model">Model name</option>
-            </select>
+            <div className="relative">
+              <select
+                className="w-full appearance-none rounded-2xl border border-text/10 bg-bg px-3 py-2 pr-8 text-sm text-text outline-none transition focus:border-primary/60"
+                onChange={(event) => onSort(event.target.value as ComparisonSort)}
+                value={sortBy}
+              >
+                <option value="cost">Lowest cost</option>
+                <option value="relative">Relative cost</option>
+                <option value="efficiency">Efficiency</option>
+                <option value="model">Model name</option>
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center">
+                <svg className="h-4 w-4 text-text/50" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              </div>
+            </div>
           </label>
         </div>
       </div>
