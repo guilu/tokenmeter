@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(TOKENMETER_DB_USER=tm TOKENMETER_DB_PASSWORD=secret docker compose config --quiet)",
+      "Bash(docker compose *)",
+      "Bash(xargs cat)",
+      "Bash(grep -r \"border-radius\\\\|shadow\\\\|gap\\\\|spacing\" /Users/diegobarrioh/code/akadem.ia/frontend/src --include=\"*.css\" --include=\"*.js\" --include=\"*.tsx\" --include=\"*.jsx\" ! -path \"*/node_modules/*\")"
+    ]
+  }
+}
