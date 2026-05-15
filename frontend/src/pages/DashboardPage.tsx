@@ -169,34 +169,37 @@ export function DashboardPage() {
 
   return (
     <section className="relative overflow-hidden" id="overview">
-      <div className="absolute inset-x-0 top-0 -z-10 h-[32rem] bg-[radial-gradient(circle_at_top,_rgba(34,211,238,0.18),_transparent_55%)]" />
+      <div
+        className="absolute inset-x-0 top-0 -z-10 h-[32rem]"
+        style={{ background: 'radial-gradient(circle at top, color-mix(in srgb, var(--tm-primary) 15%, transparent), transparent 55%)' }}
+      />
       <div className="mx-auto max-w-4xl px-6 pt-10 pb-6 text-center sm:pt-20">
-        <p className="mb-4 inline-flex rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-sm text-cyan-200">
+        <p className="mb-4 inline-flex rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-sm text-primary/80">
           AI repository cost intelligence
         </p>
-        <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-6xl">
+        <h1 className="text-4xl font-semibold tracking-tight text-text sm:text-6xl">
           AI generation cost of any GitHub repository.
         </h1>
-        <p className="mt-4 text-base leading-7 text-slate-400">
+        <p className="mt-4 text-base leading-7 text-text/60">
           Token footprint and AI generation cost benchmark across raw, assisted and agentic workflows.
         </p>
       </div>
 
       <div className="mx-auto max-w-4xl px-6 pb-6">
         <form
-          className="rounded-3xl bg-white/[0.04] p-3 shadow-2xl shadow-cyan-950/30 backdrop-blur"
+          className="rounded-3xl bg-card/20 p-3 shadow-2xl shadow-bg backdrop-blur"
           onSubmit={handleSubmit}
         >
           <label className="sr-only" htmlFor="repository-url">
             Repository URL
           </label>
           <div className="flex flex-col gap-3 sm:flex-row">
-            <div className="flex flex-1 items-center gap-2 rounded-2xl border border-white/10 bg-slate-950/80 px-4 transition focus-within:border-cyan-300/70 focus-within:ring-4 focus-within:ring-cyan-400/10">
-              <svg aria-hidden="true" className="h-4 w-4 shrink-0 text-slate-500" fill="currentColor" viewBox="0 0 24 24">
+            <div className="flex flex-1 items-center gap-2 rounded-2xl border border-text/10 bg-bg/80 px-4 transition focus-within:border-primary/60 focus-within:ring-4 focus-within:ring-primary/10">
+              <svg aria-hidden="true" className="h-4 w-4 shrink-0 text-text/50" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
               </svg>
               <input
-                className="min-h-12 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-slate-500"
+                className="min-h-12 flex-1 bg-transparent text-sm text-text outline-none placeholder:text-text/50"
                 disabled={loading}
                 id="repository-url"
                 inputMode="url"
@@ -207,7 +210,7 @@ export function DashboardPage() {
               />
             </div>
             <button
-              className="min-h-12 rounded-2xl bg-cyan-300 px-6 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
+              className="min-h-12 rounded-2xl bg-primary px-6 text-sm font-semibold text-bg transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
               disabled={loading}
               type="submit"
             >
@@ -230,11 +233,11 @@ export function DashboardPage() {
           onClick={() => setShowModes((v) => !v)}
           type="button"
         >
-          <span className="flex items-center gap-2 text-sm font-medium text-slate-300">
+          <span className="flex items-center gap-2 text-sm font-medium text-text/80">
             Generation Economics Model
             <svg
               aria-hidden="true"
-              className={`h-4 w-4 text-slate-500 transition-transform duration-300 ${showModes ? 'rotate-180' : ''}`}
+              className={`h-4 w-4 text-text/50 transition-transform duration-300 ${showModes ? 'rotate-180' : ''}`}
               fill="none"
               stroke="currentColor"
               strokeWidth={2}
@@ -248,17 +251,17 @@ export function DashboardPage() {
           <div className="grid gap-4 sm:grid-cols-3">
             {costModes.map((mode) => (
               <div
-                className="relative rounded-2xl bg-slate-900/60 p-5 shadow-xl shadow-black/20"
+                className="relative rounded-2xl bg-card/60 p-5 shadow-xl shadow-bg/20"
                 key={mode}
               >
                 {mode === 'assisted' ? (
-                  <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-full border border-cyan-400/30 bg-cyan-400/20 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-cyan-200">
+                  <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-full border border-primary/30 bg-primary/20 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-primary/80">
                     Default
                   </span>
                 ) : null}
-                <p className="font-semibold text-white capitalize">{mode}</p>
-                <p className="mt-2 text-sm leading-6 text-slate-400">{modeCopy[mode]}</p>
-                <p className="mt-4 text-xs text-slate-500">{modeMultiplierLabel[mode]}</p>
+                <p className="font-semibold text-text capitalize">{mode}</p>
+                <p className="mt-2 text-sm leading-6 text-text/60">{modeCopy[mode]}</p>
+                <p className="mt-4 text-xs text-text/50">{modeMultiplierLabel[mode]}</p>
               </div>
             ))}
           </div>
@@ -296,55 +299,58 @@ function LoadingState({ repositoryUrl }: { repositoryUrl: string }) {
   }, [activeStage, repositoryLabel.length, trimmedRepositoryUrl.length])
 
   return (
-    <div className="relative mt-8 overflow-hidden rounded-3xl border border-cyan-300/20 bg-slate-950/90 p-5 shadow-2xl shadow-cyan-950/30">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.18),_transparent_35%),linear-gradient(120deg,_rgba(15,23,42,0),_rgba(34,211,238,0.08),_rgba(15,23,42,0))]" />
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300/70 to-transparent" />
+    <div className="relative mt-8 overflow-hidden rounded-3xl border border-primary/20 bg-bg/80 p-5 shadow-2xl shadow-bg">
+      <div
+        className="absolute inset-0"
+        style={{ background: 'radial-gradient(circle at top left, color-mix(in srgb, var(--tm-primary) 15%, transparent), transparent 35%)' }}
+      />
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/70 to-transparent" />
 
       <div className="relative space-y-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="text-xs font-medium uppercase tracking-[0.28em] text-cyan-200/80">AI analysis pipeline</p>
-            <h2 className="mt-2 text-xl font-semibold text-white">Scanning {repositoryLabel}</h2>
-            <p className="mt-1 text-sm text-slate-400">Simulating repository generation economics in real time.</p>
+            <p className="text-xs font-medium uppercase tracking-[0.28em] text-primary/80">AI analysis pipeline</p>
+            <h2 className="mt-2 text-xl font-semibold text-text">Scanning {repositoryLabel}</h2>
+            <p className="mt-1 text-sm text-text/60">Simulating repository generation economics in real time.</p>
           </div>
-          <div className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-2 text-right">
-            <p className="text-2xl font-semibold text-cyan-100">{progress}%</p>
-            <p className="text-xs text-cyan-200/70">pipeline progress</p>
+          <div className="rounded-2xl border border-primary/20 bg-primary/10 px-4 py-2 text-right">
+            <p className="text-2xl font-semibold text-primary">{progress}%</p>
+            <p className="text-xs text-primary/70">pipeline progress</p>
           </div>
         </div>
 
-        <div className="h-2 overflow-hidden rounded-full bg-white/10">
+        <div className="h-2 overflow-hidden rounded-full bg-text/10">
           <div
-            className="h-full rounded-full bg-gradient-to-r from-cyan-300 via-sky-300 to-emerald-300 transition-all duration-700 ease-out"
+            className="h-full rounded-full bg-gradient-to-r from-primary via-secondary to-accent transition-all duration-700 ease-out"
             style={{ width: `${progress}%` }}
           />
         </div>
 
         <div className="grid gap-3 sm:grid-cols-3">
           {liveStats.map((stat) => (
-            <div className="rounded-2xl bg-white/[0.04] p-3" key={stat.label}>
-              <p className="text-lg font-semibold text-white">{stat.value}</p>
-              <p className="mt-1 text-xs text-slate-400">{stat.label}</p>
+            <div className="rounded-2xl bg-card/20 p-3" key={stat.label}>
+              <p className="text-lg font-semibold text-text">{stat.value}</p>
+              <p className="mt-1 text-xs text-text/60">{stat.label}</p>
             </div>
           ))}
         </div>
 
-        <div className="stage-enter rounded-2xl border border-cyan-300/40 bg-cyan-300/10 p-4 shadow-lg shadow-cyan-950/30" key={activeStage}>
+        <div className="stage-enter rounded-2xl border border-primary/40 bg-primary/10 p-4 shadow-lg shadow-bg" key={activeStage}>
           <div className="flex items-center gap-3">
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full animate-pulse bg-cyan-300 text-[10px] font-bold text-slate-950">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full animate-pulse bg-primary text-[10px] font-bold text-bg">
               {activeStage + 1}
             </span>
             <div>
-              <p className="text-sm font-semibold text-white">{analysisStages[activeStage].label}</p>
-              <p className="mt-0.5 text-xs leading-5 text-slate-400">{analysisStages[activeStage].detail}</p>
+              <p className="text-sm font-semibold text-text">{analysisStages[activeStage].label}</p>
+              <p className="mt-0.5 text-xs leading-5 text-text/60">{analysisStages[activeStage].detail}</p>
             </div>
-            <p className="ml-auto text-xs text-slate-500 tabular-nums">{activeStage + 1} / {analysisStages.length}</p>
+            <p className="ml-auto text-xs text-text/50 tabular-nums">{activeStage + 1} / {analysisStages.length}</p>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-black/20 p-4 font-mono text-xs text-cyan-100/80">
+        <div className="rounded-2xl border border-text/10 bg-bg/20 p-4 font-mono text-xs text-primary/80">
           <p>&gt; pipeline.run --repository {trimmedRepositoryUrl || repositoryLabel}</p>
-          <p className="mt-1 text-slate-400">&gt; stage.{activeStage + 1}: {analysisStages[activeStage].label.toLowerCase()}...</p>
+          <p className="mt-1 text-text/60">&gt; stage.{activeStage + 1}: {analysisStages[activeStage].label.toLowerCase()}...</p>
         </div>
       </div>
     </div>
@@ -354,21 +360,21 @@ function LoadingState({ repositoryUrl }: { repositoryUrl: string }) {
 function SharedAnalysisState({ error, loading, onBack }: { error: string | null; loading: boolean; onBack: () => void }) {
   return (
     <section className="mx-auto max-w-3xl px-6 py-20">
-      <button className="text-sm text-cyan-200 transition hover:text-cyan-100" onClick={onBack} type="button">
+      <button className="text-sm text-primary/80 transition hover:text-primary" onClick={onBack} type="button">
         ← Back to analyzer
       </button>
-      <div className="mt-8 rounded-3xl bg-white/[0.04] p-8 shadow-2xl shadow-black/20">
+      <div className="mt-8 rounded-3xl bg-card/20 p-8 shadow-2xl shadow-bg/20">
         {loading && !error ? (
-          <div className="flex items-center gap-3 text-cyan-100">
-            <span className="h-3 w-3 animate-pulse rounded-full bg-cyan-300" />
+          <div className="flex items-center gap-3 text-primary">
+            <span className="h-3 w-3 animate-pulse rounded-full bg-primary" />
             <span>Loading public analysis…</span>
           </div>
         ) : null}
         {error ? (
           <>
             <p className="text-sm text-red-200">Analysis not available</p>
-            <h1 className="mt-3 text-3xl font-semibold text-white">This public analysis could not be loaded.</h1>
-            <p className="mt-3 text-slate-400">{error}</p>
+            <h1 className="mt-3 text-3xl font-semibold text-text">This public analysis could not be loaded.</h1>
+            <p className="mt-3 text-text/60">{error}</p>
           </>
         ) : null}
       </div>
@@ -414,19 +420,19 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
   return (
     <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-16" id="results">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <button className="text-sm text-cyan-200 transition hover:text-cyan-100" onClick={onNewAnalysis} type="button">
+        <button className="text-sm text-primary/80 transition hover:text-primary" onClick={onNewAnalysis} type="button">
           ← Analyze another repository
         </button>
         <div className="flex flex-wrap items-center gap-2">
           <button
-            className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-slate-200 transition hover:bg-white/10"
+            className="rounded-2xl border border-text/10 bg-card/20 px-4 py-2 text-sm text-text/80 transition hover:bg-card/40"
             onClick={() => void handleCopyPublicUrl()}
             type="button"
           >
             {copyState === 'copied' ? 'Copied!' : copyState === 'failed' ? 'Copy failed' : 'Copy public URL'}
           </button>
           <a
-            className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-2 text-sm font-medium text-cyan-100 transition hover:bg-cyan-300/20"
+            className="rounded-2xl border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-medium text-primary transition hover:bg-primary/20"
             href={selectedOpenGraphImageUrl}
             rel="noreferrer"
             target="_blank"
@@ -434,7 +440,7 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
             Download badge
           </a>
           <a
-            className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-2 text-sm font-medium text-cyan-100 transition hover:bg-cyan-300/20"
+            className="rounded-2xl border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-medium text-primary transition hover:bg-primary/20"
             href={`/api/analyze/${analysis.id}/badge.svg`}
             rel="noreferrer"
             target="_blank"
@@ -445,16 +451,16 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
       </div>
 
       <header className="mt-6">
-        <p className="mb-4 inline-flex rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-sm text-emerald-200">
+        <p className="mb-4 inline-flex rounded-full border border-secondary/20 bg-secondary/10 px-3 py-1 text-sm text-secondary">
           Analysis complete
         </p>
-        <h1 className="flex items-center gap-3 text-2xl font-semibold tracking-tight text-white sm:text-4xl">
-          <svg aria-hidden="true" className="h-7 w-7 shrink-0 text-slate-400 sm:h-9 sm:w-9" fill="currentColor" viewBox="0 0 24 24">
+        <h1 className="flex items-center gap-3 text-2xl font-semibold tracking-tight text-text sm:text-4xl">
+          <svg aria-hidden="true" className="h-7 w-7 shrink-0 text-text/60 sm:h-9 sm:w-9" fill="currentColor" viewBox="0 0 24 24">
             <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
           </svg>
           <span className="break-all">{analysis.repositoryUrl}</span>
         </h1>
-        <p className="mt-3 text-sm text-slate-400">
+        <p className="mt-3 text-sm text-text/60">
           Analysis id: {analysis.id} · {dateFormatter.format(new Date(analysis.createdAt))}
         </p>
       </header>
@@ -525,19 +531,19 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
         onSort={setComparisonSort}
       />
 
-      <div className="mt-8 rounded-3xl bg-white/[0.03] p-4 sm:p-6">
+      <div className="mt-8 rounded-3xl bg-card/20 p-4 sm:p-6">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
-            <p className="text-sm text-slate-400">Cost breakdown</p>
-            <h2 className="mt-1 text-2xl font-semibold text-white">AI generation estimates</h2>
+            <p className="text-sm text-text/60">Cost breakdown</p>
+            <h2 className="mt-1 text-2xl font-semibold text-text">AI generation estimates</h2>
           </div>
-          <p className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-sm text-cyan-100">
+          <p className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-sm text-primary">
             {capitalize(selectedMode)} mode
           </p>
         </div>
         <div className="mt-6 overflow-hidden rounded-2xl">
-          <table className="min-w-full divide-y divide-white/10 text-sm">
-            <thead className="bg-white/[0.04] text-left text-slate-400">
+          <table className="min-w-full divide-y divide-text/10 text-sm">
+            <thead className="bg-card/20 text-left text-text/60">
               <tr>
                 <th className="hidden px-4 py-3 font-medium sm:table-cell">Provider</th>
                 <th className="px-4 py-3 font-medium">Model</th>
@@ -546,14 +552,14 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
                 <th className="px-4 py-3 text-right font-medium">Total cost</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/10 text-slate-200">
+            <tbody className="divide-y divide-text/10 text-text/80">
               {estimatesForMode.map((estimate) => (
                 <tr key={`${estimate.provider}-${estimate.model}-${estimate.mode}`}>
                   <td className="hidden px-4 py-3 capitalize sm:table-cell">{estimate.provider}</td>
                   <td className="px-4 py-3">{estimate.model}</td>
                   <td className="px-4 py-3 capitalize">{estimate.mode}</td>
                   <td className="hidden px-4 py-3 text-right sm:table-cell">{numberFormatter.format(estimate.estimatedOutputTokens)}</td>
-                  <td className="px-4 py-3 text-right font-medium text-white">{currencyFormatter.format(estimate.totalCost)}</td>
+                  <td className="px-4 py-3 text-right font-medium text-text">{currencyFormatter.format(estimate.totalCost)}</td>
                 </tr>
               ))}
             </tbody>
@@ -574,19 +580,19 @@ function EngineeringEffortPanel({ estimates, selectedMode }: { estimates: Reposi
   const assumptions = representativeEstimate?.engineeringEffort.assumptions
 
   return (
-    <section className="mt-8 rounded-3xl border border-emerald-300/20 bg-emerald-300/[0.04] p-5 shadow-2xl shadow-black/20 sm:p-6">
+    <section className="mt-8 rounded-3xl border border-secondary/20 bg-secondary/[0.04] p-5 shadow-2xl shadow-bg/20 sm:p-6">
       <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-start">
         <div>
-          <p className="text-sm text-emerald-200/80">Engineering effort equivalence</p>
-          <h2 className="mt-1 text-2xl font-semibold text-white">Human-readable scale for {selectedMode} mode</h2>
-          <p className="mt-3 text-sm leading-6 text-slate-400">
+          <p className="text-sm text-secondary/80">Engineering effort equivalence</p>
+          <h2 className="mt-1 text-2xl font-semibold text-text">Human-readable scale for {selectedMode} mode</h2>
+          <p className="mt-3 text-sm leading-6 text-text/60">
             TokenMeter translates token and workflow estimates into senior-engineering time, so cost numbers have a practical delivery-scale reference instead of feeling like abstract cents.
           </p>
           {representativeEstimate ? (
-            <div className="mt-5 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-5">
-              <p className="text-xs uppercase tracking-[0.2em] text-emerald-100/70">Lowest-cost model equivalence</p>
-              <p className="mt-3 text-3xl font-semibold text-white">{representativeEstimate.engineeringEffort.summary}</p>
-              <p className="mt-2 text-sm text-emerald-100/80">
+            <div className="mt-5 rounded-2xl border border-secondary/20 bg-secondary/10 p-5">
+              <p className="text-xs uppercase tracking-[0.2em] text-secondary/70">Lowest-cost model equivalence</p>
+              <p className="mt-3 text-3xl font-semibold text-text">{representativeEstimate.engineeringEffort.summary}</p>
+              <p className="mt-2 text-sm text-secondary/80">
                 {representativeEstimate.provider} · {representativeEstimate.model}
               </p>
             </div>
@@ -646,20 +652,20 @@ function ModelComparison({
   }, [cheapestEstimate, estimates, highestEstimate, providerFilter, sortBy])
 
   return (
-    <section className="mt-8 rounded-3xl bg-white/[0.03] p-5 shadow-2xl shadow-black/20 sm:p-6">
+    <section className="mt-8 rounded-3xl bg-card/20 p-5 shadow-2xl shadow-bg/20 sm:p-6">
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
         <div>
-          <p className="text-sm text-slate-400">Model benchmark</p>
-          <h2 className="mt-1 text-2xl font-semibold text-white">AI model comparison</h2>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
+          <p className="text-sm text-text/60">Model benchmark</p>
+          <h2 className="mt-1 text-2xl font-semibold text-text">AI model comparison</h2>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-text/60">
             Compare {selectedMode} generation estimates side-by-side by provider, cost, relative efficiency and quality tier.
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
-          <label className="grid gap-1 text-sm text-slate-400">
+          <label className="grid gap-1 text-sm text-text/60">
             Provider
             <select
-              className="rounded-2xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white outline-none transition focus:border-cyan-300/60"
+              className="rounded-2xl border border-text/10 bg-bg px-3 py-2 text-sm text-text outline-none transition focus:border-primary/60"
               onChange={(event) => onFilterProvider(event.target.value)}
               value={providerFilter}
             >
@@ -671,10 +677,10 @@ function ModelComparison({
               ))}
             </select>
           </label>
-          <label className="grid gap-1 text-sm text-slate-400">
+          <label className="grid gap-1 text-sm text-text/60">
             Sort by
             <select
-              className="rounded-2xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white outline-none transition focus:border-cyan-300/60"
+              className="rounded-2xl border border-text/10 bg-bg px-3 py-2 text-sm text-text outline-none transition focus:border-primary/60"
               onChange={(event) => onSort(event.target.value as ComparisonSort)}
               value={sortBy}
             >
@@ -694,8 +700,8 @@ function ModelComparison({
       </div>
 
       <div className="mt-6 hidden overflow-hidden rounded-2xl lg:block">
-        <table className="min-w-full divide-y divide-white/10 text-sm">
-          <thead className="bg-white/[0.04] text-left text-slate-400">
+        <table className="min-w-full divide-y divide-text/10 text-sm">
+          <thead className="bg-card/20 text-left text-text/60">
             <tr>
               <th className="px-4 py-3 font-medium">Model</th>
               <th className="px-4 py-3 font-medium">Provider</th>
@@ -705,17 +711,17 @@ function ModelComparison({
               <th className="px-4 py-3 font-medium">Notes</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/10 text-slate-200">
+          <tbody className="divide-y divide-text/10 text-text/80">
             {comparisonRows.map((row) => (
-              <tr className="transition hover:bg-white/[0.03]" key={`${row.estimate.provider}-${row.estimate.model}`}>
-                <td className="px-4 py-3 font-medium text-white">{row.estimate.model}</td>
-                <td className="px-4 py-3 capitalize text-slate-300">{row.estimate.provider}</td>
-                <td className="px-4 py-3 text-right font-medium text-white">{currencyFormatter.format(row.estimate.totalCost)}</td>
+              <tr className="transition hover:bg-card/20" key={`${row.estimate.provider}-${row.estimate.model}`}>
+                <td className="px-4 py-3 font-medium text-text">{row.estimate.model}</td>
+                <td className="px-4 py-3 capitalize text-text/80">{row.estimate.provider}</td>
+                <td className="px-4 py-3 text-right font-medium text-text">{currencyFormatter.format(row.estimate.totalCost)}</td>
                 <td className="px-4 py-3">
                   <RelativeCostBar percent={row.costPercent} label={`${row.relativeCost.toFixed(1)}×`} />
                 </td>
                 <td className="px-4 py-3"><TierBadge tier={row.tier} /></td>
-                <td className="px-4 py-3 text-slate-400">{row.note}</td>
+                <td className="px-4 py-3 text-text/60">{row.note}</td>
               </tr>
             ))}
           </tbody>
@@ -736,20 +742,20 @@ type ModelComparisonRow = {
 
 function ModelComparisonCard({ row }: { row: ModelComparisonRow }) {
   return (
-    <article className="rounded-2xl bg-slate-950/45 p-4">
+    <article className="rounded-2xl bg-bg/45 p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate font-medium text-white" title={row.estimate.model}>{row.estimate.model}</p>
-          <p className="mt-1 text-sm capitalize text-slate-500">{row.estimate.provider}</p>
+          <p className="truncate font-medium text-text" title={row.estimate.model}>{row.estimate.model}</p>
+          <p className="mt-1 text-sm capitalize text-text/50">{row.estimate.provider}</p>
         </div>
-        <p className="shrink-0 text-lg font-semibold text-white">{currencyFormatter.format(row.estimate.totalCost)}</p>
+        <p className="shrink-0 text-lg font-semibold text-text">{currencyFormatter.format(row.estimate.totalCost)}</p>
       </div>
       <div className="mt-4">
         <RelativeCostBar percent={row.costPercent} label={`${row.relativeCost.toFixed(1)}× vs cheapest`} />
       </div>
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <TierBadge tier={row.tier} />
-        <span className="text-sm text-slate-400">{row.note}</span>
+        <span className="text-sm text-text/60">{row.note}</span>
       </div>
     </article>
   )
@@ -758,27 +764,25 @@ function ModelComparisonCard({ row }: { row: ModelComparisonRow }) {
 function RelativeCostBar({ percent, label }: { percent: number; label: string }) {
   return (
     <div>
-      <div className="mb-2 flex items-center justify-between gap-3 text-xs text-slate-400">
+      <div className="mb-2 flex items-center justify-between gap-3 text-xs text-text/60">
         <span>Relative cost</span>
-        <span className="font-medium text-cyan-100">{label}</span>
+        <span className="font-medium text-primary">{label}</span>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-white/10">
-        <div className="h-full rounded-full bg-gradient-to-r from-emerald-300 via-cyan-300 to-amber-300" style={{ width: `${Math.max(4, Math.min(100, percent))}%` }} />
+      <div className="h-2 overflow-hidden rounded-full bg-text/10">
+        <div className="h-full rounded-full bg-gradient-to-r from-secondary via-primary to-accent" style={{ width: `${Math.max(4, Math.min(100, percent))}%` }} />
       </div>
     </div>
   )
 }
 
 function TierBadge({ tier }: { tier: string }) {
-  const tone = tier === 'Cheapest' ? 'emerald' : tier === 'Premium' || tier === 'High reasoning' ? 'amber' : tier === 'Experimental' ? 'violet' : 'cyan'
+  const tone = tier === 'Cheapest' ? 'secondary' : tier === 'Premium' || tier === 'High reasoning' ? 'accent' : tier === 'Experimental' ? 'secondary' : 'primary'
   const className =
-    tone === 'emerald'
-      ? 'border-emerald-300/20 bg-emerald-300/10 text-emerald-100'
-      : tone === 'amber'
-        ? 'border-amber-300/20 bg-amber-300/10 text-amber-100'
-        : tone === 'violet'
-          ? 'border-violet-300/20 bg-violet-300/10 text-violet-100'
-          : 'border-cyan-300/20 bg-cyan-300/10 text-cyan-100'
+    tone === 'secondary'
+      ? 'border-secondary/20 bg-secondary/10 text-secondary'
+      : tone === 'accent'
+        ? 'border-accent/20 bg-accent/10 text-accent'
+        : 'border-primary/20 bg-primary/10 text-primary'
 
   return <span className={`rounded-full border px-3 py-1 text-xs font-medium ${className}`}>{tier}</span>
 }
@@ -799,37 +803,40 @@ function CostHero({
   const repositoryLabel = repositoryName(analysis.repositoryUrl)
 
   return (
-    <section className="relative mt-8 overflow-hidden rounded-[2rem] border border-cyan-300/20 bg-slate-950/90 p-6 shadow-2xl shadow-cyan-950/30 sm:p-8">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.2),_transparent_38%),radial-gradient(circle_at_bottom_right,_rgba(16,185,129,0.16),_transparent_36%)]" />
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300/80 to-transparent" />
+    <section className="relative mt-8 overflow-hidden rounded-[2rem] border border-primary/20 bg-bg/80 p-6 shadow-2xl shadow-bg sm:p-8">
+      <div
+        className="absolute inset-0"
+        style={{ background: 'radial-gradient(circle at top left, color-mix(in srgb, var(--tm-primary) 18%, transparent), transparent 38%), radial-gradient(circle at bottom right, color-mix(in srgb, var(--tm-secondary) 14%, transparent), transparent 36%)' }}
+      />
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/80 to-transparent" />
 
       <div className="relative">
-        <p className="inline-flex rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-sm text-cyan-100">
+        <p className="inline-flex rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-sm text-primary">
           Estimated generation cost range
         </p>
         <div
           className="mt-5 grid gap-4 transition-all duration-500 sm:grid-cols-2"
           key={`${selectedMode}-${lowestEstimate?.provider ?? 'none'}-${highestEstimate?.provider ?? 'none'}`}
         >
-          <div className="min-w-0 rounded-2xl bg-white/[0.04] p-5">
-            <p className="text-5xl font-semibold tracking-tight text-white sm:text-6xl">
+          <div className="min-w-0 rounded-2xl bg-card/20 p-5">
+            <p className="text-5xl font-semibold tracking-tight text-text sm:text-6xl">
               {lowestEstimate ? currencyFormatter.format(lowestEstimate.totalCost) : '—'}
             </p>
-            <p className="mt-3 truncate text-sm text-slate-400">
+            <p className="mt-3 truncate text-sm text-text/60">
               {lowestEstimate ? `${lowestEstimate.provider} · ${lowestEstimate.model} · ${selectedMode} workflow mode` : 'No estimate'}
             </p>
           </div>
-          <div className="min-w-0 rounded-2xl bg-white/[0.04] p-5">
-            <p className="text-5xl font-semibold tracking-tight text-white sm:text-6xl">
+          <div className="min-w-0 rounded-2xl bg-card/20 p-5">
+            <p className="text-5xl font-semibold tracking-tight text-text sm:text-6xl">
               {highestEstimate ? currencyFormatter.format(highestEstimate.totalCost) : '—'}
             </p>
-            <p className="mt-3 truncate text-sm text-slate-400">
+            <p className="mt-3 truncate text-sm text-text/60">
               {highestEstimate ? `${highestEstimate.provider} · ${highestEstimate.model} · ${selectedMode} workflow mode` : 'No estimate'}
             </p>
           </div>
         </div>
 
-        <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-400">
+        <p className="mt-4 max-w-3xl text-sm leading-6 text-text/60">
           TokenMeter estimates what it would cost to regenerate {repositoryLabel} with AI, including repository size,
           token footprint and workflow overhead for the selected mode.
         </p>
@@ -847,9 +854,9 @@ function CostHero({
 
 function HeroMeta({ label, value }: { label: string; value: string }) {
   return (
-    <article className="min-w-0 rounded-2xl bg-white/[0.04] p-4">
-      <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{label}</p>
-      <p className="mt-2 truncate text-lg font-semibold text-white" title={value}>
+    <article className="min-w-0 rounded-2xl bg-card/20 p-4">
+      <p className="text-xs uppercase tracking-[0.2em] text-text/50">{label}</p>
+      <p className="mt-2 truncate text-lg font-semibold text-text" title={value}>
         {value}
       </p>
     </article>
@@ -869,15 +876,15 @@ function WorkflowAssumptions({
   const multiplier = estimate && rawBaselineEstimate && rawBaselineEstimate.totalCost > 0 ? estimate.totalCost / rawBaselineEstimate.totalCost : null
 
   return (
-    <section className="mt-8 rounded-3xl bg-white/[0.03] p-5 shadow-2xl shadow-black/20 sm:p-6">
+    <section className="mt-8 rounded-3xl bg-card/20 p-5 shadow-2xl shadow-bg/20 sm:p-6">
       <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
         <div>
-          <p className="text-sm text-slate-400">Workflow assumptions</p>
-          <h2 className="mt-1 text-2xl font-semibold text-white">{assumptions.title}</h2>
-          <p className="mt-3 text-sm leading-6 text-slate-400">{assumptions.summary}</p>
-          <div className="mt-5 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-4">
-            <p className="text-xs uppercase tracking-[0.2em] text-cyan-200/70">Heuristic simulation</p>
-            <p className="mt-2 text-sm leading-6 text-cyan-50">
+          <p className="text-sm text-text/60">Workflow assumptions</p>
+          <h2 className="mt-1 text-2xl font-semibold text-text">{assumptions.title}</h2>
+          <p className="mt-3 text-sm leading-6 text-text/60">{assumptions.summary}</p>
+          <div className="mt-5 rounded-2xl border border-primary/20 bg-primary/10 p-4">
+            <p className="text-xs uppercase tracking-[0.2em] text-primary/70">Heuristic simulation</p>
+            <p className="mt-2 text-sm leading-6 text-text">
               These estimates are directional, not invoices. They expose the assumptions TokenMeter applies so Raw, Assisted
               and Agentic modes can be compared transparently.
             </p>
@@ -891,8 +898,8 @@ function WorkflowAssumptions({
           </div>
           <ul className="grid gap-2">
             {assumptions.items.map((item) => (
-              <li className="flex gap-3 rounded-2xl bg-slate-950/45 p-3 text-sm leading-6 text-slate-300" key={item}>
-                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-300" />
+              <li className="flex gap-3 rounded-2xl bg-bg/45 p-3 text-sm leading-6 text-text/80" key={item}>
+                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
                 <span>{item}</span>
               </li>
             ))}
@@ -905,23 +912,23 @@ function WorkflowAssumptions({
 
 function AssumptionMetric({ label, value }: { label: string; value: string }) {
   return (
-    <article className="rounded-2xl bg-white/[0.04] p-4">
-      <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{label}</p>
-      <p className="mt-2 text-lg font-semibold text-white">{value}</p>
+    <article className="rounded-2xl bg-card/20 p-4">
+      <p className="text-xs uppercase tracking-[0.2em] text-text/50">{label}</p>
+      <p className="mt-2 text-lg font-semibold text-text">{value}</p>
     </article>
   )
 }
 
 function ModeSwitch({ selectedMode, onSelectMode }: { selectedMode: CostMode; onSelectMode: (mode: CostMode) => void }) {
   return (
-    <div className="mt-6 rounded-2xl border border-white/10 bg-slate-950/60 p-1.5">
+    <div className="mt-6 rounded-2xl border border-text/10 bg-bg/60 p-1.5">
       <div className="grid grid-cols-3 gap-1.5">
         {costModes.map((mode) => {
           const active = selectedMode === mode
           return (
             <button
               className={`rounded-xl px-4 py-3 text-base font-semibold capitalize transition ${
-                active ? 'bg-cyan-300 text-slate-950 shadow-lg shadow-cyan-300/20' : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                active ? 'bg-primary text-bg shadow-lg shadow-primary/20' : 'text-text/80 hover:bg-card/40 hover:text-text'
               }`}
               key={mode}
               onClick={() => onSelectMode(mode)}
@@ -938,19 +945,19 @@ function ModeSwitch({ selectedMode, onSelectMode }: { selectedMode: CostMode; on
 
 function MetricCard({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
-    <article className="rounded-2xl bg-white/[0.03] p-5 shadow-2xl shadow-black/20 sm:p-6">
-      <p className="text-sm text-slate-400">{label}</p>
-      <p className="mt-3 text-3xl font-semibold text-white">{value}</p>
-      <p className="mt-2 text-sm text-slate-500">{hint}</p>
+    <article className="rounded-2xl bg-card/20 p-5 shadow-2xl shadow-bg/20 sm:p-6">
+      <p className="text-sm text-text/60">{label}</p>
+      <p className="mt-3 text-3xl font-semibold text-text">{value}</p>
+      <p className="mt-2 text-sm text-text/50">{hint}</p>
     </article>
   )
 }
 
 function Panel({ eyebrow, title, children }: { eyebrow: string; title: string; children: ReactNode }) {
   return (
-    <section className="rounded-3xl bg-white/[0.03] p-5 shadow-2xl shadow-black/20 sm:p-6">
-      <p className="text-sm text-slate-400">{eyebrow}</p>
-      <h2 className="mt-1 text-2xl font-semibold text-white">{title}</h2>
+    <section className="rounded-3xl bg-card/20 p-5 shadow-2xl shadow-bg/20 sm:p-6">
+      <p className="text-sm text-text/60">{eyebrow}</p>
+      <h2 className="mt-1 text-2xl font-semibold text-text">{title}</h2>
       <div className="mt-6">{children}</div>
     </section>
   )
@@ -966,7 +973,7 @@ function BarList({
   valueFormatter: (value: number) => string
 }) {
   if (items.length === 0) {
-    return <p className="rounded-2xl border border-dashed border-white/10 p-6 text-sm text-slate-400">{emptyLabel}</p>
+    return <p className="rounded-2xl border border-dashed border-text/10 p-6 text-sm text-text/60">{emptyLabel}</p>
   }
 
   return (
@@ -975,18 +982,18 @@ function BarList({
         <div key={`${item.label}-${item.helper}`}>
           <div className="mb-2 flex items-start justify-between gap-3 text-sm">
             <div className="min-w-0">
-              <p className="truncate font-medium text-white" title={item.label}>
+              <p className="truncate font-medium text-text" title={item.label}>
                 {item.label}
               </p>
-              <p className="truncate text-slate-500" title={item.helper}>
+              <p className="truncate text-text/50" title={item.helper}>
                 {item.helper}
               </p>
             </div>
-            <p className="shrink-0 text-right font-medium text-cyan-100">{valueFormatter(item.value)}</p>
+            <p className="shrink-0 text-right font-medium text-primary">{valueFormatter(item.value)}</p>
           </div>
-          <div className="h-2 overflow-hidden rounded-full bg-white/10">
+          <div className="h-2 overflow-hidden rounded-full bg-text/10">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-cyan-300 to-emerald-300"
+              className="h-full rounded-full bg-gradient-to-r from-primary to-secondary"
               style={{ width: `${Math.max(2, Math.min(100, item.percent))}%` }}
             />
           </div>
@@ -998,12 +1005,12 @@ function BarList({
 
 function CostSummaryCard({ label, estimate }: { label: string; estimate: RepositoryAnalysisCostEstimateResponse | null }) {
   return (
-    <article className="rounded-2xl bg-slate-950/50 p-4">
-      <p className="text-sm text-slate-400">{label}</p>
-      <p className="mt-2 text-2xl font-semibold text-white">
+    <article className="rounded-2xl bg-bg/50 p-4">
+      <p className="text-sm text-text/60">{label}</p>
+      <p className="mt-2 text-2xl font-semibold text-text">
         {estimate ? currencyFormatter.format(estimate.totalCost) : '$0.00'}
       </p>
-      <p className="mt-1 truncate text-sm text-slate-500" title={estimate ? `${estimate.provider} · ${estimate.model}` : undefined}>
+      <p className="mt-1 truncate text-sm text-text/50" title={estimate ? `${estimate.provider} · ${estimate.model}` : undefined}>
         {estimate ? `${estimate.provider} · ${estimate.model}` : 'No estimates available'}
       </p>
     </article>

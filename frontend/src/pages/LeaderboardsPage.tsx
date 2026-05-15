@@ -64,16 +64,16 @@ export function LeaderboardsPage() {
 
   return (
     <section className="mx-auto max-w-6xl px-6 py-10">
-      <div className="mb-8 rounded-[2rem] border border-white/10 bg-white/[0.03] p-8 shadow-2xl shadow-cyan-950/20">
-        <p className="mb-3 text-sm font-semibold uppercase tracking-[0.3em] text-cyan-300">Community benchmarks</p>
+      <div className="mb-8 rounded-[2rem] border border-text/10 bg-card/20 p-8 shadow-2xl shadow-bg/20">
+        <p className="mb-3 text-sm font-semibold uppercase tracking-[0.3em] text-primary">Community benchmarks</p>
         <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
           <div>
-            <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">Public repository leaderboards</h1>
-            <p className="mt-4 max-w-2xl text-base leading-7 text-slate-300">
+            <h1 className="text-4xl font-semibold tracking-tight text-text sm:text-5xl">Public repository leaderboards</h1>
+            <p className="mt-4 max-w-2xl text-base leading-7 text-text/80">
               Browse the repositories TokenMeter has analyzed by AI generation cost, token footprint, size and popularity.
             </p>
           </div>
-          <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-5 text-sm text-cyan-100">
+          <div className="rounded-2xl border border-primary/20 bg-primary/10 p-5 text-sm text-primary">
             Rankings update from persisted analyses automatically. Open any entry to inspect the full public cost report.
           </div>
         </div>
@@ -83,7 +83,7 @@ export function LeaderboardsPage() {
         {categories.map((item) => (
           <button
             className={`rounded-full border px-4 py-2 text-sm transition ${
-              item.id === category ? 'border-cyan-300 bg-cyan-300 text-slate-950' : 'border-white/10 bg-white/[0.03] text-slate-300 hover:border-cyan-300/60 hover:text-white'
+              item.id === category ? 'border-primary bg-primary text-bg' : 'border-text/10 bg-card/20 text-text/80 hover:border-primary/60 hover:text-text'
             }`}
             key={item.id}
             onClick={() => selectCategory(item.id)}
@@ -95,42 +95,42 @@ export function LeaderboardsPage() {
       </div>
 
       {usesCostFilters ? (
-        <div className="mb-6 grid gap-3 rounded-2xl border border-white/10 bg-slate-900/60 p-4 sm:grid-cols-3">
-          <label className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+        <div className="mb-6 grid gap-3 rounded-2xl border border-text/10 bg-card/60 p-4 sm:grid-cols-3">
+          <label className="text-xs font-semibold uppercase tracking-[0.2em] text-text/60">
             Mode
-            <select className="mt-2 w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white" value={mode} onChange={(event) => { setMode(event.target.value); setPage(0) }}>
+            <select className="mt-2 w-full rounded-xl border border-text/10 bg-bg px-3 py-2 text-sm text-text" value={mode} onChange={(event) => { setMode(event.target.value); setPage(0) }}>
               {modes.map((item) => <option key={item} value={item}>{item}</option>)}
             </select>
           </label>
-          <label className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+          <label className="text-xs font-semibold uppercase tracking-[0.2em] text-text/60">
             Provider
-            <select className="mt-2 w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white" value={provider} onChange={(event) => { setProvider(event.target.value); setPage(0) }}>
+            <select className="mt-2 w-full rounded-xl border border-text/10 bg-bg px-3 py-2 text-sm text-text" value={provider} onChange={(event) => { setProvider(event.target.value); setPage(0) }}>
               <option value="">All providers</option>
               {providers.map((item) => <option key={item} value={item}>{item}</option>)}
             </select>
           </label>
-          <label className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+          <label className="text-xs font-semibold uppercase tracking-[0.2em] text-text/60">
             Model
-            <input className="mt-2 w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white placeholder:text-slate-600" placeholder="e.g. gpt-4o" value={model} onChange={(event) => { setModel(event.target.value); setPage(0) }} />
+            <input className="mt-2 w-full rounded-xl border border-text/10 bg-bg px-3 py-2 text-sm text-text placeholder:text-text/40" placeholder="e.g. gpt-4o" value={model} onChange={(event) => { setModel(event.target.value); setPage(0) }} />
           </label>
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-3xl border border-white/10 bg-slate-900/70">
-        <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+      <div className="overflow-hidden rounded-3xl border border-text/10 bg-card/70">
+        <div className="flex items-center justify-between border-b border-text/10 px-5 py-4">
           <div>
-            <h2 className="text-lg font-semibold text-white">{activeCategory.label}</h2>
-            <p className="text-sm text-slate-400">{leaderboard ? `${numberFormatter.format(leaderboard.totalElements)} ranked entries` : 'Loading rankings'}</p>
+            <h2 className="text-lg font-semibold text-text">{activeCategory.label}</h2>
+            <p className="text-sm text-text/60">{leaderboard ? `${numberFormatter.format(leaderboard.totalElements)} ranked entries` : 'Loading rankings'}</p>
           </div>
-          <span className="hidden rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-300 sm:inline">{activeCategory.metric}</span>
+          <span className="hidden rounded-full bg-text/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-text/80 sm:inline">{activeCategory.metric}</span>
         </div>
 
         {error ? <div className="p-6 text-sm text-rose-300">{error}</div> : null}
-        {loading ? <div className="p-6 text-sm text-slate-300">Loading leaderboards…</div> : null}
-        {!loading && !error && leaderboard?.entries.length === 0 ? <div className="p-6 text-sm text-slate-300">No repositories match this leaderboard yet.</div> : null}
+        {loading ? <div className="p-6 text-sm text-text/80">Loading leaderboards…</div> : null}
+        {!loading && !error && leaderboard?.entries.length === 0 ? <div className="p-6 text-sm text-text/80">No repositories match this leaderboard yet.</div> : null}
 
         {!loading && !error && leaderboard?.entries.length ? (
-          <div className="divide-y divide-white/10">
+          <div className="divide-y divide-text/10">
             {leaderboard.entries.map((entry) => (
               <LeaderboardRow entry={entry} category={category} key={`${entry.analysisId}-${entry.rank}`} />
             ))}
@@ -138,10 +138,10 @@ export function LeaderboardsPage() {
         ) : null}
       </div>
 
-      <div className="mt-6 flex items-center justify-between text-sm text-slate-400">
-        <button className="rounded-full border border-white/10 px-4 py-2 disabled:opacity-40" disabled={page === 0 || loading} onClick={() => setPage((value) => Math.max(0, value - 1))} type="button">Previous</button>
+      <div className="mt-6 flex items-center justify-between text-sm text-text/60">
+        <button className="rounded-full border border-text/10 px-4 py-2 disabled:opacity-40" disabled={page === 0 || loading} onClick={() => setPage((value) => Math.max(0, value - 1))} type="button">Previous</button>
         <span>Page {page + 1}{leaderboard?.totalPages ? ` of ${leaderboard.totalPages}` : ''}</span>
-        <button className="rounded-full border border-white/10 px-4 py-2 disabled:opacity-40" disabled={loading || !leaderboard || page + 1 >= leaderboard.totalPages} onClick={() => setPage((value) => value + 1)} type="button">Next</button>
+        <button className="rounded-full border border-text/10 px-4 py-2 disabled:opacity-40" disabled={loading || !leaderboard || page + 1 >= leaderboard.totalPages} onClick={() => setPage((value) => value + 1)} type="button">Next</button>
       </div>
     </section>
   )
@@ -149,20 +149,20 @@ export function LeaderboardsPage() {
 
 function LeaderboardRow({ entry, category }: { entry: LeaderboardEntryResponse; category: string }) {
   return (
-    <a className="grid gap-4 px-5 py-5 transition hover:bg-white/[0.03] sm:grid-cols-[4rem_1fr_auto] sm:items-center" href={`/analysis/${entry.analysisId}`}>
-      <div className="text-3xl font-semibold text-cyan-200">#{entry.rank}</div>
+    <a className="grid gap-4 px-5 py-5 transition hover:bg-card/20 sm:grid-cols-[4rem_1fr_auto] sm:items-center" href={`/analysis/${entry.analysisId}`}>
+      <div className="text-3xl font-semibold text-primary/80">#{entry.rank}</div>
       <div>
         <div className="flex flex-wrap items-center gap-2">
-          <h3 className="text-lg font-semibold text-white">{entry.owner}/{entry.name}</h3>
-          {entry.mode ? <span className="rounded-full bg-white/10 px-2 py-1 text-xs text-slate-300">{entry.mode}</span> : null}
-          {entry.provider ? <span className="rounded-full bg-white/10 px-2 py-1 text-xs text-slate-300">{entry.provider}</span> : null}
+          <h3 className="text-lg font-semibold text-text">{entry.owner}/{entry.name}</h3>
+          {entry.mode ? <span className="rounded-full bg-text/10 px-2 py-1 text-xs text-text/80">{entry.mode}</span> : null}
+          {entry.provider ? <span className="rounded-full bg-text/10 px-2 py-1 text-xs text-text/80">{entry.provider}</span> : null}
         </div>
-        <p className="mt-1 break-all text-sm text-slate-400">{entry.repositoryUrl}</p>
-        <p className="mt-2 text-xs text-slate-500">Analyzed {dateFormatter.format(new Date(entry.analyzedAt))} · {compactFormatter.format(entry.totalTokens)} tokens · {compactFormatter.format(entry.totalFiles)} files</p>
+        <p className="mt-1 break-all text-sm text-text/60">{entry.repositoryUrl}</p>
+        <p className="mt-2 text-xs text-text/50">Analyzed {dateFormatter.format(new Date(entry.analyzedAt))} · {compactFormatter.format(entry.totalTokens)} tokens · {compactFormatter.format(entry.totalFiles)} files</p>
       </div>
       <div className="text-left sm:text-right">
-        <div className="text-xl font-semibold text-white">{mainMetric(entry, category)}</div>
-        <div className="mt-1 text-xs text-slate-400">{entry.model ?? secondaryMetric(entry)}</div>
+        <div className="text-xl font-semibold text-text">{mainMetric(entry, category)}</div>
+        <div className="mt-1 text-xs text-text/60">{entry.model ?? secondaryMetric(entry)}</div>
       </div>
     </a>
   )
