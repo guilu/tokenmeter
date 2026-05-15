@@ -50,6 +50,7 @@ export function AppShell({ children }: PropsWithChildren) {
           {/* Desktop links */}
           <div className="hidden items-center gap-1 md:flex">
             <a className={linkCls('/')} href="/">Overview</a>
+            <a className={linkCls('/models')} href="/models">Models</a>
             <a className={linkCls('/leaderboards')} href="/leaderboards">Leaderboards</a>
           </div>
 
@@ -81,6 +82,7 @@ export function AppShell({ children }: PropsWithChildren) {
         >
           <div className="space-y-1 border-t border-secondary/15 bg-bg/95 px-4 pb-4 pt-2 backdrop-blur-md">
             <a className={mobileLinkCls('/')} href="/" onClick={() => setMenuOpen(false)}>Overview</a>
+            <a className={mobileLinkCls('/models')} href="/models" onClick={() => setMenuOpen(false)}>Models</a>
             <a className={mobileLinkCls('/leaderboards')} href="/leaderboards" onClick={() => setMenuOpen(false)}>Leaderboards</a>
           </div>
         </div>

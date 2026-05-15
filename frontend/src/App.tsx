@@ -3,16 +3,23 @@ import { useEffect } from 'react'
 import { AppShell } from './components/AppShell'
 import { DashboardPage } from './pages/DashboardPage'
 import { LeaderboardsPage } from './pages/LeaderboardsPage'
+import { ModelsPage } from './pages/ModelsPage'
 
 export default function App() {
-  const isLeaderboardsPage =
-    window.location.pathname === '/leaderboards' || new URLSearchParams(window.location.search).has('leaderboards')
+  const path = window.location.pathname
+  const search = new URLSearchParams(window.location.search)
+  const isLeaderboardsPage = path === '/leaderboards' || search.has('leaderboards')
+  const isModelsPage = path === '/models'
 
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).has('leaderboards')) {
+    if (search.has('leaderboards')) {
       window.history.replaceState(null, '', '/leaderboards')
     }
   }, [])
 
-  return <AppShell>{isLeaderboardsPage ? <LeaderboardsPage /> : <DashboardPage />}</AppShell>
+  return (
+    <AppShell>
+      {isModelsPage ? <ModelsPage /> : isLeaderboardsPage ? <LeaderboardsPage /> : <DashboardPage />}
+    </AppShell>
+  )
 }
