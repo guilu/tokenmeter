@@ -8,8 +8,12 @@ export function AppShell({ children }: PropsWithChildren) {
   useTheme()
   const [menuOpen, setMenuOpen] = useState(false)
   const path = window.location.pathname
+  const searchParams = new URLSearchParams(window.location.search)
+  const effectivePath =
+    path === '/leaderboards' || searchParams.has('leaderboards') ? '/leaderboards' : path
 
-  const isActive = (href: string) => path === href || path.startsWith(href + '/')
+  const isActive = (href: string) =>
+    effectivePath === href || effectivePath.startsWith(href + '/')
 
   const linkCls = (href: string) =>
     `flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-colors ${

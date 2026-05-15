@@ -7,7 +7,7 @@ export function ThemeToggle() {
     <div className="flex items-center gap-0.5 rounded-full bg-secondary/15 p-1">
       <button
         aria-label="Tema oscuro"
-        className={`rounded-full p-1.5 transition-all ${isDark ? 'bg-bg text-primary shadow-sm' : 'text-text/40 hover:text-text/60'}`}
+        className={`cursor-pointer rounded-full p-1.5 transition-all ${isDark ? 'bg-bg text-primary shadow-sm' : 'text-text/40 hover:text-text/60'}`}
         onClick={toggle}
         type="button"
       >
@@ -17,7 +17,7 @@ export function ThemeToggle() {
       </button>
       <button
         aria-label="Tema claro"
-        className={`rounded-full p-1.5 transition-all ${!isDark ? 'bg-bg text-yellow-500 shadow-sm' : 'text-text/40 hover:text-text/60'}`}
+        className={`cursor-pointer rounded-full p-1.5 transition-all ${!isDark ? 'bg-bg text-yellow-500 shadow-sm' : 'text-text/40 hover:text-text/60'}`}
         onClick={toggle}
         type="button"
       >
