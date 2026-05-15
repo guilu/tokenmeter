@@ -1,7 +1,9 @@
-import { useTheme } from '../hooks/useTheme'
+interface ThemeToggleProps {
+  isDark: boolean
+  toggle: () => void
+}
 
-export function ThemeToggle() {
-  const { isDark, toggle } = useTheme()
+export function ThemeToggle({ isDark, toggle }: ThemeToggleProps) {
 
   return (
     <div className="flex items-center gap-0.5 rounded-full bg-secondary/15 p-1">

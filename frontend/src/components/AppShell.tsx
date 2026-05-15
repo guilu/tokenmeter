@@ -5,7 +5,7 @@ import { ThemeToggle } from './ThemeToggle'
 import { useTheme } from '../hooks/useTheme'
 
 export function AppShell({ children }: PropsWithChildren) {
-  const { isDark } = useTheme()
+  const { isDark, toggle } = useTheme()
   const [menuOpen, setMenuOpen] = useState(false)
   const path = window.location.pathname
   const searchParams = new URLSearchParams(window.location.search)
@@ -55,7 +55,7 @@ export function AppShell({ children }: PropsWithChildren) {
 
           {/* Right: theme toggle + hamburger */}
           <div className="flex items-center gap-2">
-            <ThemeToggle />
+            <ThemeToggle isDark={isDark} toggle={toggle} />
 
             <button
               aria-expanded={menuOpen}
