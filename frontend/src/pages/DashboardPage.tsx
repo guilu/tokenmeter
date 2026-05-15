@@ -178,7 +178,7 @@ export function DashboardPage() {
           AI repository cost intelligence
         </p>
         <h1 className="text-4xl font-semibold tracking-tight text-text sm:text-6xl">
-          AI generation cost of any GitHub repository.
+          AI cost of any GitHub repository.
         </h1>
         <p className="mt-4 text-base leading-7 text-text/60">
           Token footprint and AI generation cost benchmark across raw, assisted and agentic workflows.

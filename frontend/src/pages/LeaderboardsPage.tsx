@@ -126,7 +126,20 @@ export function LeaderboardsPage() {
         </div>
 
         {error ? <div className="p-6 text-sm text-rose-300">{error}</div> : null}
-        {loading ? <div className="p-6 text-sm text-text/80">Loading leaderboards…</div> : null}
+        {loading ? (
+          <div className="divide-y divide-text/10">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div className="grid animate-pulse gap-4 px-5 py-5 sm:grid-cols-[4rem_1fr_auto] sm:items-center" key={i}>
+                <div className="h-8 w-10 rounded-lg bg-text/10" />
+                <div className="space-y-2">
+                  <div className="h-4 w-48 rounded bg-text/10" />
+                  <div className="h-3 w-32 rounded bg-text/10" />
+                </div>
+                <div className="h-6 w-24 rounded-full bg-text/10" />
+              </div>
+            ))}
+          </div>
+        ) : null}
         {!loading && !error && leaderboard?.entries.length === 0 ? <div className="p-6 text-sm text-text/80">No repositories match this leaderboard yet.</div> : null}
 
         {!loading && !error && leaderboard?.entries.length ? (
