@@ -4,6 +4,12 @@ tokenmeter:
     max-concurrent: 1000
     rate-limit-requests-per-window: 10000
     rate-limit-window-duration: 60s
+  pricing:
+    refresh:
+      enabled: false
+      on-startup: false
+    admin:
+      enabled: true
 
 spring:
   datasource:

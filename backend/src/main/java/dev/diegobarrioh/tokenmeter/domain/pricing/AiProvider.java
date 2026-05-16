@@ -8,7 +8,10 @@ public enum AiProvider {
   OPENAI,
   ANTHROPIC,
   GOOGLE,
-  DEEPSEEK;
+  DEEPSEEK,
+  MISTRAL,
+  ALIBABA,
+  XAI;
 
   public String configKey() {
     return name().toLowerCase(Locale.ROOT);

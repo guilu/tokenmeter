@@ -1,18 +1,83 @@
 pricing:
   models:
+    # Anthropic — Claude 4 family (per million tokens, USD).
+    - provider: anthropic
+      model: claude-opus-4-7
+      input-token-price: 15.00
+      output-token-price: 75.00
+    - provider: anthropic
+      model: claude-sonnet-4-6
+      input-token-price: 3.00
+      output-token-price: 15.00
+    - provider: anthropic
+      model: claude-haiku-4-5
+      input-token-price: 1.00
+      output-token-price: 5.00
+
+    # OpenAI — GPT-5 / GPT-4o / o-series.
+    - provider: openai
+      model: gpt-5
+      input-token-price: 5.00
+      output-token-price: 15.00
     - provider: openai
       model: gpt-4o
       input-token-price: 2.50
       output-token-price: 10.00
-    - provider: anthropic
-      model: claude-3-5-sonnet
-      input-token-price: 3.00
-      output-token-price: 15.00
+    - provider: openai
+      model: gpt-4o-mini
+      input-token-price: 0.15
+      output-token-price: 0.60
+    - provider: openai
+      model: o3
+      input-token-price: 10.00
+      output-token-price: 40.00
+    - provider: openai
+      model: o4-mini
+      input-token-price: 1.10
+      output-token-price: 4.40
+
+    # Google — Gemini 2.5 family.
     - provider: google
-      model: gemini-1.5-pro
+      model: gemini-2.5-pro
       input-token-price: 1.25
-      output-token-price: 5.00
+      output-token-price: 10.00
+    - provider: google
+      model: gemini-2.5-flash
+      input-token-price: 0.30
+      output-token-price: 2.50
+
+    # DeepSeek.
     - provider: deepseek
       model: deepseek-chat
       input-token-price: 0.27
       output-token-price: 1.10
+    - provider: deepseek
+      model: deepseek-reasoner
+      input-token-price: 0.55
+      output-token-price: 2.19
+
+    # Alibaba — Qwen 3.
+    - provider: alibaba
+      model: qwen3-coder
+      input-token-price: 1.00     # TODO verify
+      output-token-price: 5.00    # TODO verify
+    - provider: alibaba
+      model: qwen3-max
+      input-token-price: 3.00     # TODO verify
+      output-token-price: 12.00   # TODO verify
+
+    # xAI — Grok 4.
+    - provider: xai
+      model: grok-4
+      input-token-price: 5.00     # TODO verify
+      output-token-price: 15.00   # TODO verify
+
+    # Mistral.
+    - provider: mistral
+      model: mistral-large-2
+      input-token-price: 2.00
+      output-token-price: 6.00
+    - provider: mistral
+      model: codestral
+      input-token-price: 0.20
+      output-token-price: 0.60

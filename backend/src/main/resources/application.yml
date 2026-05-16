@@ -41,3 +41,17 @@ tokenmeter:
       raw: ${TOKENMETER_ENGINEERING_RAW_MULTIPLIER:0.55}
       assisted: ${TOKENMETER_ENGINEERING_ASSISTED_MULTIPLIER:0.80}
       agentic: ${TOKENMETER_ENGINEERING_AGENTIC_MULTIPLIER:1.00}
+  pricing:
+    config-location: ${TOKENMETER_PRICING_CONFIG_LOCATION:classpath:pricing.yaml}
+    mapping-location: ${TOKENMETER_PRICING_MAPPING_LOCATION:classpath:pricing-mapping.yaml}
+    overrides-location: ${TOKENMETER_PRICING_OVERRIDES_LOCATION:classpath:pricing-overrides.yaml}
+    litellm:
+      url: ${TOKENMETER_PRICING_LITELLM_URL:https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json}
+      timeout: ${TOKENMETER_PRICING_LITELLM_TIMEOUT:10s}
+    refresh:
+      enabled: ${TOKENMETER_PRICING_REFRESH_ENABLED:false}
+      cron: ${TOKENMETER_PRICING_REFRESH_CRON:0 0 3 * * MON}
+      zone: ${TOKENMETER_PRICING_REFRESH_ZONE:UTC}
+      on-startup: ${TOKENMETER_PRICING_REFRESH_ON_STARTUP:false}
+    admin:
+      enabled: ${TOKENMETER_PRICING_ADMIN_ENABLED:true}

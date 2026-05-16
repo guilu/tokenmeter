@@ -1,0 +1,65 @@
+mapping:
+  # Anthropic — Claude 4 family.
+  - provider: anthropic
+    model: claude-opus-4-7
+    litellm-key: claude-opus-4-7        # TODO verify against live JSON
+  - provider: anthropic
+    model: claude-sonnet-4-6
+    litellm-key: claude-sonnet-4-6      # TODO verify against live JSON
+  - provider: anthropic
+    model: claude-haiku-4-5
+    litellm-key: claude-haiku-4-5       # TODO verify against live JSON
+
+  # OpenAI.
+  - provider: openai
+    model: gpt-5
+    litellm-key: gpt-5                  # TODO verify against live JSON
+  - provider: openai
+    model: gpt-4o
+    litellm-key: gpt-4o
+  - provider: openai
+    model: gpt-4o-mini
+    litellm-key: gpt-4o-mini
+  - provider: openai
+    model: o3
+    litellm-key: o3                     # TODO verify against live JSON
+  - provider: openai
+    model: o4-mini
+    litellm-key: o4-mini                # TODO verify against live JSON
+
+  # Google.
+  - provider: google
+    model: gemini-2.5-pro
+    litellm-key: gemini/gemini-2.5-pro  # TODO verify against live JSON
+  - provider: google
+    model: gemini-2.5-flash
+    litellm-key: gemini/gemini-2.5-flash # TODO verify against live JSON
+
+  # DeepSeek.
+  - provider: deepseek
+    model: deepseek-chat
+    litellm-key: deepseek/deepseek-chat
+  - provider: deepseek
+    model: deepseek-reasoner
+    litellm-key: deepseek/deepseek-reasoner # TODO verify against live JSON
+
+  # Alibaba — Qwen.
+  - provider: alibaba
+    model: qwen3-coder
+    litellm-key: qwen/qwen3-coder       # TODO verify against live JSON
+  - provider: alibaba
+    model: qwen3-max
+    litellm-key: qwen/qwen3-max         # TODO verify against live JSON
+
+  # xAI.
+  - provider: xai
+    model: grok-4
+    litellm-key: xai/grok-4             # TODO verify against live JSON
+
+  # Mistral.
+  - provider: mistral
+    model: mistral-large-2
+    litellm-key: mistral/mistral-large-latest # TODO verify against live JSON
+  - provider: mistral
+    model: codestral
+    litellm-key: mistral/codestral-latest     # TODO verify against live JSON

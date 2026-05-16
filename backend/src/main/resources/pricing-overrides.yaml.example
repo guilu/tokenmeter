@@ -1,0 +1,16 @@
+# Optional pricing overrides.
+#
+# Copy this file to `pricing-overrides.yaml` (same directory or an external location wired through
+# `tokenmeter.pricing.overrides-location`) ONLY if you need to shadow remote/fallback prices with a
+# negotiated or corporate rate. The real `pricing-overrides.yaml` is intentionally NOT committed:
+# it represents commercially sensitive data and must stay out of version control.
+#
+# Format: same schema as `pricing.yaml`, but the section root is `overrides` instead of `pricing`.
+# Each entry must use the canonical `(provider, model)` pair as used in `pricing-mapping.yaml`.
+
+overrides:
+  # Example: a hypothetical negotiated rate for Claude Opus 4.7.
+  # - provider: anthropic
+  #   model: claude-opus-4-7
+  #   input-token-price: 12.00
+  #   output-token-price: 60.00

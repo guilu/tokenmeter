@@ -7,3 +7,12 @@ spring:
     hibernate:
       ddl-auto: validate
     open-in-view: false
+
+tokenmeter:
+  pricing:
+    refresh:
+      enabled: true
+      cron: "0 0 3 * * MON"
+      zone: UTC
+    admin:
+      enabled: false
