@@ -1,0 +1,9 @@
+overrides:
+  - provider: anthropic
+    model: claude-opus-4-7
+    input-token-price: 12.00
+    output-token-price: 60.00
+  - provider: openai
+    model: gpt-4o
+    input-token-price: 1.50
+    output-token-price: 6.00

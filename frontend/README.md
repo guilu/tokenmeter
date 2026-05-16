@@ -1,5 +1,16 @@
 # React + TypeScript + Vite
 
+<!-- TODO: vitest harness for ModelsPage -->
+
+> **Test gap (dynamic-pricing-fetch).** The frontend currently has **no unit-test
+> harness installed** — `package.json` ships no `vitest`, `jest`, or
+> `@testing-library/*` dev dependencies. Coverage for the new `ModelsPage`
+> freshness banner and source-pill rendering is therefore **deferred** until a
+> vitest + React Testing Library setup lands (tracked by SDD task 6.17 in
+> `openspec/changes/dynamic-pricing-fetch/tasks.md`). Until then, regression is
+> covered by `npm run build` (type-check) and manual smoke tests against the
+> backend.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:
