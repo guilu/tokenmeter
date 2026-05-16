@@ -1,0 +1,38 @@
+schema: spec-driven
+
+context: |
+  Stack: Java 21, Spring Boot 3.5, Gradle Kotlin DSL, PostgreSQL 18 + Flyway, jtokkit (o200k_base); React 19, Vite 8, TS 6, Tailwind 4.
+  Architecture: hexagonal — domain (records, enums), application (services, use cases), infrastructure (web, persistence, git, pricing). Dependencies point inward.
+  Testing: JUnit 5 + Spring Boot Test (H2 runtime); frontend tsc -b + lint. CI runs ./gradlew check.
+  Style: Google Java Format via Spotless, Checkstyle, ESLint, Prettier, SonarCloud. Records + constructor injection, no Lombok.
+  Commits: gitmoji + conventional (✨ feat, 🐛 fix, ♻️ refactor, 🧪 test, 📝 docs, 🔧 chore, 🚀 perf, 💄 style, 🔒 security, 🗃️ db).
+
+rules:
+  proposal:
+    - Include rollback plan for migrations and external integrations
+    - Identify affected layers (domain/application/infrastructure) and Flyway version bumps
+  specs:
+    - Use Given/When/Then for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+    - Respect hexagonal boundaries — no infrastructure leaks into domain/application
+  design:
+    - Document Flyway migration order and rollback strategy
+    - Include sequence diagrams for external HTTP calls (pricing fetch, etc.)
+    - Justify any new dependency (project is deliberately thin)
+  tasks:
+    - Group by phase: infrastructure (DB/config), domain/application, web, frontend, tests
+    - Hierarchical numbering (1.1, 1.2)
+    - Keep each task completable in one session
+  apply:
+    - Constructor injection only, never @Autowired on fields
+    - Records for DTOs and domain value objects
+    - Map domain ↔ JPA explicitly, no MapStruct/Lombok
+    - Run ./gradlew spotlessApply before commit
+    tdd: false
+    test_command: "./gradlew check"
+  verify:
+    test_command: "./gradlew check"
+    build_command: "./gradlew build && (cd frontend && npm run build)"
+    coverage_threshold: 0
+  archive:
+    - Warn before merging destructive deltas (large removals or Flyway baseline changes)
