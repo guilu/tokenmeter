@@ -93,6 +93,8 @@ export interface LeaderboardEntryResponse {
 }
 
 export interface PricingResponse {
+  lastRefreshedAt: string | null
+  primarySource: 'litellm' | 'fallback' | 'mixed'
   models: PricingModelResponse[]
 }
 
@@ -101,4 +103,7 @@ export interface PricingModelResponse {
   model: string
   inputTokenPricePerMillion: number
   outputTokenPricePerMillion: number
+  source: 'REMOTE' | 'FALLBACK' | 'OVERRIDE'
+  fetchedAt: string
+  externalModelId?: string | null
 }
