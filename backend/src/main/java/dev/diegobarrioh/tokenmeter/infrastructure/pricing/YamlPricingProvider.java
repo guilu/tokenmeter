@@ -8,8 +8,12 @@ import dev.diegobarrioh.tokenmeter.application.pricing.PricingConfigurationExcep
 import dev.diegobarrioh.tokenmeter.application.pricing.PricingProvider;
 import dev.diegobarrioh.tokenmeter.domain.pricing.AiProvider;
 import dev.diegobarrioh.tokenmeter.domain.pricing.ModelPricing;
+import dev.diegobarrioh.tokenmeter.domain.pricing.PricingSnapshot;
+import dev.diegobarrioh.tokenmeter.domain.pricing.PricingSource;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -18,19 +22,31 @@ import java.util.Optional;
 import java.util.Set;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
-@Service
+/**
+ * YAML-backed pricing source used for the cold-start fallback seed. Registered under the explicit
+ * bean name {@code fallbackSeedSource}; {@code CompositePricingProvider} owns the {@code @Primary}
+ * stereotype now.
+ */
+@Component("fallbackSeedSource")
 public class YamlPricingProvider implements PricingProvider {
   private static final ObjectMapper YAML_MAPPER =
       new ObjectMapper(new YAMLFactory())
           .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, true);
 
   private final List<ModelPricing> pricing;
+  private final List<PricingSnapshot> snapshots;
 
   public YamlPricingProvider(
       @Value("${tokenmeter.pricing.config-location:classpath:pricing.yaml}") Resource resource) {
-    this.pricing = List.copyOf(load(resource));
+    List<ModelPricing> loaded = List.copyOf(load(resource));
+    this.pricing = loaded;
+    OffsetDateTime fetchedAt = OffsetDateTime.now(ZoneOffset.UTC);
+    this.snapshots =
+        loaded.stream()
+            .map(p -> new PricingSnapshot(p, PricingSource.FALLBACK, fetchedAt, null))
+            .toList();
   }
 
   @Override
@@ -48,6 +64,11 @@ public class YamlPricingProvider implements PricingProvider {
         .filter(candidate -> candidate.provider() == provider)
         .filter(candidate -> normalizeModel(candidate.model()).equals(normalizedModel))
         .findFirst();
+  }
+
+  @Override
+  public List<PricingSnapshot> snapshots() {
+    return snapshots;
   }
 
   private List<ModelPricing> load(Resource resource) {
