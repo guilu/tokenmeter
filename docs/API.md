@@ -177,22 +177,81 @@ Vista alternativa del análisis enfocada en el desglose de costes (sin métricas
 
 ## `GET /api/pricing`
 
-Devuelve los precios configurados en `pricing.yaml`. Precios en USD por millón de tokens.
+Devuelve los precios vigentes, fusionando overrides → snapshot persistido (REMOTE) → fallback YAML. Precios en USD por millón de tokens.
 
 **200 OK**
 
 ```json
 {
+  "lastRefreshedAt": "2026-05-15T03:00:00Z",
+  "primarySource": "litellm",
   "models": [
-    { "provider": "anthropic", "model": "claude-3-5-sonnet", "inputTokenPricePerMillion": 3.00, "outputTokenPricePerMillion": 15.00 },
-    { "provider": "deepseek",  "model": "deepseek-chat",     "inputTokenPricePerMillion": 0.27, "outputTokenPricePerMillion": 1.10 },
-    { "provider": "google",    "model": "gemini-1.5-pro",    "inputTokenPricePerMillion": 1.25, "outputTokenPricePerMillion": 5.00 },
-    { "provider": "openai",    "model": "gpt-4o",            "inputTokenPricePerMillion": 2.50, "outputTokenPricePerMillion": 10.00 }
+    {
+      "provider": "anthropic",
+      "model": "claude-opus-4-7",
+      "inputTokenPricePerMillion": 15.00,
+      "outputTokenPricePerMillion": 75.00,
+      "source": "REMOTE",
+      "fetchedAt": "2026-05-15T03:00:00Z",
+      "externalModelId": "claude-opus-4-7"
+    },
+    {
+      "provider": "deepseek",
+      "model": "deepseek-chat",
+      "inputTokenPricePerMillion": 0.27,
+      "outputTokenPricePerMillion": 1.10,
+      "source": "FALLBACK",
+      "fetchedAt": "2026-05-15T02:58:14Z"
+    }
   ]
 }
 ```
 
-Ordenado por `provider` (alfabético) y luego `model`.
+| Campo | Tipo | Notas |
+|---|---|---|
+| `lastRefreshedAt` | ISO-8601 \| null | Máximo `fetchedAt` entre filas con `source=REMOTE`. `null` si ninguna refresh remota ha tenido éxito |
+| `primarySource` | `"litellm"` \| `"fallback"` \| `"mixed"` | `"litellm"` si todas las filas son REMOTE; `"fallback"` si todas son FALLBACK; `"mixed"` en cualquier otro caso (incluye OVERRIDE) |
+| `models[].source` | `"REMOTE"` \| `"FALLBACK"` \| `"OVERRIDE"` | Capa ganadora para esa fila |
+| `models[].fetchedAt` | ISO-8601 | Siempre presente |
+| `models[].externalModelId` | string \| ausente | Clave LiteLLM (`litellm_provider/model`) para trazabilidad; ausente para FALLBACK/OVERRIDE |
+
+Ordenado ascendente por `provider.configKey()` y luego por `model` (lexicográfico). El endpoint devuelve `200` incluso si no se ha completado nunca una refresh remota; en ese caso `primarySource=="fallback"` y `lastRefreshedAt` es `null`.
+
+---
+
+## `POST /api/admin/pricing/refresh`
+
+Dispara una refresh sincrónica del pipeline de pricing (LiteLLM → mapeo → persistencia transaccional). Endpoint con feature-flag.
+
+**Request**: cuerpo vacío.
+
+**202 Accepted**
+
+```json
+{
+  "fetchedAt": "2026-05-15T03:00:00Z",
+  "updated": 17,
+  "skipped": 0,
+  "failed": 0
+}
+```
+
+| Campo | Tipo | Significado |
+|---|---|---|
+| `fetchedAt` | ISO-8601 | Instante de finalización de la refresh |
+| `updated` | int ≥ 0 | Filas escritas como `REMOTE` |
+| `skipped` | int ≥ 0 | Mapeos configurados sin contrapartida en el payload upstream |
+| `failed` | int ≥ 0 | Reservado para fallos parciales; en v1 una refresh o cuaja entera o tira excepción |
+
+**503 Service Unavailable**
+
+Se devuelve cuando:
+- `tokenmeter.pricing.admin.enabled=false` (endpoint deshabilitado por configuración). No se contacta upstream ni se modifica ninguna fila.
+- El upstream falla (timeout, 5xx, payload vacío) o la persistencia falla. Cuerpo:
+
+```json
+{ "error": "pricing_refresh_failed", "message": "Failed to fetch LiteLLM pricing" }
+```
 
 ---
 
@@ -248,4 +307,7 @@ curl -s http://localhost:8080/api/analyze/9f6c3a2e-4b1d-4d2a-9b58-6e9c1d6f7a01
 
 # Pricing
 curl -s http://localhost:8080/api/pricing
+
+# Refresh manual del pricing (requiere tokenmeter.pricing.admin.enabled=true)
+curl -s -X POST http://localhost:8080/api/admin/pricing/refresh
 ```

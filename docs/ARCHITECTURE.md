@@ -172,7 +172,83 @@ pricing:
       output-token-price: 10.00
 ```
 
-`AiProvider` enum mantiene la lista cerrada de providers soportados (`openai`, `anthropic`, `google`, `deepseek`).
+`AiProvider` enum mantiene la lista cerrada de providers soportados (`openai`, `anthropic`, `google`, `deepseek`, `mistral`, `alibaba`, `xai`).
+
+## Pricing pipeline (dynamic refresh)
+
+Desde el cambio `dynamic-pricing-fetch`, el provider efectivo es un **composite de tres capas** que se evalúa en tiempo de lectura. El resultado se sirve a `RepositoryCostEstimationService` y a `GET /api/pricing`.
+
+### Capas y precedencia
+
+```
+┌────────────────────────────────────────────────────────────┐
+│  OVERRIDE  (pricing-overrides.yaml — opcional, in-memory)  │  ← gana siempre
+├────────────────────────────────────────────────────────────┤
+│  REMOTE    (model_pricing rows con source='REMOTE')         │  ← LiteLLM refresh
+├────────────────────────────────────────────────────────────┤
+│  FALLBACK  (model_pricing rows con source='FALLBACK')       │  ← seed YAML
+└────────────────────────────────────────────────────────────┘
+```
+
+`CompositePricingProvider` (`@Component @Primary`) carga las filas persistidas vía `JpaPricingSnapshotStore.findAll()`, mergea OVERRIDE en un `LinkedHashMap<(provider, model), PricingSnapshot>` y devuelve la lista ordenada ascendente por `provider.configKey()` y luego por `model`. OVERRIDE nunca se persiste — vive sólo como capa de lectura.
+
+### Tabla `model_pricing`
+
+Migración `V5__model_pricing_snapshot.sql`. Columnas:
+
+- `id` (BIGINT IDENTITY, PK)
+- `provider` (`VARCHAR(64)`) — `AiProvider.configKey()`
+- `model` (`VARCHAR(128)`)
+- `input_price_per_million`, `output_price_per_million` (`NUMERIC(12,6)`, no negativos)
+- `source` (`VARCHAR(16)` con `CHECK IN ('REMOTE','FALLBACK','OVERRIDE')`)
+- `fetched_at` (`TIMESTAMP WITH TIME ZONE`, UTC)
+- `external_model_id` (`VARCHAR(255)`, nullable — clave LiteLLM)
+- `deprecated_at` (`TIMESTAMP WITH TIME ZONE`, nullable — reservado v2)
+
+Unique constraint `uq_model_pricing_provider_model (provider, model)` provee el índice B-tree que cubre lookups y el `ORDER BY` del controller. Detalle completo en `openspec/changes/dynamic-pricing-fetch/design.md §2.1`.
+
+### Secuencia de refresh
+
+`PricingRefreshScheduler` (`@Scheduled`, condicional sobre `tokenmeter.pricing.refresh.enabled`) y `POST /api/admin/pricing/refresh` comparten la misma orquestación en `PricingRefreshService`:
+
+```mermaid
+sequenceDiagram
+  participant Sched as PricingRefreshScheduler
+  participant Svc as PricingRefreshService
+  participant Client as LiteLlmPricingClient
+  participant Mapper as LiteLlmPricingMapper
+  participant Map as PricingMappingLoader
+  participant Store as JpaPricingSnapshotStore
+  participant DB as PostgreSQL
+  participant Bus as ApplicationEventPublisher
+
+  Sched->>Svc: refresh()
+  Svc->>Client: fetch()
+  Client->>+raw.githubusercontent.com: GET model_prices...json
+  raw.githubusercontent.com-->>-Client: 200 + JSON body
+  Client-->>Svc: Map<String, LiteLlmModelEntry>
+  Svc->>Map: keysByInternalModel()
+  Map-->>Svc: Map<MappingKey, String>
+  Svc->>Mapper: map(raw, mapping)
+  Mapper-->>Svc: List<PricingSnapshot> (REMOTE)
+  Svc->>Store: replaceRemote(snapshots)  // @Transactional
+  Store->>DB: DELETE WHERE source IN ('REMOTE','FALLBACK')
+  Store->>DB: INSERT N rows source=REMOTE
+  DB-->>Store: ok
+  Store-->>Svc: ok
+  Svc->>Bus: publish(PricingRefreshedEvent)
+  Note over Sched: success counter +1
+```
+
+Si `fetch()` o `map()` lanzan `PricingFetchException`, la transacción nunca se abre — las filas previas sobreviven y se incrementa `tokenmeter_pricing_refresh_failure_total`. El scheduler se traga la excepción para no detener el cron semanal.
+
+### Cold-start
+
+En arranque sobre una BBDD vacía, `FallbackSeedRunner` (`ApplicationRunner`) inserta 17 filas con `source=FALLBACK` desde el YAML semilla. El boot **nunca depende del remoto**: el endpoint `/api/pricing` responde 200 con `primarySource=fallback` y `lastRefreshedAt=null` hasta que la primera refresh REMOTE complete.
+
+### Rollback y operativa
+
+Disable rápido: `tokenmeter.pricing.refresh.enabled=false`. Rollback completo: ver `openspec/changes/dynamic-pricing-fetch/design.md §10` y `docs/RUNBOOK.md`. Métricas Prometheus expuestas: `tokenmeter_pricing_refresh_success_total`, `tokenmeter_pricing_refresh_failure_total`, `tokenmeter_pricing_refresh_last_success_timestamp_seconds`.
 
 ## Frontend
 

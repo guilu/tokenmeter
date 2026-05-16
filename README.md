@@ -378,7 +378,19 @@ Los puertos internos siguen siendo `frontend:80`, `backend:8080` y `db:5432`.
 | `TOKENMETER_WORKDIR` | `${java.io.tmpdir}/tokenmeter-repositories` | Directorio temporal para clones |
 | `TOKENMETER_MAX_REPOSITORY_BYTES` | `314572800` (300 MiB) | Tamaño máximo permitido al clonar |
 | `TOKENMETER_CLONE_TIMEOUT` | `120s` | Timeout de clonado |
+| `TOKENMETER_PRICING_REFRESH_ENABLED` (`tokenmeter.pricing.refresh.enabled`) | `false` (local/test), `true` (docker/prod) | Activa el cron de refresh remoto desde LiteLLM |
+| `TOKENMETER_PRICING_REFRESH_CRON` (`tokenmeter.pricing.refresh.cron`) | `0 0 3 * * MON` | Expresión cron Spring; lunes 03:00 UTC por defecto |
+| `TOKENMETER_PRICING_LITELLM_URL` (`tokenmeter.pricing.litellm.url`) | `https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json` | Origen del catálogo LiteLLM |
+| `TOKENMETER_PRICING_ADMIN_ENABLED` (`tokenmeter.pricing.admin.enabled`) | `true` (local/docker), `false` (prod) | Habilita `POST /api/admin/pricing/refresh` |
 | `DATABASE_URL` / `DATABASE_USERNAME` / `DATABASE_PASSWORD` | — | Sobrescritura explícita para datasource |
+
+Recursos relacionados con pricing dinámico:
+
+| Archivo | Uso |
+|---|---|
+| `backend/src/main/resources/pricing.yaml` | Catálogo semilla (FALLBACK) cargado por `YamlPricingProvider` cuando `model_pricing` está vacío |
+| `backend/src/main/resources/pricing-mapping.yaml` | Mapeo `(provider, model) → litellm-key` consumido por `LiteLlmPricingMapper` |
+| `backend/src/main/resources/pricing-overrides.yaml` | Opcional. Tarifas negociadas / parches puntuales (capa OVERRIDE, in-memory). No commitear con tarifas reales; usar `.gitignore` o ruta externa vía `tokenmeter.pricing.overrides-location` |
 
 ---
 
@@ -497,5 +509,7 @@ MIT
 # 🚧 Estado
 
 MVP en desarrollo activo.
+
+- Refresh dinámico de precios desde LiteLLM con capas `OVERRIDE > REMOTE > FALLBACK` está implementado (cambio `dynamic-pricing-fetch`). Detalle en [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) y [`docs/RUNBOOK.md`](docs/RUNBOOK.md).
 
 Contribuciones, ideas y experimentos son bienvenidos.

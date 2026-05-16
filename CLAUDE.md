@@ -11,7 +11,7 @@ Servicio que clona un repositorio público de GitHub, cuenta tokens por archivo 
 | Capa | Tecnología |
 |---|---|
 | Backend | Java 21, Spring Boot 3.5, Gradle Kotlin DSL |
-| Persistencia | PostgreSQL 18 + Flyway (migraciones `V1`–`V3`) |
+| Persistencia | PostgreSQL 18 + Flyway (migraciones `V1`–`V5`) |
 | Tokenizer | `com.knuddels:jtokkit` (encoder `O200K_BASE`) |
 | Clone | `git` CLI |
 | Frontend | React 19, Vite 8, TypeScript 6, Tailwind 4 |
@@ -136,7 +136,9 @@ Gitmojis comunes: ✨ feat · 🐛 fix · ♻️ refactor · 🧪 test · 📝 d
 
 ## No-go zones para asistentes IA
 
-- **No editar migraciones Flyway ya aplicadas** (`V1`, `V2`, `V3`). Crear `V4` o superior.
+- **No editar migraciones Flyway ya aplicadas** (`V1`, `V2`, `V3`, `V4`, `V5`). Crear una migración con número superior.
+- **No editar `V5__model_pricing_snapshot.sql`** una vez aplicada. Cambios al schema de `model_pricing` van en una nueva migración.
+- **No commitear `pricing-overrides.yaml` con tarifas negociadas reales**. Mantener el archivo fuera del repo (`.gitignore` o ruta externa vía `tokenmeter.pricing.overrides-location`).
 - **No añadir dependencias** sin justificación clara — el proyecto es deliberadamente delgado.
 - **No introducir Lombok**, MapStruct ni generadores. Mappers a mano.
 - **No mover lógica de negocio a `infrastructure`**. Si un test necesita cambiar `infrastructure`, probablemente la lógica debería estar en `application` o `domain`.
@@ -160,6 +162,7 @@ docker compose up --build -d  # smoke test si tocas wiring
 - `GET  /api/analyze/{id}`
 - `GET  /api/analyze/{id}/cost-breakdown`
 - `GET  /api/pricing`
+- `POST /api/admin/pricing/refresh` (feature-flag `tokenmeter.pricing.admin.enabled`; 503 si deshabilitado o si falla upstream)
 - `POST /api/repositories/intake` (legacy intake — usado solo para clonar/validar URL sin análisis completo)
 
 ## Estado
