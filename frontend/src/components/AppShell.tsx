@@ -1,6 +1,7 @@
 import type { PropsWithChildren } from 'react'
 import { useState } from 'react'
 
+import { Footer } from './Footer'
 import { ThemeToggle } from './ThemeToggle'
 import { useTheme } from '../hooks/useTheme'
 
@@ -89,6 +90,7 @@ export function AppShell({ children }: PropsWithChildren) {
       </nav>
 
       <main className="pt-16">{children}</main>
+      <Footer />
     </div>
   )
 }
