@@ -31,7 +31,7 @@ export function AppShell({ children }: PropsWithChildren) {
     }`
 
   return (
-    <div className="min-h-screen bg-bg text-text">
+    <div className="flex min-h-screen flex-col bg-bg text-text">
       <nav className="fixed left-0 top-0 z-50 w-full border-b border-secondary/20 bg-bg/90 backdrop-blur-md">
 
         {/* Main bar */}
@@ -89,7 +89,7 @@ export function AppShell({ children }: PropsWithChildren) {
         </div>
       </nav>
 
-      <main className="pt-16">{children}</main>
+      <main className="flex-1 pt-16">{children}</main>
       <Footer />
     </div>
   )
