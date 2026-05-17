@@ -2,8 +2,11 @@ package dev.diegobarrioh.tokenmeter.infrastructure.pricing;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import dev.diegobarrioh.tokenmeter.application.pricing.refresh.PricingRefreshedEvent;
 import dev.diegobarrioh.tokenmeter.domain.pricing.AiProvider;
 import dev.diegobarrioh.tokenmeter.domain.pricing.ModelPricing;
 import dev.diegobarrioh.tokenmeter.domain.pricing.PricingSnapshot;
@@ -117,6 +120,37 @@ class CompositePricingProviderTest {
     assertThat(pricings).hasSize(1);
     assertThat(pricings.get(0).provider()).isEqualTo(AiProvider.OPENAI);
     assertThat(pricings.get(0).model()).isEqualTo("gpt-4o");
+  }
+
+  @Test
+  void snapshotsAreCachedAcrossMultipleCalls() {
+    JpaPricingSnapshotStore store = mock(JpaPricingSnapshotStore.class);
+    OverridesPricingLoader overrides = mock(OverridesPricingLoader.class);
+    when(store.findAll()).thenReturn(List.of(remote(AiProvider.OPENAI, "gpt-4o", "2.50", "10.00")));
+    when(overrides.snapshots()).thenReturn(List.of());
+    CompositePricingProvider provider = new CompositePricingProvider(store, overrides);
+
+    provider.snapshots();
+    provider.snapshots();
+    provider.all();
+
+    verify(store, times(1)).findAll();
+  }
+
+  @Test
+  void cacheIsInvalidatedOnPricingRefreshedEvent() {
+    JpaPricingSnapshotStore store = mock(JpaPricingSnapshotStore.class);
+    OverridesPricingLoader overrides = mock(OverridesPricingLoader.class);
+    when(store.findAll()).thenReturn(List.of(remote(AiProvider.OPENAI, "gpt-4o", "2.50", "10.00")));
+    when(overrides.snapshots()).thenReturn(List.of());
+    CompositePricingProvider provider = new CompositePricingProvider(store, overrides);
+
+    provider.snapshots();
+    provider.onPricingRefreshed(
+        new PricingRefreshedEvent(OffsetDateTime.now(ZoneOffset.UTC), 1, 0));
+    provider.snapshots();
+
+    verify(store, times(2)).findAll();
   }
 
   @Test
