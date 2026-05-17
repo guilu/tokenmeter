@@ -17,11 +17,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.UUID;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -85,7 +80,7 @@ public class RepositoryAnalysisService {
     Path cloneDirectory = null;
     try {
       cloneDirectory = createCloneDirectory(repositoryUrl);
-      cloneWithTimeout(repositoryUrl, cloneDirectory);
+      cloner.clone(repositoryUrl, cloneDirectory, properties.cloneTimeout());
       enforceSizeLimit(sizeCalculator.summarize(cloneDirectory));
       RepositoryScanResult scan = fileScanner.scan(cloneDirectory);
       RepositoryTokenizationResult tokenization =
@@ -120,41 +115,6 @@ public class RepositoryAnalysisService {
     } catch (IOException exception) {
       throw new UncheckedIOException("Could not create temporary clone directory", exception);
     }
-  }
-
-  private void cloneWithTimeout(GitHubRepositoryUrl repositoryUrl, Path cloneDirectory) {
-    var executor = Executors.newSingleThreadExecutor();
-    try {
-      var future = executor.submit(cloneTask(repositoryUrl, cloneDirectory));
-      future.get(properties.cloneTimeout().toMillis(), TimeUnit.MILLISECONDS);
-    } catch (TimeoutException exception) {
-      throw new RepositoryIntakeException(
-          RepositoryIntakeErrorCode.CLONE_TIMEOUT,
-          "Repository clone exceeded timeout of "
-              + properties.cloneTimeout().toSeconds()
-              + " seconds",
-          exception);
-    } catch (InterruptedException exception) {
-      Thread.currentThread().interrupt();
-      throw new RepositoryIntakeException(
-          RepositoryIntakeErrorCode.CLONE_TIMEOUT, "Repository clone was interrupted", exception);
-    } catch (ExecutionException exception) {
-      Throwable cause = exception.getCause();
-      if (cause instanceof RepositoryIntakeException intakeException) {
-        throw intakeException;
-      }
-      throw new RepositoryIntakeException(
-          RepositoryIntakeErrorCode.CLONE_FAILED, "Repository clone failed", cause);
-    } finally {
-      executor.shutdownNow();
-    }
-  }
-
-  private Callable<Void> cloneTask(GitHubRepositoryUrl repositoryUrl, Path cloneDirectory) {
-    return () -> {
-      cloner.clone(repositoryUrl, cloneDirectory);
-      return null;
-    };
   }
 
   private void enforceSizeLimit(RepositoryCloneSummary summary) {
