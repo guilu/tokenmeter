@@ -82,8 +82,9 @@ public class RepositoryAnalysisService {
   public RepositoryAnalysisResult analyze(String rawRepositoryUrl) {
     GitHubRepositoryUrl repositoryUrl = GitHubRepositoryUrl.parse(rawRepositoryUrl);
     concurrencyGuard.acquire();
-    Path cloneDirectory = createCloneDirectory(repositoryUrl);
+    Path cloneDirectory = null;
     try {
+      cloneDirectory = createCloneDirectory(repositoryUrl);
       cloneWithTimeout(repositoryUrl, cloneDirectory);
       enforceSizeLimit(sizeCalculator.summarize(cloneDirectory));
       RepositoryScanResult scan = fileScanner.scan(cloneDirectory);
@@ -101,7 +102,7 @@ public class RepositoryAnalysisService {
               costEstimates));
     } finally {
       concurrencyGuard.release();
-      if (!deleteRecursively(cloneDirectory)) {
+      if (cloneDirectory != null && !deleteRecursively(cloneDirectory)) {
         LOGGER.warn("Could not fully clean temporary analysis directory {}", cloneDirectory);
       }
     }
