@@ -1,6 +1,7 @@
 package dev.diegobarrioh.tokenmeter.infrastructure.pricing;
 
 import dev.diegobarrioh.tokenmeter.application.pricing.PricingProvider;
+import dev.diegobarrioh.tokenmeter.application.pricing.refresh.PricingRefreshedEvent;
 import dev.diegobarrioh.tokenmeter.domain.pricing.AiProvider;
 import dev.diegobarrioh.tokenmeter.domain.pricing.ModelPricing;
 import dev.diegobarrioh.tokenmeter.domain.pricing.PricingSnapshot;
@@ -11,7 +12,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import org.springframework.context.annotation.Primary;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 /**
@@ -29,6 +32,7 @@ public class CompositePricingProvider implements PricingProvider {
 
   private final JpaPricingSnapshotStore store;
   private final OverridesPricingLoader overrides;
+  private final AtomicReference<List<PricingSnapshot>> cache = new AtomicReference<>();
 
   public CompositePricingProvider(JpaPricingSnapshotStore store, OverridesPricingLoader overrides) {
     this.store = store;
@@ -37,14 +41,18 @@ public class CompositePricingProvider implements PricingProvider {
 
   @Override
   public List<PricingSnapshot> snapshots() {
-    Map<String, PricingSnapshot> merged = new LinkedHashMap<>();
-    for (PricingSnapshot snapshot : store.findAll()) {
-      merged.put(key(snapshot.provider(), snapshot.model()), snapshot);
+    List<PricingSnapshot> cached = cache.get();
+    if (cached != null) {
+      return cached;
     }
-    for (PricingSnapshot snapshot : overrides.snapshots()) {
-      merged.put(key(snapshot.provider(), snapshot.model()), snapshot);
-    }
-    return merged.values().stream().sorted(BY_PROVIDER_THEN_MODEL).toList();
+    List<PricingSnapshot> fresh = buildSnapshots();
+    cache.compareAndSet(null, fresh);
+    return cache.get();
+  }
+
+  @EventListener
+  public void onPricingRefreshed(PricingRefreshedEvent event) {
+    cache.set(null);
   }
 
   @Override
@@ -62,6 +70,17 @@ public class CompositePricingProvider implements PricingProvider {
         .filter(snapshot -> key(snapshot.provider(), snapshot.model()).equals(target))
         .map(PricingSnapshot::pricing)
         .findFirst();
+  }
+
+  private List<PricingSnapshot> buildSnapshots() {
+    Map<String, PricingSnapshot> merged = new LinkedHashMap<>();
+    for (PricingSnapshot snapshot : store.findAll()) {
+      merged.put(key(snapshot.provider(), snapshot.model()), snapshot);
+    }
+    for (PricingSnapshot snapshot : overrides.snapshots()) {
+      merged.put(key(snapshot.provider(), snapshot.model()), snapshot);
+    }
+    return merged.values().stream().sorted(BY_PROVIDER_THEN_MODEL).toList();
   }
 
   private static String key(AiProvider provider, String model) {

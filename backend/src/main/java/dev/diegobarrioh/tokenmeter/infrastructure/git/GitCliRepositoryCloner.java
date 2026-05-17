@@ -7,8 +7,10 @@ import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -18,16 +20,22 @@ public class GitCliRepositoryCloner implements GitRepositoryCloner {
   private static final Logger LOGGER = LoggerFactory.getLogger(GitCliRepositoryCloner.class);
 
   @Override
-  public void clone(GitHubRepositoryUrl repositoryUrl, Path targetDirectory) {
+  public void clone(GitHubRepositoryUrl repositoryUrl, Path targetDirectory, Duration timeout) {
     Process process = null;
     try {
       process =
           new ProcessBuilder(cloneCommand(repositoryUrl, targetDirectory))
               .redirectErrorStream(true)
               .start();
-      int exitCode = process.waitFor();
+      boolean completed = process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS);
+      if (!completed) {
+        process.destroyForcibly();
+        throw new RepositoryIntakeException(
+            RepositoryIntakeErrorCode.CLONE_TIMEOUT,
+            "Repository clone exceeded timeout of " + timeout.toSeconds() + " seconds");
+      }
       byte[] output = process.getInputStream().readAllBytes();
-      if (exitCode != 0) {
+      if (process.exitValue() != 0) {
         throw cloneFailure(output);
       }
     } catch (IOException exception) {

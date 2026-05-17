@@ -31,7 +31,7 @@ class RepositoryAnalysisServiceTest {
   void clonesScansAndCleansRepository() {
     RepositoryAnalysisService service =
         new RepositoryAnalysisService(
-            (repositoryUrl, targetDirectory) -> {
+            (repositoryUrl, targetDirectory, timeout) -> {
               writeFile(targetDirectory, "src/App.java", "class App {}\n");
               writeFile(targetDirectory, "node_modules/pkg/index.js", "ignored\n");
             },
@@ -69,7 +69,11 @@ class RepositoryAnalysisServiceTest {
   void mapsCloneTimeoutAndCleansDirectory() {
     RepositoryAnalysisService service =
         new RepositoryAnalysisService(
-            (repositoryUrl, targetDirectory) -> sleep(Duration.ofMillis(500)),
+            (repositoryUrl, targetDirectory, timeout) -> {
+              throw new RepositoryIntakeException(
+                  RepositoryIntakeErrorCode.CLONE_TIMEOUT,
+                  "Repository clone exceeded timeout of " + timeout.toSeconds() + " seconds");
+            },
             properties(1024, Duration.ofMillis(50)),
             scanner(),
             tokenizationService(),
@@ -88,7 +92,7 @@ class RepositoryAnalysisServiceTest {
   void enforcesRepositorySizeLimitBeforeReturningAnalysis() {
     RepositoryAnalysisService service =
         new RepositoryAnalysisService(
-            (repositoryUrl, targetDirectory) ->
+            (repositoryUrl, targetDirectory, timeout) ->
                 writeFile(targetDirectory, "large.txt", "too large"),
             properties(3, Duration.ofSeconds(2)),
             scanner(),
@@ -167,14 +171,6 @@ class RepositoryAnalysisServiceTest {
       Files.writeString(file, content);
     } catch (IOException exception) {
       throw new IllegalStateException(exception);
-    }
-  }
-
-  private static void sleep(Duration duration) {
-    try {
-      Thread.sleep(duration);
-    } catch (InterruptedException exception) {
-      Thread.currentThread().interrupt();
     }
   }
 }

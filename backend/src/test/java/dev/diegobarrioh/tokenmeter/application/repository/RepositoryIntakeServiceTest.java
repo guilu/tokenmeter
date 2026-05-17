@@ -19,7 +19,8 @@ class RepositoryIntakeServiceTest {
   void clonesRepositoryIntoTemporaryDirectoryAndCleansItAfterSuccess() {
     RepositoryIntakeService service =
         new RepositoryIntakeService(
-            (repositoryUrl, targetDirectory) -> writeFile(targetDirectory, "README.md", "hello"),
+            (repositoryUrl, targetDirectory, timeout) ->
+                writeFile(targetDirectory, "README.md", "hello"),
             properties(1024, Duration.ofSeconds(2)));
 
     RepositoryIntakeResult result = service.intake("https://github.com/guilu/tokenmeter");
@@ -36,7 +37,7 @@ class RepositoryIntakeServiceTest {
   void cleansTemporaryDirectoryAfterFailedClone() {
     RepositoryIntakeService service =
         new RepositoryIntakeService(
-            (repositoryUrl, targetDirectory) -> {
+            (repositoryUrl, targetDirectory, timeout) -> {
               writeFile(targetDirectory, "partial.txt", "partial");
               throw new RepositoryIntakeException(
                   RepositoryIntakeErrorCode.REPOSITORY_NOT_ACCESSIBLE, "not accessible");
@@ -54,7 +55,7 @@ class RepositoryIntakeServiceTest {
   void enforcesRepositorySizeLimit() {
     RepositoryIntakeService service =
         new RepositoryIntakeService(
-            (repositoryUrl, targetDirectory) ->
+            (repositoryUrl, targetDirectory, timeout) ->
                 writeFile(targetDirectory, "large.txt", "too large"),
             properties(3, Duration.ofSeconds(2)));
 
@@ -69,7 +70,11 @@ class RepositoryIntakeServiceTest {
   void timesOutSlowCloneAndCleansDirectory() {
     RepositoryIntakeService service =
         new RepositoryIntakeService(
-            (repositoryUrl, targetDirectory) -> sleep(Duration.ofMillis(500)),
+            (repositoryUrl, targetDirectory, timeout) -> {
+              throw new RepositoryIntakeException(
+                  RepositoryIntakeErrorCode.CLONE_TIMEOUT,
+                  "Repository clone exceeded timeout of " + timeout.toSeconds() + " seconds");
+            },
             properties(1024, Duration.ofMillis(50)));
 
     assertThatThrownBy(() -> service.intake("https://github.com/guilu/tokenmeter"))
@@ -89,14 +94,6 @@ class RepositoryIntakeServiceTest {
       Files.writeString(directory.resolve(fileName), content);
     } catch (IOException exception) {
       throw new IllegalStateException(exception);
-    }
-  }
-
-  private static void sleep(Duration duration) {
-    try {
-      Thread.sleep(duration);
-    } catch (InterruptedException exception) {
-      Thread.currentThread().interrupt();
     }
   }
 }
