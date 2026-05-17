@@ -19,7 +19,7 @@ export function Footer() {
           <a
             aria-label="Sponsor TokenMeter on GitHub"
             className="inline-flex items-center gap-1.5 rounded-xl border border-pink-500/30 bg-pink-500/10 px-3 py-1.5 text-xs font-semibold text-pink-400 transition-colors hover:bg-pink-500/20"
-            href="https://github.com/sponsors/diegobarrioh"
+            href="https://github.com/sponsors/guilu"
             rel="noopener noreferrer"
             target="_blank"
           >

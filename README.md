@@ -485,7 +485,7 @@ Si vas a usar un asistente IA para contribuir, [`CLAUDE.md`](CLAUDE.md) tiene lo
 
 TokenMeter es gratuito y open source. Si te resulta útil y quieres apoyar el desarrollo:
 
-- [GitHub Sponsors](https://github.com/sponsors/diegobarrioh) — recurrente, 0% comisión.
+- [GitHub Sponsors](https://github.com/sponsors/guilu) — recurrente, 0% comisión.
 - [Buy Me a Coffee](https://buymeacoffee.com/diegobarrioh) — donación one-off.
 
 Cualquier apoyo ayuda a cubrir hosting, dominio y a dedicarle más tiempo a roadmap.
