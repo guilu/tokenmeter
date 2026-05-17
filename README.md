@@ -22,6 +22,36 @@ TokenMeter analiza repositorios públicos de GitHub, cuenta tokens con un encode
 
 ---
 
+# 📸 Capturas
+
+<table>
+  <tr>
+    <td align="center" width="33%">
+      <a href="./docs/assets/tokenmeter-1.png">
+        <img src="./docs/assets/tokenmeter-1.png" alt="Home" width="100%" />
+      </a>
+      <br/>
+      <sub><b>Home</b></sub>
+    </td>
+    <td align="center" width="33%">
+      <a href="./docs/assets/tokenmeter-2.png">
+        <img src="./docs/assets/tokenmeter-2.png" alt="Análisis" width="100%" />
+      </a>
+      <br/>
+      <sub><b>Análisis</b></sub>
+    </td>
+    <td align="center" width="33%">
+      <a href="./docs/assets/tokenmeter-3.png">
+        <img src="./docs/assets/tokenmeter-3.png" alt="Resultado" width="100%" />
+      </a>
+      <br/>
+      <sub><b>Resultado</b></sub>
+    </td>
+  </tr>
+</table>
+
+---
+
 # 🚀 Características
 
 | Característica | Descripción |
