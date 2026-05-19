@@ -5,6 +5,7 @@ import type { PricingModelResponse, PricingResponse } from '../types/api'
 import { formatRelativeTime } from '../utils/relativeTime'
 
 const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const absoluteDate = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' })
 
 const providerBadgeCls: Record<string, string> = {
   openai: 'border-primary/20 bg-primary/10 text-primary',
@@ -77,14 +78,21 @@ export function ModelsPage() {
       <h2 className="mb-4 text-lg font-semibold text-text">Base prices</h2>
 
       {/* Freshness banner */}
-      <div className="mb-4 rounded-2xl border border-text/10 bg-card/20 px-4 py-2 text-sm text-text/70">
+      <div
+        className={`mb-4 rounded-2xl border px-4 py-2 text-sm ${
+          response && !response.lastRefreshedAt
+            ? 'border-amber-500/30 bg-amber-500/10 text-amber-300'
+            : 'border-text/10 bg-card/20 text-text/70'
+        }`}
+      >
         {!response ? (
           <div className="animate-pulse">
             <div className="h-4 w-72 rounded bg-text/10" />
           </div>
         ) : response.lastRefreshedAt ? (
           <span>
-            Updated {formatRelativeTime(response.lastRefreshedAt)} — source: LiteLLM upstream
+            Last updated <strong className="text-text">{absoluteDate.format(new Date(response.lastRefreshedAt))}</strong>
+            {' '}({formatRelativeTime(response.lastRefreshedAt)}) — source: LiteLLM upstream
           </span>
         ) : (
           <span>Showing fallback prices — remote refresh has not yet succeeded.</span>
