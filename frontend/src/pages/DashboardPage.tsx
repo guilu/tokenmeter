@@ -450,7 +450,7 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
       </div>
 
       <header className="mt-6 rounded-3xl bg-secondary/10 p-5 sm:p-6">
-        <p className="mb-4 inline-flex rounded-full border border-secondary/20 bg-secondary/10 px-3 py-1 text-sm text-secondary">
+        <p className="mb-4 inline-flex rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-sm text-primary">
           Analysis complete
         </p>
         <h1 className="flex items-center gap-3 text-2xl font-semibold tracking-tight text-text sm:text-4xl">
