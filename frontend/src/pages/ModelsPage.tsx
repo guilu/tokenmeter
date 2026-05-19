@@ -65,7 +65,7 @@ export function ModelsPage() {
             >
               LiteLLM pricing catalogue
             </a>
-            , refreshed weekly. They are floor estimates — input prompts, retries and reasoning overhead are not included in the base calculation.
+            , refreshed weekly.
           </div>
         </div>
       </div>
