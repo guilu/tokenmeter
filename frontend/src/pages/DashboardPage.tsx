@@ -172,7 +172,7 @@ export function DashboardPage() {
         className="absolute inset-x-0 top-0 -z-10 h-[32rem]"
         style={{ background: 'radial-gradient(circle at top, color-mix(in srgb, var(--tm-primary) 15%, transparent), transparent 55%)' }}
       />
-      <div className="mx-auto max-w-4xl px-6 pt-10 pb-6 text-center sm:pt-20">
+      <div className="mx-auto max-w-4xl px-6 pt-8 pb-4 text-center sm:pt-12 md:pt-14 lg:pt-20">
         <p className="mb-4 inline-flex rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-sm text-primary/80">
           AI repository cost intelligence
         </p>
@@ -184,7 +184,7 @@ export function DashboardPage() {
         </p>
       </div>
 
-      <div className="mx-auto max-w-4xl px-6 pb-6">
+      <div className="mx-auto max-w-4xl px-6 pb-4 sm:pb-5">
         <form
           className="rounded-3xl bg-card/20 p-3 shadow-2xl shadow-bg backdrop-blur"
           onSubmit={handleSubmit}
@@ -226,7 +226,7 @@ export function DashboardPage() {
         {loading ? <LoadingState repositoryUrl={repositoryUrl} /> : null}
       </div>
 
-      <div className="mx-auto max-w-4xl px-6 pb-20">
+      <div className="mx-auto max-w-4xl px-6 pb-6 md:pb-8 lg:pb-20">
         <button
           className="mb-4 flex w-full items-center justify-between text-left"
           onClick={() => setShowModes((v) => !v)}
