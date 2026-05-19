@@ -2,8 +2,8 @@ export function Footer() {
   const year = new Date().getFullYear()
 
   return (
-    <footer className="mt-16 border-t border-secondary/20 bg-bg/60">
-      <div className="mx-auto flex max-w-7xl flex-col gap-4 px-5 py-8 text-sm text-text/65 sm:flex-row sm:items-center sm:justify-between">
+    <footer className="mt-8 border-t border-secondary/20 bg-bg/60 sm:mt-16">
+      <div className="mx-auto flex max-w-7xl flex-col gap-4 px-5 py-6 text-sm sm:py-8 text-text/65 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-1">
           <span>
             &copy; {year} <span className="font-medium text-text">TokenMeter</span> · MIT License
