@@ -1103,9 +1103,18 @@ function resetDocumentMetadata() {
   setMeta('twitter:image', '/tokenmeter-logo.png')
 }
 
+function currentTheme(): 'light' | 'dark' {
+  if (typeof document === 'undefined') return 'dark'
+  return document.documentElement.classList.contains('dark') ? 'dark' : 'light'
+}
+
 function openGraphImageUrl(analysisId: string, publicUrl: string, mode: CostMode) {
   const publicUrlOrigin = new URL(publicUrl).origin
-  return new URL(`/api/analyze/${encodeURIComponent(analysisId)}/og-image.png?mode=${mode}&v=range`, publicUrlOrigin).toString()
+  const theme = currentTheme()
+  return new URL(
+    `/api/analyze/${encodeURIComponent(analysisId)}/og-image.png?mode=${mode}&theme=${theme}&v=range`,
+    publicUrlOrigin,
+  ).toString()
 }
 
 function setMeta(key: string, content: string, attribute: 'name' | 'property' = 'name') {
