@@ -11,6 +11,7 @@
     "format": "prettier --write ."
   },
   "dependencies": {
+    "@lobehub/icons": "^5.8.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5"
   },

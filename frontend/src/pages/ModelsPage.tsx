@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 
+import { ProviderIcon } from '../components/ProviderIcon'
 import { getPricing } from '../services/api'
 import type { PricingModelResponse, PricingResponse } from '../types/api'
 import { formatRelativeTime } from '../utils/relativeTime'
@@ -55,7 +56,16 @@ export function ModelsPage() {
             </p>
           </div>
           <div className="rounded-2xl border border-primary/20 bg-primary/10 p-5 text-sm text-primary">
-            These are floor estimates — input prompts, retries, and reasoning overhead are not included in the base calculation.
+            Base prices come from the public{' '}
+            <a
+              className="font-semibold underline-offset-2 hover:underline"
+              href="https://github.com/BerriAI/litellm/blob/main/model_prices_and_context_window.json"
+              rel="noreferrer"
+              target="_blank"
+            >
+              LiteLLM pricing catalogue
+            </a>
+            , refreshed weekly. They are floor estimates — input prompts, retries and reasoning overhead are not included in the base calculation.
           </div>
         </div>
       </div>
@@ -126,7 +136,8 @@ export function ModelsPage() {
             ) : models.map(m => (
               <tr className="transition hover:bg-card/20" key={`${m.provider}-${m.model}`}>
                 <td className="px-5 py-4">
-                  <span className={`inline-block rounded-full border px-3 py-0.5 text-xs font-semibold capitalize ${providerBadgeCls[m.provider] ?? 'border-text/20 bg-text/10 text-text/70'}`}>
+                  <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-0.5 text-xs font-semibold capitalize ${providerBadgeCls[m.provider] ?? 'border-text/20 bg-text/10 text-text/70'}`}>
+                    <ProviderIcon provider={m.provider} />
                     {m.provider}
                   </span>
                 </td>
