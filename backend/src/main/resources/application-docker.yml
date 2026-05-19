@@ -14,5 +14,6 @@ tokenmeter:
       enabled: true
       cron: "0 0 3 * * MON"
       zone: UTC
+      on-startup: true
     admin:
       enabled: true
