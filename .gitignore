@@ -21,3 +21,6 @@ coverage/
 
 # logs
 *.log
+
+# packaged artifacts
+*.jar

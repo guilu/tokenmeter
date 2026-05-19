@@ -84,7 +84,7 @@ const analysisStages = [
 ] as const
 
 export function DashboardPage() {
-  const [repositoryUrl, setRepositoryUrl] = useState(DEFAULT_REPOSITORY_URL)
+  const [repositoryUrl, setRepositoryUrl] = useState('')
   const [analysis, setAnalysis] = useState<RepositoryAnalysisResponse | null>(null)
   const [routeAnalysisId, setRouteAnalysisId] = useState(() => getAnalysisIdFromLocation())
   const [loading, setLoading] = useState(false)
@@ -119,8 +119,8 @@ export function DashboardPage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const trimmedUrl = repositoryUrl.trim()
-
+    const trimmedUrl = repositoryUrl.trim() || DEFAULT_REPOSITORY_URL
+    
     if (!isValidGitHubUrl(trimmedUrl)) {
       setError('Enter a valid public GitHub repository URL, e.g. https://github.com/guilu/tokenmeter')
       return
@@ -128,7 +128,6 @@ export function DashboardPage() {
 
     setLoading(true)
     setError(null)
-
     try {
       const result = await analyzeRepository(trimmedUrl)
       setAnalysis(result)
@@ -204,7 +203,7 @@ export function DashboardPage() {
                 id="repository-url"
                 inputMode="url"
                 onChange={(event) => setRepositoryUrl(event.target.value)}
-                placeholder="https://github.com/user/repo"
+                placeholder="https://github.com/guilu/tokenmeter"
                 type="url"
                 value={repositoryUrl}
               />
