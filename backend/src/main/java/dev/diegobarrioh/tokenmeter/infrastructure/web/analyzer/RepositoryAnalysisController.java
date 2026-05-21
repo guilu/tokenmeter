@@ -192,9 +192,11 @@ public class RepositoryAnalysisController {
 
   @GetMapping(value = "/api/analyze/{id}/og-image.png", produces = MediaType.IMAGE_PNG_VALUE)
   public ResponseEntity<byte[]> getOpenGraphImage(
-      @PathVariable UUID id, @RequestParam(required = false) String mode) {
+      @PathVariable UUID id,
+      @RequestParam(required = false) String mode,
+      @RequestParam(required = false) String theme) {
     RepositoryAnalysisResult analysis = analysisService.findById(id);
-    byte[] image = openGraphImageRenderer.render(analysis, parseMode(mode));
+    byte[] image = openGraphImageRenderer.render(analysis, parseMode(mode), parseTheme(theme));
 
     return ResponseEntity.ok()
         .contentType(MediaType.IMAGE_PNG)
@@ -289,5 +291,14 @@ public class RepositoryAnalysisController {
     } catch (IllegalArgumentException exception) {
       return Optional.empty();
     }
+  }
+
+  private static OpenGraphImageRenderer.Theme parseTheme(String theme) {
+    if (theme == null || theme.isBlank()) {
+      return OpenGraphImageRenderer.Theme.DARK;
+    }
+    return "light".equalsIgnoreCase(theme.trim())
+        ? OpenGraphImageRenderer.Theme.LIGHT
+        : OpenGraphImageRenderer.Theme.DARK;
   }
 }

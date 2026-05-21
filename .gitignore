@@ -21,3 +21,9 @@ coverage/
 
 # logs
 *.log
+
+# packaged artifacts
+*.jar
+
+# local agent settings
+.claude/settings.local.json

@@ -84,7 +84,7 @@ const analysisStages = [
 ] as const
 
 export function DashboardPage() {
-  const [repositoryUrl, setRepositoryUrl] = useState(DEFAULT_REPOSITORY_URL)
+  const [repositoryUrl, setRepositoryUrl] = useState('')
   const [analysis, setAnalysis] = useState<RepositoryAnalysisResponse | null>(null)
   const [routeAnalysisId, setRouteAnalysisId] = useState(() => getAnalysisIdFromLocation())
   const [loading, setLoading] = useState(false)
@@ -119,8 +119,8 @@ export function DashboardPage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const trimmedUrl = repositoryUrl.trim()
-
+    const trimmedUrl = repositoryUrl.trim() || DEFAULT_REPOSITORY_URL
+    
     if (!isValidGitHubUrl(trimmedUrl)) {
       setError('Enter a valid public GitHub repository URL, e.g. https://github.com/guilu/tokenmeter')
       return
@@ -128,7 +128,6 @@ export function DashboardPage() {
 
     setLoading(true)
     setError(null)
-
     try {
       const result = await analyzeRepository(trimmedUrl)
       setAnalysis(result)
@@ -173,7 +172,7 @@ export function DashboardPage() {
         className="absolute inset-x-0 top-0 -z-10 h-[32rem]"
         style={{ background: 'radial-gradient(circle at top, color-mix(in srgb, var(--tm-primary) 15%, transparent), transparent 55%)' }}
       />
-      <div className="mx-auto max-w-4xl px-6 pt-10 pb-6 text-center sm:pt-20">
+      <div className="mx-auto max-w-4xl px-6 pt-8 pb-4 text-center sm:pt-12 md:pt-14 lg:pt-20">
         <p className="mb-4 inline-flex rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-sm text-primary/80">
           AI repository cost intelligence
         </p>
@@ -185,7 +184,7 @@ export function DashboardPage() {
         </p>
       </div>
 
-      <div className="mx-auto max-w-4xl px-6 pb-6">
+      <div className="mx-auto max-w-4xl px-6 pb-4 sm:pb-5">
         <form
           className="rounded-3xl bg-card/20 p-3 shadow-2xl shadow-bg backdrop-blur"
           onSubmit={handleSubmit}
@@ -204,7 +203,7 @@ export function DashboardPage() {
                 id="repository-url"
                 inputMode="url"
                 onChange={(event) => setRepositoryUrl(event.target.value)}
-                placeholder="https://github.com/user/repo"
+                placeholder="https://github.com/guilu/tokenmeter"
                 type="url"
                 value={repositoryUrl}
               />
@@ -227,7 +226,7 @@ export function DashboardPage() {
         {loading ? <LoadingState repositoryUrl={repositoryUrl} /> : null}
       </div>
 
-      <div className="mx-auto max-w-4xl px-6 pb-20">
+      <div className="mx-auto max-w-4xl px-6 pb-6 md:pb-8 lg:pb-20">
         <button
           className="mb-4 flex w-full items-center justify-between text-left"
           onClick={() => setShowModes((v) => !v)}
@@ -450,15 +449,15 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
         </div>
       </div>
 
-      <header className="mt-6">
-        <p className="mb-4 inline-flex rounded-full border border-secondary/20 bg-secondary/10 px-3 py-1 text-sm text-secondary">
+      <header className="mt-6 rounded-3xl bg-secondary/10 p-5 sm:p-6">
+        <p className="mb-4 inline-flex rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-sm text-primary">
           Analysis complete
         </p>
         <h1 className="flex items-center gap-3 text-2xl font-semibold tracking-tight text-text sm:text-4xl">
           <svg aria-hidden="true" className="h-7 w-7 shrink-0 text-text/60 sm:h-9 sm:w-9" fill="currentColor" viewBox="0 0 24 24">
             <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
           </svg>
-          <span className="break-all">{analysis.repositoryUrl}</span>
+          <span className="break-all">{repositoryName(analysis.repositoryUrl)}</span>
         </h1>
         <p className="mt-3 text-sm text-text/60">
           Analysis id: {analysis.id} · {dateFormatter.format(new Date(analysis.createdAt))}
@@ -828,7 +827,8 @@ function CostHero({
           className="mt-5 grid gap-4 transition-all duration-500 sm:grid-cols-2"
           key={`${selectedMode}-${lowestEstimate?.provider ?? 'none'}-${highestEstimate?.provider ?? 'none'}`}
         >
-          <div className="min-w-0 rounded-2xl bg-card/20 p-5">
+          <div className="relative min-w-0 rounded-2xl bg-card/20 p-5 pr-20">
+            <CostRangeBadge label="Min" />
             <p className="text-5xl font-semibold tracking-tight text-text sm:text-6xl">
               {lowestEstimate ? currencyFormatter.format(lowestEstimate.totalCost) : '—'}
             </p>
@@ -836,7 +836,8 @@ function CostHero({
               {lowestEstimate ? `${lowestEstimate.provider} · ${lowestEstimate.model} · ${selectedMode} workflow mode` : 'No estimate'}
             </p>
           </div>
-          <div className="min-w-0 rounded-2xl bg-card/20 p-5">
+          <div className="relative min-w-0 rounded-2xl bg-card/20 p-5 pr-20">
+            <CostRangeBadge label="Max" />
             <p className="text-5xl font-semibold tracking-tight text-text sm:text-6xl">
               {highestEstimate ? currencyFormatter.format(highestEstimate.totalCost) : '—'}
             </p>
@@ -859,6 +860,14 @@ function CostHero({
         </div>
       </div>
     </section>
+  )
+}
+
+function CostRangeBadge({ label }: { label: 'Min' | 'Max' }) {
+  return (
+    <span className="absolute right-4 top-4 rounded-full border border-primary/30 bg-primary/20 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-primary shadow-lg shadow-bg/20 backdrop-blur">
+      {label}
+    </span>
   )
 }
 
@@ -1104,9 +1113,18 @@ function resetDocumentMetadata() {
   setMeta('twitter:image', '/tokenmeter-logo.png')
 }
 
+function currentTheme(): 'light' | 'dark' {
+  if (typeof document === 'undefined') return 'dark'
+  return document.documentElement.classList.contains('dark') ? 'dark' : 'light'
+}
+
 function openGraphImageUrl(analysisId: string, publicUrl: string, mode: CostMode) {
   const publicUrlOrigin = new URL(publicUrl).origin
-  return new URL(`/api/analyze/${encodeURIComponent(analysisId)}/og-image.png?mode=${mode}&v=range`, publicUrlOrigin).toString()
+  const theme = currentTheme()
+  return new URL(
+    `/api/analyze/${encodeURIComponent(analysisId)}/og-image.png?mode=${mode}&theme=${theme}&v=range`,
+    publicUrlOrigin,
+  ).toString()
 }
 
 function setMeta(key: string, content: string, attribute: 'name' | 'property' = 'name') {

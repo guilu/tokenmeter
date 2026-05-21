@@ -31,7 +31,7 @@ export async function getHealth(): Promise<HealthResponse> {
 }
 
 export async function analyzeRepository(
-  repositoryUrl = DEFAULT_REPOSITORY_URL,
+  repositoryUrl = DEFAULT_REPOSITORY_URL ?? 'https://github.com/user/repo',
 ): Promise<RepositoryAnalysisResponse> {
   const request: AnalyzeRepositoryRequest = { repositoryUrl }
   const response = await fetch('/api/analyze', {

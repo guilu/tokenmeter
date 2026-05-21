@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 
+import { ProviderIcon } from '../components/ProviderIcon'
 import { getPricing } from '../services/api'
 import type { PricingModelResponse, PricingResponse } from '../types/api'
 import { formatRelativeTime } from '../utils/relativeTime'
 
 const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const absoluteDate = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' })
 
 const providerBadgeCls: Record<string, string> = {
   openai: 'border-primary/20 bg-primary/10 text-primary',
@@ -54,7 +56,16 @@ export function ModelsPage() {
             </p>
           </div>
           <div className="rounded-2xl border border-primary/20 bg-primary/10 p-5 text-sm text-primary">
-            These are floor estimates — input prompts, retries, and reasoning overhead are not included in the base calculation.
+            Base prices come from the public{' '}
+            <a
+              className="font-semibold underline-offset-2 hover:underline"
+              href="https://github.com/BerriAI/litellm/blob/main/model_prices_and_context_window.json"
+              rel="noreferrer"
+              target="_blank"
+            >
+              LiteLLM pricing catalogue
+            </a>
+            , refreshed weekly.
           </div>
         </div>
       </div>
@@ -77,14 +88,21 @@ export function ModelsPage() {
       <h2 className="mb-4 text-lg font-semibold text-text">Base prices</h2>
 
       {/* Freshness banner */}
-      <div className="mb-4 rounded-2xl border border-text/10 bg-card/20 px-4 py-2 text-sm text-text/70">
+      <div
+        className={`mb-4 rounded-2xl border px-4 py-2 text-sm ${
+          response && !response.lastRefreshedAt
+            ? 'border-amber-500/30 bg-amber-500/10 text-amber-300'
+            : 'border-text/10 bg-card/20 text-text/70'
+        }`}
+      >
         {!response ? (
           <div className="animate-pulse">
             <div className="h-4 w-72 rounded bg-text/10" />
           </div>
         ) : response.lastRefreshedAt ? (
           <span>
-            Updated {formatRelativeTime(response.lastRefreshedAt)} — source: LiteLLM upstream
+            Last updated <strong className="text-text">{absoluteDate.format(new Date(response.lastRefreshedAt))}</strong>
+            {' '}({formatRelativeTime(response.lastRefreshedAt)}) — source: LiteLLM upstream
           </span>
         ) : (
           <span>Showing fallback prices — remote refresh has not yet succeeded.</span>
@@ -118,7 +136,8 @@ export function ModelsPage() {
             ) : models.map(m => (
               <tr className="transition hover:bg-card/20" key={`${m.provider}-${m.model}`}>
                 <td className="px-5 py-4">
-                  <span className={`inline-block rounded-full border px-3 py-0.5 text-xs font-semibold capitalize ${providerBadgeCls[m.provider] ?? 'border-text/20 bg-text/10 text-text/70'}`}>
+                  <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-0.5 text-xs font-semibold capitalize ${providerBadgeCls[m.provider] ?? 'border-text/20 bg-text/10 text-text/70'}`}>
+                    <ProviderIcon provider={m.provider} />
                     {m.provider}
                   </span>
                 </td>
