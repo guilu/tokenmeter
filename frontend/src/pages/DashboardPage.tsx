@@ -827,7 +827,8 @@ function CostHero({
           className="mt-5 grid gap-4 transition-all duration-500 sm:grid-cols-2"
           key={`${selectedMode}-${lowestEstimate?.provider ?? 'none'}-${highestEstimate?.provider ?? 'none'}`}
         >
-          <div className="min-w-0 rounded-2xl bg-card/20 p-5">
+          <div className="relative min-w-0 rounded-2xl bg-card/20 p-5 pr-20">
+            <CostRangeBadge label="Min" />
             <p className="text-5xl font-semibold tracking-tight text-text sm:text-6xl">
               {lowestEstimate ? currencyFormatter.format(lowestEstimate.totalCost) : '—'}
             </p>
@@ -835,7 +836,8 @@ function CostHero({
               {lowestEstimate ? `${lowestEstimate.provider} · ${lowestEstimate.model} · ${selectedMode} workflow mode` : 'No estimate'}
             </p>
           </div>
-          <div className="min-w-0 rounded-2xl bg-card/20 p-5">
+          <div className="relative min-w-0 rounded-2xl bg-card/20 p-5 pr-20">
+            <CostRangeBadge label="Max" />
             <p className="text-5xl font-semibold tracking-tight text-text sm:text-6xl">
               {highestEstimate ? currencyFormatter.format(highestEstimate.totalCost) : '—'}
             </p>
@@ -858,6 +860,14 @@ function CostHero({
         </div>
       </div>
     </section>
+  )
+}
+
+function CostRangeBadge({ label }: { label: 'Min' | 'Max' }) {
+  return (
+    <span className="absolute right-4 top-4 rounded-full border border-primary/30 bg-primary/20 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-primary shadow-lg shadow-bg/20 backdrop-blur">
+      {label}
+    </span>
   )
 }
 
