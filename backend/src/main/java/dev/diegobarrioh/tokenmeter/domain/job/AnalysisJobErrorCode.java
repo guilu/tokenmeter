@@ -3,8 +3,8 @@ package dev.diegobarrioh.tokenmeter.domain.job;
 import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeErrorCode;
 
 /**
- * Stable error identifiers persisted on a failed {@code AnalysisJob}. The frontend's
- * {@code toUserMessage} mapper consumes these codes.
+ * Stable error identifiers persisted on a failed {@code AnalysisJob}. The frontend's {@code
+ * toUserMessage} mapper consumes these codes.
  */
 public enum AnalysisJobErrorCode {
   CLONE_TIMEOUT,
@@ -16,8 +16,8 @@ public enum AnalysisJobErrorCode {
 
   /**
    * Maps an intake-layer error code into a job-level error code. Unknown intake codes (including
-   * {@code REPOSITORY_NOT_ACCESSIBLE} and {@code CLONE_FAILED}) are folded into the generic
-   * {@link #ANALYSIS_FAILED} bucket — callers should set a descriptive {@code errorMessage}.
+   * {@code REPOSITORY_NOT_ACCESSIBLE} and {@code CLONE_FAILED}) are folded into the generic {@link
+   * #ANALYSIS_FAILED} bucket — callers should set a descriptive {@code errorMessage}.
    */
   public static AnalysisJobErrorCode fromIntakeCode(RepositoryIntakeErrorCode intakeCode) {
     if (intakeCode == null) {

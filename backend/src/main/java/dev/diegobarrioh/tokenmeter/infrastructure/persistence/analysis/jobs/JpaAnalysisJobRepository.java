@@ -131,8 +131,10 @@ public class JpaAnalysisJobRepository implements AnalysisJobRepository {
               }
               entity.setStatus(AnalysisJobStatus.FAILED);
               entity.setPhase(AnalysisJobPhase.FAILED);
-              entity.setErrorCode(code == null ? AnalysisJobErrorCode.ANALYSIS_FAILED.name() : code.name());
-              entity.setErrorMessage(message == null || message.isBlank() ? "Analysis failed" : message);
+              entity.setErrorCode(
+                  code == null ? AnalysisJobErrorCode.ANALYSIS_FAILED.name() : code.name());
+              entity.setErrorMessage(
+                  message == null || message.isBlank() ? "Analysis failed" : message);
               entity.setCompletedAt(when);
             });
   }
@@ -141,10 +143,7 @@ public class JpaAnalysisJobRepository implements AnalysisJobRepository {
   @Transactional
   public void markInterrupted(AnalysisJobId id, Instant when) {
     markFailed(
-        id,
-        AnalysisJobErrorCode.JOB_INTERRUPTED,
-        "Analysis interrupted by service restart",
-        when);
+        id, AnalysisJobErrorCode.JOB_INTERRUPTED, "Analysis interrupted by service restart", when);
   }
 
   @Override

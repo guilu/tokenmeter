@@ -4,8 +4,8 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Immutable view of an {@code AnalysisJob} at a point in time. Used as the boundary record
- * between the application and infrastructure layers; carries no behaviour beyond holding state.
+ * Immutable view of an {@code AnalysisJob} at a point in time. Used as the boundary record between
+ * the application and infrastructure layers; carries no behaviour beyond holding state.
  */
 public record AnalysisJobSnapshot(
     AnalysisJobId id,

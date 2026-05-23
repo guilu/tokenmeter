@@ -93,7 +93,8 @@ class AnalyzeRateLimitInterceptorTest {
   }
 
   private static AnalyzeRateLimitInterceptor interceptorWith(int maxRequests, Duration window) {
-    return new AnalyzeRateLimitInterceptor(new AnalyzeThrottleProperties(3, maxRequests, window));
+    return new AnalyzeRateLimitInterceptor(
+        new AnalyzeThrottleProperties(3, 32, maxRequests, window, null));
   }
 
   private static MockHttpServletRequest requestFrom(String ip) {

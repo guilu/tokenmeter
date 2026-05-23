@@ -118,8 +118,7 @@ class JpaAnalysisJobRepositoryTest {
 
     Instant tenDaysAgo = Instant.now().minus(10, ChronoUnit.DAYS);
     repository.markFailed(old.id(), AnalysisJobErrorCode.ANALYSIS_FAILED, "boom", tenDaysAgo);
-    repository.markFailed(
-        fresh.id(), AnalysisJobErrorCode.ANALYSIS_FAILED, "boom", Instant.now());
+    repository.markFailed(fresh.id(), AnalysisJobErrorCode.ANALYSIS_FAILED, "boom", Instant.now());
 
     int removed =
         repository.deleteCompletedBefore(
@@ -138,8 +137,7 @@ class JpaAnalysisJobRepositoryTest {
     repository.markFailed(snapshot.id(), AnalysisJobErrorCode.CLONE_TIMEOUT, "timeout", first);
 
     Instant later = first.plusSeconds(10);
-    repository.markFailed(
-        snapshot.id(), AnalysisJobErrorCode.ANALYSIS_FAILED, "different", later);
+    repository.markFailed(snapshot.id(), AnalysisJobErrorCode.ANALYSIS_FAILED, "different", later);
 
     AnalysisJobEntity entity = jpaRepository.findById(snapshot.id().value()).orElseThrow();
     assertThat(entity.getErrorCode()).isEqualTo(AnalysisJobErrorCode.CLONE_TIMEOUT.name());

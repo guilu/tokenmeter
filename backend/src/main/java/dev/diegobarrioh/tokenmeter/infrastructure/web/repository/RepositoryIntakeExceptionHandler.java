@@ -1,5 +1,6 @@
 package dev.diegobarrioh.tokenmeter.infrastructure.web.repository;
 
+import dev.diegobarrioh.tokenmeter.application.analyzer.AnalysisJobNotFoundException;
 import dev.diegobarrioh.tokenmeter.application.analyzer.AnalysisNotFoundException;
 import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeErrorCode;
 import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeException;
@@ -40,6 +41,19 @@ public class RepositoryIntakeExceptionHandler {
         .body(
             new RepositoryIntakeErrorResponse(
                 "ANALYSIS_NOT_FOUND",
+                exception.getMessage(),
+                HttpStatus.NOT_FOUND.value(),
+                request.getRequestURI(),
+                Instant.now()));
+  }
+
+  @ExceptionHandler(AnalysisJobNotFoundException.class)
+  public ResponseEntity<RepositoryIntakeErrorResponse> handleAnalysisJobNotFoundException(
+      AnalysisJobNotFoundException exception, HttpServletRequest request) {
+    return ResponseEntity.status(HttpStatus.NOT_FOUND)
+        .body(
+            new RepositoryIntakeErrorResponse(
+                "JOB_NOT_FOUND",
                 exception.getMessage(),
                 HttpStatus.NOT_FOUND.value(),
                 request.getRequestURI(),

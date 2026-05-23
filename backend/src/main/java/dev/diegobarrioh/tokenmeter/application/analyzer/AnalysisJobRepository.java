@@ -11,8 +11,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Application port for persisting and querying {@code AnalysisJob} state. The
- * infrastructure layer provides the JPA adapter.
+ * Application port for persisting and querying {@code AnalysisJob} state. The infrastructure layer
+ * provides the JPA adapter.
  */
 public interface AnalysisJobRepository {
 
@@ -56,6 +56,8 @@ public interface AnalysisJobRepository {
   int deleteCompletedBefore(
       dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobStatus status, Instant cutoff);
 
-  /** Removes a single job by raw id. Used to roll back a row when executor submission is rejected. */
+  /**
+   * Removes a single job by raw id. Used to roll back a row when executor submission is rejected.
+   */
   void deleteById(UUID id);
 }

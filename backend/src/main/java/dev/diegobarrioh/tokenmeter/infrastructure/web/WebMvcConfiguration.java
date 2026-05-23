@@ -16,8 +16,12 @@ public class WebMvcConfiguration implements WebMvcConfigurer {
 
   @Override
   public void addInterceptors(InterceptorRegistry registry) {
+    // The interceptor protects ONLY the submission endpoints. The polling endpoint
+    // `/api/analyze/jobs/{jobId}` and the analysis-read endpoint `/api/analyze/{id}` MUST NOT be
+    // rate-limited (clients poll at ~1.5 s and read by id repeatedly from public OG renders).
     registry
         .addInterceptor(rateLimitInterceptor)
-        .addPathPatterns("/api/analyze", "/api/repositories/intake");
+        .addPathPatterns("/api/analyze", "/api/repositories/intake")
+        .excludePathPatterns("/api/analyze/jobs/**", "/api/analyze/*");
   }
 }

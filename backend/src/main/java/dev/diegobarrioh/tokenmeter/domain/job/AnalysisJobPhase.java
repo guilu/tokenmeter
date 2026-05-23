@@ -4,10 +4,10 @@ package dev.diegobarrioh.tokenmeter.domain.job;
  * Closed set of phases through which an {@code AnalysisJob} progresses.
  *
  * <p>Happy-path order is strictly forward and matches the declaration order from {@link #QUEUED}
- * through {@link #COMPLETED}. Forward jumps (skipping intermediate phases) are legal — a phase
- * that is a no-op may be skipped — but the relative order MUST never regress. From any
- * non-terminal phase the job MAY transition directly to {@link #FAILED}. {@link #COMPLETED} and
- * {@link #FAILED} are terminal.
+ * through {@link #COMPLETED}. Forward jumps (skipping intermediate phases) are legal — a phase that
+ * is a no-op may be skipped — but the relative order MUST never regress. From any non-terminal
+ * phase the job MAY transition directly to {@link #FAILED}. {@link #COMPLETED} and {@link #FAILED}
+ * are terminal.
  */
 public enum AnalysisJobPhase {
   QUEUED,
@@ -28,8 +28,8 @@ public enum AnalysisJobPhase {
 
   /**
    * Rank used to compare two phases on the happy path. {@link #FAILED} is intentionally outside
-   * this rank because it can be reached from any non-terminal phase and does not participate in
-   * the forward-only ordering.
+   * this rank because it can be reached from any non-terminal phase and does not participate in the
+   * forward-only ordering.
    */
   public int forwardRank() {
     if (this == FAILED) {
