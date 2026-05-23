@@ -51,26 +51,37 @@ docker compose up --build -d   # frontend :3001, backend :8081; db interno sin p
 
 Tres paquetes en `backend/src/main/java/dev/diegobarrioh/tokenmeter/`:
 
-- `domain/` — value objects, enums, records de negocio. Sin dependencias de Spring ni JPA. Ejemplos: `GitHubRepositoryUrl`, `CostEstimationMode`, `ModelPricing`, `RepositoryScanResult`.
-- `application/` — casos de uso y orquestación. Servicios `@Service`, sin anotaciones JPA ni `@RestController`. Ejemplos: `RepositoryAnalysisService` (clone→scan→tokenize→estimate→persist), `RepositoryCostEstimationService`, `RepositoryFileScanner`.
-- `infrastructure/` — adapters: `web/` (REST controllers, mappers, DTO), `persistence/` (entidades JPA, repos), `git/` (`GitCliRepositoryCloner`), `pricing/` (`YamlPricingProvider`).
+- `domain/` — value objects, enums, records de negocio. Sin dependencias de Spring ni JPA. Ejemplos: `GitHubRepositoryUrl`, `CostEstimationMode`, `ModelPricing`, `RepositoryScanResult`, `domain/job/{AnalysisJobId,AnalysisJobStatus,AnalysisJobPhase,AnalysisJobErrorCode,AnalysisJobMetrics,AnalysisJobSnapshot}`.
+- `application/` — casos de uso y orquestación. Servicios `@Service`, sin anotaciones JPA ni `@RestController`. Ejemplos: `AnalysisJobSubmissionService` (valida URL → persiste QUEUED → entrega al executor), `AnalysisJobExecutionService` (`@Async("analysisJobExecutor")`, pipeline clone→scan→tokenize→estimate→persist con emisiones de progreso), `AnalysisJobQueryService`, `AnalysisJobReaper`, `AnalysisJobRetentionScheduler`, `RepositoryCostEstimationService`, `RepositoryFileScanner`.
+- `infrastructure/` — adapters: `web/` (REST controllers, mappers, DTO), `persistence/` (entidades JPA, repos), `persistence/analysis/jobs/` (entity + JPA repo + emitter), `config/AsyncExecutionConfig` (executor `analysisJobExecutor` + `@EnableScheduling`), `git/` (`GitCliRepositoryCloner`), `pricing/` (`YamlPricingProvider`).
 
 **Regla**: dependencias siempre apuntan hacia adentro. `infrastructure` → `application` → `domain`. Nunca al revés.
 
 Detalle completo: `docs/ARCHITECTURE.md`.
 
-## Flujo de análisis
+## Flujo de análisis (asíncrono)
 
-`POST /api/analyze` → `RepositoryAnalysisService.analyze`:
+`POST /api/analyze` → `AnalysisJobController.submit` → `AnalysisJobSubmissionService.submit` (hilo HTTP, < 100 ms):
 
-1. `GitHubRepositoryUrl.parse` valida URL.
-2. `GitCliRepositoryCloner.clone` con timeout (`tokenmeter.repository-intake.clone-timeout`, 120s default).
+1. `GitHubRepositoryUrl.parse` valida URL (400 `INVALID_URL` si falla).
+2. `AnalysisJobRepository.save(QUEUED snapshot)`.
+3. `analysisJobExecutor.execute(() -> executionService.runJob(jobId))`. Si el executor + cola están llenos → `repo.deleteById(jobId)` + 429 `RATE_LIMITED`.
+4. Devuelve `202 { jobId, status:"QUEUED", statusUrl, analysisId:null }`.
+
+En el worker (`tm-job-N`), `AnalysisJobExecutionService.runJob`:
+
+1. `emitter.transition` por cada fase (`QUEUED → CHECKING_CACHE → CLONING_REPOSITORY → SCANNING_FILES → FILTERING_FILES → COUNTING_TOKENS → CALCULATING_COSTS → SAVING_REPORT → COMPLETED`). Cada emit en `@Transactional(REQUIRES_NEW)` con `progressPercent` clampado a 99.
+2. `GitCliRepositoryCloner.clone` (`tokenmeter.repository-intake.clone-timeout`, 120s default).
 3. `RepositorySizeCalculator.summarize` + `enforceSizeLimit` (max 300 MiB default).
 4. `RepositoryFileScanner.scan` ignora `.git`, `node_modules`, `target`, `build`, `dist`, `coverage`. `BinaryFileDetector` filtra binarios.
 5. `RepositoryTokenizationService.tokenize` por archivo con `OpenAiTokenCounter`.
 6. `RepositoryCostEstimationService.estimate` calcula 3 modos × N modelos.
 7. `JpaAnalysisPersistenceService.save` → tablas `analysis`, `language_stats`, `cost_estimates`.
-8. `finally` → `deleteRecursively` del temp dir.
+8. `emitter.success(jobId, analysisId, finalMetrics)` → único punto que pone `progress=100, status=SUCCESS, phase=COMPLETED`.
+9. `catch RepositoryIntakeException → emitter.fail(fromIntakeCode(e), e.message)`; `catch Throwable → emitter.fail(ANALYSIS_FAILED, t.message)`.
+10. `finally` → `deleteRecursively(tempDir)`.
+
+Cliente: `GET /api/analyze/jobs/{jobId}` (no rate-limited) hasta `status ∈ {SUCCESS, FAILED}`. Reaper al boot reconcilia jobs no terminales (`status=FAILED, errorCode=JOB_INTERRUPTED`). Detalle en `docs/ARCHITECTURE.md` y `docs/API.md`.
 
 ## Modos de coste (canónico, código)
 
@@ -158,7 +169,8 @@ docker compose up --build -d  # smoke test si tocas wiring
 ## Endpoints (ver `docs/API.md`)
 
 - `GET  /api/health`
-- `POST /api/analyze`
+- `POST /api/analyze` (asíncrono — devuelve `202 { jobId, status, statusUrl, analysisId }`)
+- `GET  /api/analyze/jobs/{jobId}` (polling del job; exento del rate limiter)
 - `GET  /api/analyze/{id}`
 - `GET  /api/analyze/{id}/cost-breakdown`
 - `GET  /api/pricing`

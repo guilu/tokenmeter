@@ -31,25 +31,35 @@ backend/src/main/java/dev/diegobarrioh/tokenmeter/
 ├── domain/                      ← núcleo, sin frameworks
 │   ├── analyzer/                  RepositoryFileMetric, LanguageStatistics, RepositoryScanResult
 │   ├── cost/                      CostEstimationMode, ModelCostEstimate
+│   ├── job/                       AnalysisJobId, AnalysisJobStatus, AnalysisJobPhase,
+│   │                              AnalysisJobErrorCode, AnalysisJobMetrics, AnalysisJobSnapshot
 │   ├── pricing/                   AiProvider, ModelPricing
 │   ├── repository/                GitHubRepositoryUrl, RepositoryCloneSummary, RepositoryIntakeException
 │   └── tokenizer/                 FileTokenMetrics, LanguageTokenMetrics, RepositoryTokenizationResult
 ├── application/                 ← casos de uso
 │   ├── analyzer/                  RepositoryAnalysisService, RepositoryFileScanner, BinaryFileDetector,
-│   │                              FileLanguageDetector, AnalysisPersistenceService (port)
+│   │                              FileLanguageDetector, AnalysisPersistenceService (port),
+│   │                              AnalysisJobSubmissionService, AnalysisJobExecutionService,
+│   │                              AnalysisJobQueryService, AnalysisJobRepository (port),
+│   │                              AnalysisJobProgressEmitter (port), AnalysisJobReaper,
+│   │                              AnalysisJobRetentionScheduler, MdcScope
 │   ├── cost/                      RepositoryCostEstimationService
 │   ├── pricing/                   PricingProvider (port), PricingNotFoundException
 │   ├── repository/                RepositoryIntakeService, GitRepositoryCloner (port),
 │   │                              RepositorySizeCalculator, RepositoryIntakeProperties
 │   └── tokenizer/                 RepositoryTokenizationService, OpenAiTokenCounter
 └── infrastructure/              ← adapters
+    ├── config/                    AsyncExecutionConfig (@EnableAsync @EnableScheduling,
+    │                              analysisJobExecutor bean)
     ├── git/                       GitCliRepositoryCloner            implements GitRepositoryCloner
     ├── pricing/                   YamlPricingProvider             implements PricingProvider
     ├── persistence/analysis/      JpaAnalysisPersistenceService   implements AnalysisPersistenceService
     │                              + AnalysisEntity / LanguageStatsEntity / CostEstimateEntity
+    │   └── jobs/                  AnalysisJobEntity, AnalysisJobJpaRepository,
+    │                              JpaAnalysisJobRepository, JpaAnalysisJobProgressEmitter
     └── web/
         ├── HealthController
-        ├── analyzer/              RepositoryAnalysisController + DTOs + mappers
+        ├── analyzer/              RepositoryAnalysisController + AnalysisJobController + DTOs + mappers
         ├── pricing/               PricingController + DTOs
         └── repository/            RepositoryIntakeController + ExceptionHandler + DTOs
 ```
@@ -69,43 +79,140 @@ infrastructure ──▶ application ──▶ domain
 | `application.repository.GitRepositoryCloner` | `infrastructure.git.GitCliRepositoryCloner` |
 | `application.pricing.PricingProvider` | `infrastructure.pricing.YamlPricingProvider` |
 | `application.analyzer.AnalysisPersistenceService` | `infrastructure.persistence.analysis.JpaAnalysisPersistenceService` |
+| `application.analyzer.AnalysisJobRepository` | `infrastructure.persistence.analysis.jobs.JpaAnalysisJobRepository` |
+| `application.analyzer.AnalysisJobProgressEmitter` | `infrastructure.persistence.analysis.jobs.JpaAnalysisJobProgressEmitter` |
 
-## Flujo: `POST /api/analyze`
+## Flujo: `POST /api/analyze` (asíncrono, jobs observables)
+
+Desde el cambio `observable-analysis-jobs`, `POST /api/analyze` es un **submission endpoint asíncrono**: persiste un job en `QUEUED`, lo entrega al executor `analysisJobExecutor` y devuelve `202` en < 100 ms. La pipeline real corre en `AnalysisJobExecutionService` (`@Async`) y emite progreso vía un emitter transaccional. El cliente pollea `GET /api/analyze/jobs/{jobId}`. El contrato HTTP completo vive en [`docs/API.md`](API.md).
 
 ```
-RepositoryAnalysisController.analyze(req)
-  └─▶ RepositoryAnalysisService.analyze(rawUrl)
-        ├─ GitHubRepositoryUrl.parse(rawUrl)              ← validación dominio
+HTTP POST /api/analyze (hilo Servlet, < 100 ms)
+  └─▶ AnalysisJobController.submit(req)
+        ├─ GitHubRepositoryUrl.parse(rawUrl)              ← 400 INVALID_URL si falla
+        └─▶ AnalysisJobSubmissionService.submit(url)
+              ├─ AnalysisJobRepository.save(QUEUED snapshot)  [tx CREATE]
+              ├─ analysisJobExecutor.execute(() -> executionService.runJob(jobId))
+              │     └─ RejectedExecutionException → repo.deleteById(jobId) + 429 RATE_LIMITED
+              └─ returns AnalysisJobSnapshot { status=QUEUED }
+        └─ 202 { jobId, status:"QUEUED", statusUrl, analysisId:null }
+
+analysisJobExecutor (thread tm-job-N)
+  └─▶ AnalysisJobExecutionService.runJob(jobId)
+        │  emitter.transition(QUEUED → CHECKING_CACHE)     [REQUIRES_NEW]
+        │  emitter.transition(... → CLONING_REPOSITORY)
         ├─ Files.createTempDirectory(...)
-        ├─ cloneWithTimeout()                             ← ExecutorService + Future.get(timeout)
-        │     └─ GitCliRepositoryCloner.clone(...)
-        ├─ RepositorySizeCalculator.summarize(dir)
-        ├─ enforceSizeLimit(summary)                      ← REPOSITORY_TOO_LARGE
+        ├─ GitCliRepositoryCloner.clone(...)              ← CLONE_TIMEOUT / CLONE_FAILED
+        │  emitter.transition(... → SCANNING_FILES)
+        ├─ RepositorySizeCalculator.summarize + enforceSizeLimit  ← REPOSITORY_TOO_LARGE
+        │  emitter.transition(... → FILTERING_FILES)
         ├─ RepositoryFileScanner.scan(dir)
-        │     ├─ ignora .git, node_modules, target, build, dist, coverage
-        │     ├─ BinaryFileDetector.isBinary
-        │     ├─ FileLanguageDetector.detect
-        │     └─ countLines(file) UTF-8
+        │  emitter.updateMetrics(filesDiscovered, filesSkipped, ...)
+        │  emitter.transition(... → COUNTING_TOKENS)
         ├─ RepositoryTokenizationService.tokenize(dir, scan)
         │     └─ OpenAiTokenCounter.count(text)           ← jtokkit O200K_BASE
+        │  emitter.updateMetrics(tokensCounted, filesProcessed)
+        │  emitter.transition(... → CALCULATING_COSTS)
         ├─ RepositoryCostEstimationService.estimate(totalTokens)
         │     └─ N modelos × {RAW, ASSISTED, AGENTIC}
+        │  emitter.transition(... → SAVING_REPORT)
         ├─ JpaAnalysisPersistenceService.save(...)
         │     └─ analysis + language_stats + cost_estimates
+        │  emitter.success(jobId, analysisId, finalMetrics)  ← progress=100, status=SUCCESS, phase=COMPLETED
+        ├─ catch RepositoryIntakeException e → emitter.fail(fromIntakeCode(e), e.message)
+        ├─ catch Throwable t                 → emitter.fail(ANALYSIS_FAILED, t.message)
         └─ finally: deleteRecursively(tempDir)
+
+HTTP GET /api/analyze/jobs/{jobId}
+  └─▶ AnalysisJobController.getJob(jobId)
+        └─▶ AnalysisJobQueryService.findById(jobId)
+              └─ JpaAnalysisJobRepository.findById → AnalysisJobSnapshot
+        ├─ 200 { jobId, status, phase, phaseLabel, progressPercent, message, analysisId, error?, metrics, timestamps }
+        └─ 404 JOB_NOT_FOUND
 ```
 
-Errores se modelan con `RepositoryIntakeException(errorCode, message)` y se mapean a HTTP status en `RepositoryIntakeExceptionHandler`:
+`AnalysisJobController` está fuera del `AnalyzeRateLimitInterceptor` (`excludePathPatterns("/api/analyze/jobs/**", ...)`) — el polling no genera 429. El interceptor sólo se aplica a `POST /api/analyze`.
 
-| `RepositoryIntakeErrorCode` | HTTP |
+### Lifecycle del job
+
+```
+        ┌──────────┐  executor.execute   ┌──────────┐  emitter.success  ┌──────────┐
+POST →  │  QUEUED  │ ─────────────────▶ │ RUNNING  │ ─────────────────▶ │ SUCCESS  │
+        └────┬─────┘                     └────┬─────┘                   └──────────┘
+             │ executor rejection              │ emitter.fail
+             │     (cola+pool llenos)          ▼
+             ▼                            ┌──────────┐
+       429 RATE_LIMITED                   │  FAILED  │  ←── ApplicationRunner reaper en boot
+       (job no se persiste)               └──────────┘     marca FAILED + JOB_INTERRUPTED
+```
+
+`status` (`QUEUED|RUNNING|SUCCESS|FAILED`) viaja en paralelo a `phase`, que es el detalle observable para el cliente. Las fases canónicas (forward-only):
+
+| Phase | Descripción |
 |---|---|
-| `INVALID_URL` | 400 |
-| `REPOSITORY_NOT_ACCESSIBLE` | 404 |
-| `REPOSITORY_TOO_LARGE` | 413 |
-| `CLONE_TIMEOUT` | 504 |
-| `CLONE_FAILED` | 502 |
+| `QUEUED` | Job persistido, esperando worker. |
+| `CHECKING_CACHE` | Reservado para fast-path de cache (no-op por ahora). |
+| `CLONING_REPOSITORY` | `git clone --depth=1`. |
+| `SCANNING_FILES` | Walk del filesystem temp + filtros de ignore. |
+| `FILTERING_FILES` | `BinaryFileDetector` + detección de lenguaje. |
+| `COUNTING_TOKENS` | Tokenización jtokkit por archivo. |
+| `CALCULATING_COSTS` | `N modelos × 3 modos`. |
+| `SAVING_REPORT` | Persiste `analysis` + `language_stats` + `cost_estimates`. |
+| `COMPLETED` | Terminal (acompaña `status=SUCCESS`). |
+| `FAILED` | Terminal (acompaña `status=FAILED`). |
+
+Saltos hacia adelante son legales si una fase es no-op. Cualquier fase no terminal puede saltar a `FAILED`. Las fases terminales son inmutables (`canTransitionTo` lo rechaza).
+
+### Componentes
+
+| Componente | Tipo | Responsabilidad |
+|---|---|---|
+| `AnalysisJobController` | `@RestController` | `POST /api/analyze` y `GET /api/analyze/jobs/{jobId}`. |
+| `AnalysisJobSubmissionService` | `@Service` | Valida URL, persiste `QUEUED`, entrega al executor, mapea rechazos a 429. |
+| `AnalysisJobExecutionService` | `@Service` con `@Async("analysisJobExecutor")` | Orquesta la pipeline y emite progreso. |
+| `AnalysisJobQueryService` | `@Service` (read-only) | Lectura del snapshot por `jobId`. |
+| `AnalysisJobProgressEmitter` | port + `JpaAnalysisJobProgressEmitter` adapter | Cada emit en `@Transactional(REQUIRES_NEW)` para que el GET poll vea cambios. Clamp `progress ∈ [0..99]` excepto en `success` (único punto que pone 100). `fail` es idempotente. |
+| `AnalysisJobRepository` | port + `JpaAnalysisJobRepository` adapter | CRUD sobre `analysis_job` + queries del reaper/retention. |
+| `AnalysisJobReaper` | `ApplicationRunner` | Al boot reconcilia jobs no terminales heredados → `FAILED/JOB_INTERRUPTED`. |
+| `AnalysisJobRetentionScheduler` | `@Scheduled` | Purga jobs `SUCCESS` > 7 días y `FAILED` > 30 días (cron `0 30 3 * * *` por defecto). |
+
+### Executor y configuración
+
+`infrastructure/config/AsyncExecutionConfig` (`@Configuration @EnableAsync @EnableScheduling`) publica el bean `analysisJobExecutor` con:
+
+- `corePoolSize = maxPoolSize = tokenmeter.analyze-throttle.max-concurrent` (default 3)
+- `queueCapacity = tokenmeter.analyze-throttle.queue-capacity` (default 32)
+- `threadNamePrefix = "tm-job-"`
+- `RejectedExecutionHandler = AbortPolicy` → propaga `RejectedExecutionException`, mapeada a `RepositoryIntakeException(RATE_LIMITED)` por el submission service.
+- `waitForTasksToCompleteOnShutdown = true`, `awaitTerminationSeconds = 30`.
+
+Variables de entorno asociadas: `TOKENMETER_ANALYZE_QUEUE_CAPACITY`, `TOKENMETER_JOB_RETENTION_SUCCESS` (`Duration`, default `P7D`), `TOKENMETER_JOB_RETENTION_FAILED` (default `P30D`), `TOKENMETER_JOB_RETENTION_CRON`.
+
+> Que `AsyncExecutionConfig` y `PricingSchedulingConfig` activen ambos `@EnableScheduling` no genera conflictos: Spring deduplica al fusionar metadata de varias `@Configuration`.
+
+### Mapeo de errores
+
+`RepositoryIntakeException(errorCode, message)` se mapea a HTTP en `RepositoryIntakeExceptionHandler`. Bajo el flujo asíncrono, sólo dos códigos viajan como HTTP desde `POST /api/analyze`; el resto se materializan en `error.code` del body del job:
+
+| `RepositoryIntakeErrorCode` | HTTP en POST | Aparición típica en `job.error.code` |
+|---|---|---|
+| `INVALID_URL` | 400 | `INVALID_URL` (también puede llegar como job FAILED si la validación tardía falla) |
+| `RATE_LIMITED` | 429 | — |
+| `REPOSITORY_TOO_LARGE` | — | `REPOSITORY_TOO_LARGE` |
+| `CLONE_TIMEOUT` | — | `CLONE_TIMEOUT` |
+| `CLONE_FAILED` | — | `ANALYSIS_FAILED` (folded) |
+| `REPOSITORY_NOT_ACCESSIBLE` | — | `ANALYSIS_FAILED` (folded) |
+
+Otros mappings de excepciones del handler:
+
+| Excepción | HTTP |
+|---|---|
 | `AnalysisNotFoundException` | 404 (`ANALYSIS_NOT_FOUND`) |
+| `AnalysisJobNotFoundException` | 404 (`JOB_NOT_FOUND`) |
 | `MethodArgumentNotValidException` | 400 (`INVALID_URL`) |
+| `MethodArgumentTypeMismatchException` | 400 (`INVALID_REQUEST`) |
+
+`AnalysisJobErrorCode.JOB_INTERRUPTED` no aparece como código HTTP: vive solo dentro del job tras la reconciliación del reaper.
 
 ## Modelo de datos
 
@@ -137,6 +244,28 @@ cost_estimates (
   formula TEXT,
   UNIQUE (analysis_id, provider, model, mode)
 )
+
+-- V6__analysis_job.sql
+analysis_job (
+  id UUID PK,
+  status VARCHAR(16) CHECK IN ('QUEUED','RUNNING','SUCCESS','FAILED'),
+  phase VARCHAR(32) CHECK IN ('QUEUED','CHECKING_CACHE','CLONING_REPOSITORY','SCANNING_FILES',
+                              'FILTERING_FILES','COUNTING_TOKENS','CALCULATING_COSTS',
+                              'SAVING_REPORT','COMPLETED','FAILED'),
+  progress_percent SMALLINT CHECK (0 <= progress_percent <= 100),
+  message TEXT,
+  analysis_id UUID FK → analysis(id) ON DELETE RESTRICT,
+  error_code VARCHAR(32), error_message TEXT,
+  files_discovered BIGINT, files_processed BIGINT, files_skipped BIGINT,
+  tokens_counted BIGINT, context_windows INT, pricing_models_processed INT,
+  created_at, started_at, updated_at, completed_at,
+  -- invariantes:
+  CHECK (progress_percent <= 99 OR (status='SUCCESS' AND analysis_id IS NOT NULL)),
+  CHECK (files_processed IS NULL OR files_discovered IS NULL OR files_processed <= files_discovered),
+  CHECK ((status IN ('SUCCESS','FAILED')) = (completed_at IS NOT NULL)),
+  CHECK (status <> 'FAILED' OR (error_code IS NOT NULL AND error_message IS NOT NULL))
+)
+-- índices: idx_analysis_job_status, idx_analysis_job_completed_at, idx_analysis_job_created_at
 ```
 
 `spring.jpa.hibernate.ddl-auto=validate` en todos los perfiles. Schema lo gestiona Flyway, no Hibernate.
@@ -257,13 +386,17 @@ Vite + React SPA mínima:
 ```
 frontend/src/
 ├── main.tsx
-├── App.tsx                    AppShell + DashboardPage
+├── App.tsx                       AppShell + DashboardPage
 ├── components/AppShell.tsx
-├── pages/DashboardPage.tsx    formulario URL → POST /api/analyze → render resultados
-├── services/api.ts            fetch wrappers + ApiError
-├── types/api.ts               DTOs espejo del backend
-└── hooks/useAsync.ts
+├── pages/DashboardPage.tsx       formulario URL → POST /api/analyze → polling job → render resultados
+├── services/api.ts               fetch wrappers + ApiError; submitAnalysis() devuelve AnalysisJobAcceptedResponse
+├── types/api.ts                  DTOs espejo del backend (incluye AnalysisJobStatusResponse)
+├── hooks/useAsync.ts
+├── hooks/useAnalysisJob.ts       polling con setTimeout encadenado + AbortController; detiene en SUCCESS/FAILED/404
+└── utils/analysisJobProgress.ts  mapping JobPhase → stageIndex (0..7) + clamp visual a 99/100
 ```
+
+Tests con Vitest + RTL + jsdom (`frontend/src/test/setup.ts`, `frontend/vitest.config.ts`). Script `npm run test` (= `vitest run`).
 
 El proxy de Vite (`vite.config.ts`) reenvía `/api/*` a `http://localhost:8080`, así que el frontend en dev no necesita CORS.
 
@@ -284,14 +417,14 @@ El proxy de Vite (`vite.config.ts`) reenvía `/api/*` a `http://localhost:8080`,
 3. **jtokkit (encoder OpenAI) para todos los modelos**. Aproximación pragmática; mejor un suelo razonable hoy que vaporware multi-tokenizer.
 4. **Postgres + Flyway desde el día 1**. `ddl-auto=validate` para que Hibernate nunca toque el schema.
 5. **Sin caché de análisis** (todavía). Cada `POST /api/analyze` clona de nuevo. Suficiente mientras `max-repository-bytes` esté en 300 MiB.
-6. **Persistencia síncrona dentro del request**. No hay job queue. Para repos grandes, el cliente espera. Si crece, mover a flujo async + polling con `analysis.status`.
+6. **Submission asíncrono con polling** (cambio `observable-analysis-jobs`). `POST /api/analyze` persiste un job `QUEUED`, lo entrega a un `ThreadPoolTaskExecutor` (`analysisJobExecutor`, `core=max=tokenmeter.analyze-throttle.max-concurrent`, `queueCapacity=32`) y devuelve `202`. La pipeline corre en `AnalysisJobExecutionService` (`@Async`) y publica progreso a `analysis_job` mediante un emitter `REQUIRES_NEW`. El cliente pollea `GET /api/analyze/jobs/{jobId}` cada 1.5 s. Reaper al boot + retention scheduler completan el ciclo de vida.
 7. **Filesystem temporal**. Clones se borran en `finally`; no se cachean entre requests.
 8. **3 modos hardcoded** (`RAW`/`ASSISTED`/`AGENTIC`). Multiplicadores son la ABI del cálculo: cambiarlos invalida estimaciones históricas. Si fueran configurables, persistirlos en `cost_estimates.formula` (ya se hace).
 
 ## Roadmap arquitectónico
 
 - Tokenizers reales por proveedor (Anthropic, Google).
-- Job queue async para repos grandes (Spring Batch o Quartz + tabla `analysis_job`).
-- Cache de análisis por `(repository_url, commit_sha)`.
+- ~~Job queue async para repos grandes~~ — implementado en `observable-analysis-jobs` (`ThreadPoolTaskExecutor` + tabla `analysis_job`); siguiente iteración: outbox / multi-nodo con `SELECT FOR UPDATE SKIP LOCKED`.
+- Cache de análisis por `(repository_url, commit_sha)` — activable vía la fase `CHECKING_CACHE`, hoy no-op.
 - API key + rate limiting para uso público.
 - Multi-tenant si se ofrece como SaaS.
