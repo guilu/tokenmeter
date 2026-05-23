@@ -176,6 +176,27 @@ public class JpaAnalysisJobRepository implements AnalysisJobRepository {
     delegate.deleteById(id);
   }
 
+  @Override
+  @Transactional(readOnly = true)
+  public int countByStatus(AnalysisJobStatus status) {
+    return delegate.countByStatus(status);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public int countQueuedAheadOf(AnalysisJobId targetId) {
+    return delegate
+        .findById(targetId.value())
+        .map(
+            entity -> {
+              if (entity.getStatus() != AnalysisJobStatus.QUEUED) {
+                return 0;
+              }
+              return delegate.countQueuedAheadOf(entity.getCreatedAt(), entity.getId()) + 1;
+            })
+        .orElse(0);
+  }
+
   private static int clampProgress(int progressPercent) {
     if (progressPercent < 0) {
       return 0;

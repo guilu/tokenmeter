@@ -130,6 +130,79 @@ class JpaAnalysisJobRepositoryTest {
   }
 
   @Test
+  void countByStatusReturnsExpectedCountsPerStatus() {
+    AnalysisJobSnapshot queued1 = newQueued("https://github.com/foo/q1");
+    AnalysisJobSnapshot queued2 = newQueued("https://github.com/foo/q2");
+    AnalysisJobSnapshot running = newQueued("https://github.com/foo/r");
+    AnalysisJobSnapshot success = newQueued("https://github.com/foo/s");
+    AnalysisJobSnapshot failed = newQueued("https://github.com/foo/f");
+
+    repository.save(queued1);
+    repository.save(queued2);
+    repository.save(running);
+    repository.save(success);
+    repository.save(failed);
+
+    repository.markStarted(running.id(), Instant.now());
+    UUID analysisId = UUID.randomUUID();
+    insertAnalysisRowFor(analysisId);
+    repository.markSuccess(
+        success.id(), analysisId, new AnalysisJobMetrics(1L, 1L, 0L, 1L, 1, 1), Instant.now());
+    repository.markFailed(failed.id(), AnalysisJobErrorCode.ANALYSIS_FAILED, "boom", Instant.now());
+
+    assertThat(repository.countByStatus(AnalysisJobStatus.QUEUED)).isEqualTo(2);
+    assertThat(repository.countByStatus(AnalysisJobStatus.RUNNING)).isEqualTo(1);
+    assertThat(repository.countByStatus(AnalysisJobStatus.SUCCESS)).isEqualTo(1);
+    assertThat(repository.countByStatus(AnalysisJobStatus.FAILED)).isEqualTo(1);
+  }
+
+  @Test
+  void countQueuedAheadOfReturnsFifoPositionUsingCreatedAt() {
+    Instant base = Instant.parse("2026-05-23T08:00:00Z");
+    AnalysisJobSnapshot j1 = newQueuedAt("https://github.com/foo/a", base);
+    AnalysisJobSnapshot j2 = newQueuedAt("https://github.com/foo/b", base.plusSeconds(1));
+    AnalysisJobSnapshot j3 = newQueuedAt("https://github.com/foo/c", base.plusSeconds(2));
+    AnalysisJobSnapshot j4 = newQueuedAt("https://github.com/foo/d", base.plusSeconds(3));
+
+    repository.save(j1);
+    repository.save(j2);
+    repository.save(j3);
+    repository.save(j4);
+
+    assertThat(repository.countQueuedAheadOf(j1.id())).isEqualTo(1);
+    assertThat(repository.countQueuedAheadOf(j2.id())).isEqualTo(2);
+    assertThat(repository.countQueuedAheadOf(j3.id())).isEqualTo(3);
+    assertThat(repository.countQueuedAheadOf(j4.id())).isEqualTo(4);
+  }
+
+  @Test
+  void countQueuedAheadOfBreaksTiesById() {
+    Instant when = Instant.parse("2026-05-23T08:00:00Z");
+    UUID lowId = new UUID(0L, 1L);
+    UUID highId = new UUID(0L, 2L);
+    AnalysisJobSnapshot low = newQueuedWithId("https://github.com/foo/low", when, lowId);
+    AnalysisJobSnapshot high = newQueuedWithId("https://github.com/foo/high", when, highId);
+
+    repository.save(low);
+    repository.save(high);
+
+    assertThat(repository.countQueuedAheadOf(low.id())).isEqualTo(1);
+    assertThat(repository.countQueuedAheadOf(high.id())).isEqualTo(2);
+  }
+
+  @Test
+  void countQueuedAheadOfReturnsZeroWhenJobIsNotQueued() {
+    AnalysisJobSnapshot queued = newQueued("https://github.com/foo/queued");
+    AnalysisJobSnapshot running = newQueued("https://github.com/foo/running");
+    repository.save(queued);
+    repository.save(running);
+    repository.markStarted(running.id(), Instant.now());
+
+    assertThat(repository.countQueuedAheadOf(running.id())).isZero();
+    assertThat(repository.countQueuedAheadOf(AnalysisJobId.random())).isZero();
+  }
+
+  @Test
   void markFailedIsIdempotentOnTerminalJobs() {
     AnalysisJobSnapshot snapshot = newQueued("https://github.com/foo/idempotent");
     repository.save(snapshot);
@@ -145,9 +218,16 @@ class JpaAnalysisJobRepositoryTest {
   }
 
   private AnalysisJobSnapshot newQueued(String url) {
-    Instant now = Instant.now();
+    return newQueuedWithId(url, Instant.now(), UUID.randomUUID());
+  }
+
+  private AnalysisJobSnapshot newQueuedAt(String url, Instant when) {
+    return newQueuedWithId(url, when, UUID.randomUUID());
+  }
+
+  private AnalysisJobSnapshot newQueuedWithId(String url, Instant when, UUID id) {
     return new AnalysisJobSnapshot(
-        AnalysisJobId.random(),
+        new AnalysisJobId(id),
         url,
         AnalysisJobStatus.QUEUED,
         AnalysisJobPhase.QUEUED,
@@ -157,9 +237,9 @@ class JpaAnalysisJobRepositoryTest {
         null,
         null,
         AnalysisJobMetrics.empty(),
-        now,
+        when,
         null,
-        now,
+        when,
         null);
   }
 

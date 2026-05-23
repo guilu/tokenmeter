@@ -1,0 +1,33 @@
+-- V7__analysis_job_queue_index.sql
+--
+-- Adds a composite btree index that accelerates both polling-time queries
+-- introduced by the concurrent-analysis-limits change:
+--
+--   * countByStatus(status)
+--       SELECT count(*) FROM analysis_job WHERE status = ?;
+--     uses the leading column of the (status, created_at) btree.
+--
+--   * countQueuedAheadOf(targetId)
+--       SELECT count(*) FROM analysis_job
+--       WHERE status = 'QUEUED'
+--         AND (created_at < :createdAt
+--              OR (created_at = :createdAt AND id < :id));
+--     scans a contiguous range of (status='QUEUED', created_at < ?) thanks
+--     to the multi-column ordering.
+--
+-- The single-column idx_analysis_job_status defined in V6 is left in place:
+-- it is harmless and Postgres/H2 may still prefer it for trivial scans on
+-- very small tables.
+--
+-- The clause `IF NOT EXISTS` keeps the migration idempotent on re-runs
+-- (manual reapply, restore-from-snapshot, integration tests sharing an
+-- already-migrated H2 database) and is honoured by both PostgreSQL >= 9.5
+-- and H2 in PostgreSQL mode.
+--
+-- Note: we intentionally do NOT use CREATE INDEX CONCURRENTLY here. The
+-- analysis_job table is bounded in size by queueCapacity (default 256) plus
+-- retention windows of a few days, so a regular CREATE INDEX runs well under
+-- a second. If the table ever grows above ~1M rows in production, a future
+-- migration can rebuild the index CONCURRENTLY.
+CREATE INDEX IF NOT EXISTS idx_analysis_job_status_created_at
+    ON analysis_job (status, created_at);

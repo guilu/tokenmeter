@@ -5,6 +5,7 @@ import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobId;
 import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobMetrics;
 import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobPhase;
 import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobSnapshot;
+import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobStatus;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -60,4 +61,19 @@ public interface AnalysisJobRepository {
    * Removes a single job by raw id. Used to roll back a row when executor submission is rejected.
    */
   void deleteById(UUID id);
+
+  /**
+   * Returns the number of rows in {@code analysis_job} whose {@code status} equals the given
+   * argument. Used by the polling endpoint to compute {@code queueState.runningCount}.
+   */
+  int countByStatus(AnalysisJobStatus status);
+
+  /**
+   * Returns the 1-based FIFO position of a {@code QUEUED} job among all queued rows, ordered by
+   * {@code (createdAt ASC, id ASC)}. Returns {@code 0} when the referenced job does not exist or is
+   * no longer in {@code QUEUED} status (e.g. it was promoted to {@code RUNNING} between the
+   * snapshot read and this call). Callers MUST treat the result as a best-effort estimate that may
+   * vary between successive polls.
+   */
+  int countQueuedAheadOf(AnalysisJobId targetId);
 }
