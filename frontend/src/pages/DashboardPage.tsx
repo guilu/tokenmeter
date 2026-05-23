@@ -228,7 +228,7 @@ export function DashboardPage() {
               />
             </div>
             <button
-              className="min-h-12 rounded-2xl bg-primary px-6 text-sm font-semibold text-bg transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+              className="min-h-12 rounded-2xl bg-primary px-6 text-sm font-semibold text-bg transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-[15rem]"
               disabled={loading}
               type="submit"
             >
