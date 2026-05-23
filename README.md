@@ -287,7 +287,7 @@ Devuelve `202 Accepted` con el `jobId` y la URL para pollear el progreso:
 }
 ```
 
-Estados posibles del job: `QUEUED → RUNNING → SUCCESS` (happy path) o `FAILED` desde cualquier fase no terminal. La cola admite hasta 32 jobs encolados sobre los workers activos antes de devolver `429 RATE_LIMITED`.
+Estados posibles del job: `QUEUED → RUNNING → SUCCESS` (happy path) o `FAILED` desde cualquier fase no terminal. La saturación de slots ya no devuelve `429`: el job se admite y queda en `QUEUED` con `queueState.queuePosition`. La cola interna del executor admite hasta `tokenmeter.analyze-throttle.queue-capacity` jobs (default `256`); sólo al sobrepasar ese techo se devuelve `429 RATE_LIMITED`.
 
 ---
 

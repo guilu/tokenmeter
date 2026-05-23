@@ -11,7 +11,7 @@ Servicio que clona un repositorio público de GitHub, cuenta tokens por archivo 
 | Capa | Tecnología |
 |---|---|
 | Backend | Java 21, Spring Boot 3.5, Gradle Kotlin DSL |
-| Persistencia | PostgreSQL 18 + Flyway (migraciones `V1`–`V5`) |
+| Persistencia | PostgreSQL 18 + Flyway (migraciones `V1`–`V7`) |
 | Tokenizer | `com.knuddels:jtokkit` (encoder `O200K_BASE`) |
 | Clone | `git` CLI |
 | Frontend | React 19, Vite 8, TypeScript 6, Tailwind 4 |
@@ -81,7 +81,7 @@ En el worker (`tm-job-N`), `AnalysisJobExecutionService.runJob`:
 9. `catch RepositoryIntakeException → emitter.fail(fromIntakeCode(e), e.message)`; `catch Throwable → emitter.fail(ANALYSIS_FAILED, t.message)`.
 10. `finally` → `deleteRecursively(tempDir)`.
 
-Cliente: `GET /api/analyze/jobs/{jobId}` (no rate-limited) hasta `status ∈ {SUCCESS, FAILED}`. Reaper al boot reconcilia jobs no terminales (`status=FAILED, errorCode=JOB_INTERRUPTED`). Detalle en `docs/ARCHITECTURE.md` y `docs/API.md`.
+Cliente: `GET /api/analyze/jobs/{jobId}` (no rate-limited) hasta `status ∈ {SUCCESS, FAILED}`. El snapshot expone `queueState` (`runningCount`, `maxConcurrency`, `queuePosition`) para jobs `QUEUED`/`RUNNING`; la saturación de slots ya no devuelve `429` (sólo el techo `tokenmeter.analyze-throttle.queue-capacity`, default `256`, lo hace). Reaper al boot reconcilia jobs no terminales (`status=FAILED, errorCode=JOB_INTERRUPTED`). Detalle en `docs/ARCHITECTURE.md` y `docs/API.md`.
 
 ## Modos de coste (canónico, código)
 
@@ -147,7 +147,7 @@ Gitmojis comunes: ✨ feat · 🐛 fix · ♻️ refactor · 🧪 test · 📝 d
 
 ## No-go zones para asistentes IA
 
-- **No editar migraciones Flyway ya aplicadas** (`V1`, `V2`, `V3`, `V4`, `V5`). Crear una migración con número superior.
+- **No editar migraciones Flyway ya aplicadas** (`V1`, `V2`, `V3`, `V4`, `V5`, `V6`, `V7`). Crear una migración con número superior.
 - **No editar `V5__model_pricing_snapshot.sql`** una vez aplicada. Cambios al schema de `model_pricing` van en una nueva migración.
 - **No commitear `pricing-overrides.yaml` con tarifas negociadas reales**. Mantener el archivo fuera del repo (`.gitignore` o ruta externa vía `tokenmeter.pricing.overrides-location`).
 - **No añadir dependencias** sin justificación clara — el proyecto es deliberadamente delgado.
