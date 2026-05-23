@@ -5,7 +5,6 @@ import dev.diegobarrioh.tokenmeter.application.analyzer.RepositoryAnalysisServic
 import dev.diegobarrioh.tokenmeter.domain.cost.CostEstimationMode;
 import dev.diegobarrioh.tokenmeter.domain.cost.ModelCostEstimate;
 import dev.diegobarrioh.tokenmeter.infrastructure.web.PublicOriginProperties;
-import jakarta.validation.Valid;
 import java.text.NumberFormat;
 import java.time.Duration;
 import java.util.Comparator;
@@ -14,15 +13,11 @@ import java.util.Optional;
 import java.util.UUID;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -54,12 +49,6 @@ public class RepositoryAnalysisController {
     this.leaderboardService = leaderboardService;
     this.publicOriginProperties = publicOriginProperties;
     this.badgeRenderer = badgeRenderer;
-  }
-
-  @PostMapping("/api/analyze")
-  @ResponseStatus(HttpStatus.OK)
-  public RepositoryAnalysisResponse analyze(@Valid @RequestBody RepositoryAnalysisRequest request) {
-    return mapper.toResponse(analysisService.analyze(request.repositoryUrl()));
   }
 
   @GetMapping("/api/analyze/{id}")

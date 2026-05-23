@@ -1,8 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 
-import { analyzeRepository, ApiError, DEFAULT_REPOSITORY_URL, getAnalysis } from '../services/api'
-import type { RepositoryAnalysisCostEstimateResponse, RepositoryAnalysisResponse } from '../types/api'
+import { useAnalysisJob } from '../hooks/useAnalysisJob'
+import { ApiError, DEFAULT_REPOSITORY_URL, getAnalysis, submitAnalysis } from '../services/api'
+import type {
+  AnalysisJobStatusResponse,
+  RepositoryAnalysisCostEstimateResponse,
+  RepositoryAnalysisResponse,
+} from '../types/api'
+import { progressFromJob, stageIndexFromJob } from '../utils/analysisJobProgress'
 
 const numberFormatter = new Intl.NumberFormat('en-US')
 const compactNumberFormatter = new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 })
@@ -92,6 +98,7 @@ export function DashboardPage() {
   const [error, setError] = useState<string | null>(null)
   const [sharedError, setSharedError] = useState<string | null>(null)
   const [showModes, setShowModes] = useState(false)
+  const [activeJobId, setActiveJobId] = useState<string | null>(null)
 
   useEffect(() => {
     function handlePopState() {
@@ -120,7 +127,7 @@ export function DashboardPage() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const trimmedUrl = repositoryUrl.trim() || DEFAULT_REPOSITORY_URL
-    
+
     if (!isValidGitHubUrl(trimmedUrl)) {
       setError('Enter a valid public GitHub repository URL, e.g. https://github.com/guilu/tokenmeter')
       return
@@ -128,22 +135,34 @@ export function DashboardPage() {
 
     setLoading(true)
     setError(null)
+    setActiveJobId(null)
     try {
-      const result = await analyzeRepository(trimmedUrl)
-      setAnalysis(result)
-      setRouteAnalysisId(result.id)
-      window.history.pushState(null, '', analysisPath(result.id))
+      const accepted = await submitAnalysis(trimmedUrl)
+      setActiveJobId(accepted.jobId)
     } catch (reason) {
       setError(toUserMessage(reason))
-    } finally {
       setLoading(false)
     }
+  }
+
+  function handleJobSuccess(analysisId: string) {
+    setActiveJobId(null)
+    setLoading(false)
+    setRouteAnalysisId(analysisId)
+    window.history.pushState(null, '', analysisPath(analysisId))
+  }
+
+  function handleJobFailure(message: string) {
+    setError(message)
+    setActiveJobId(null)
+    setLoading(false)
   }
 
   function handleNewAnalysis() {
     setAnalysis(null)
     setRouteAnalysisId(null)
     setSharedError(null)
+    setActiveJobId(null)
     window.history.pushState(null, '', '/')
     resetDocumentMetadata()
   }
@@ -209,7 +228,7 @@ export function DashboardPage() {
               />
             </div>
             <button
-              className="min-h-12 rounded-2xl bg-primary px-6 text-sm font-semibold text-bg transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+              className="min-h-12 rounded-2xl bg-primary px-6 text-sm font-semibold text-bg transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-[15rem]"
               disabled={loading}
               type="submit"
             >
@@ -223,7 +242,14 @@ export function DashboardPage() {
           ) : null}
         </form>
 
-        {loading ? <LoadingState repositoryUrl={repositoryUrl} /> : null}
+        {loading ? (
+          <LoadingState
+            jobId={activeJobId}
+            repositoryUrl={repositoryUrl}
+            onFailure={handleJobFailure}
+            onSuccess={handleJobSuccess}
+          />
+        ) : null}
       </div>
 
       <div className="mx-auto max-w-4xl px-6 pb-6 md:pb-8 lg:pb-20">
@@ -270,32 +296,46 @@ export function DashboardPage() {
   )
 }
 
-function LoadingState({ repositoryUrl }: { repositoryUrl: string }) {
-  const [activeStage, setActiveStage] = useState(0)
+function LoadingState({
+  jobId,
+  repositoryUrl,
+  onSuccess,
+  onFailure,
+}: {
+  jobId: string | null
+  repositoryUrl: string
+  onSuccess: (analysisId: string) => void
+  onFailure: (message: string) => void
+}) {
   const trimmedRepositoryUrl = repositoryUrl.trim()
   const repositoryLabel = repositoryNameFromUrl(trimmedRepositoryUrl)
-  const progress = Math.round(((activeStage + 1) / analysisStages.length) * 100)
+  const { job, error } = useAnalysisJob(jobId)
+
+  const activeStage = useMemo(() => stageIndexFromJob(job), [job])
+  const progress = useMemo(() => progressFromJob(job), [job])
+  const liveStats = useMemo(() => liveStatsFromMetrics(job?.metrics ?? null), [job?.metrics])
 
   useEffect(() => {
-    const intervalId = window.setInterval(() => {
-      setActiveStage((currentStage) => Math.min(currentStage + 1, analysisStages.length - 1))
-    }, 1500)
+    if (!job) return
+    if (job.status === 'SUCCESS' && job.analysisId) {
+      onSuccess(job.analysisId)
+      return
+    }
+    if (job.status === 'FAILED') {
+      const message = toUserMessage(
+        new ApiError(job.error?.message ?? 'Analysis failed', 0, job.error?.code),
+      )
+      onFailure(message)
+    }
+  }, [job, onFailure, onSuccess])
 
-    return () => window.clearInterval(intervalId)
-  }, [])
+  useEffect(() => {
+    if (!error) return
+    onFailure(toUserMessage(error))
+  }, [error, onFailure])
 
-  const liveStats = useMemo(() => {
-    const seed = repositoryLabel.length || trimmedRepositoryUrl.length || 12
-    const files = Math.min(2400, Math.round((activeStage + 1) * seed * 7.4))
-    const tokens = Math.min(1_900_000, files * 690 + activeStage * seed * 173)
-    const contextWindows = Math.max(1, Math.ceil(tokens / 120_000))
-
-    return [
-      { label: 'Files inspected', value: compactNumberFormatter.format(files) },
-      { label: 'Tokens sampled', value: compactNumberFormatter.format(tokens) },
-      { label: 'Context windows', value: numberFormatter.format(contextWindows) },
-    ]
-  }, [activeStage, repositoryLabel.length, trimmedRepositoryUrl.length])
+  const stage = analysisStages[activeStage]
+  const phaseLabel = job?.phaseLabel ?? stage.label
 
   return (
     <div className="relative mt-8 overflow-hidden rounded-3xl border border-primary/20 bg-bg/80 p-5 shadow-2xl shadow-bg">
@@ -310,7 +350,7 @@ function LoadingState({ repositoryUrl }: { repositoryUrl: string }) {
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.28em] text-primary/80">AI analysis pipeline</p>
             <h2 className="mt-2 text-xl font-semibold text-text">Scanning {repositoryLabel}</h2>
-            <p className="mt-1 text-sm text-text/60">Simulating repository generation economics in real time.</p>
+            <p className="mt-1 text-sm text-text/60">Tracking repository generation economics in real time.</p>
           </div>
           <div className="rounded-2xl border border-primary/20 bg-primary/10 px-4 py-2 text-right">
             <p className="text-2xl font-semibold text-primary">{progress}%</p>
@@ -340,8 +380,8 @@ function LoadingState({ repositoryUrl }: { repositoryUrl: string }) {
               {activeStage + 1}
             </span>
             <div>
-              <p className="text-sm font-semibold text-text">{analysisStages[activeStage].label}</p>
-              <p className="mt-0.5 text-xs leading-5 text-text/60">{analysisStages[activeStage].detail}</p>
+              <p className="text-sm font-semibold text-text">{phaseLabel}</p>
+              <p className="mt-0.5 text-xs leading-5 text-text/60">{stage.detail}</p>
             </div>
             <p className="ml-auto text-xs text-text/50 tabular-nums">{activeStage + 1} / {analysisStages.length}</p>
           </div>
@@ -349,11 +389,34 @@ function LoadingState({ repositoryUrl }: { repositoryUrl: string }) {
 
         <div className="rounded-2xl border border-text/10 bg-bg/20 p-4 font-mono text-xs text-primary/80">
           <p>&gt; pipeline.run --repository {trimmedRepositoryUrl || repositoryLabel}</p>
-          <p className="mt-1 text-text/60">&gt; stage.{activeStage + 1}: {analysisStages[activeStage].label.toLowerCase()}...</p>
+          <p className="mt-1 text-text/60">&gt; stage.{activeStage + 1}: {phaseLabel.toLowerCase()}...</p>
         </div>
       </div>
     </div>
   )
+}
+
+function liveStatsFromMetrics(
+  metrics: AnalysisJobStatusResponse['metrics'] | null,
+): Array<{ label: string; value: string }> {
+  const files = metrics?.filesProcessed ?? metrics?.filesDiscovered ?? null
+  const tokens = metrics?.tokensCounted ?? null
+  const contextWindows = metrics?.contextWindows ?? null
+
+  return [
+    {
+      label: 'Files inspected',
+      value: files !== null ? compactNumberFormatter.format(files) : '—',
+    },
+    {
+      label: 'Tokens sampled',
+      value: tokens !== null ? compactNumberFormatter.format(tokens) : '—',
+    },
+    {
+      label: 'Context windows',
+      value: contextWindows !== null ? numberFormatter.format(contextWindows) : '—',
+    },
+  ]
 }
 
 function SharedAnalysisState({ error, loading, onBack }: { error: string | null; loading: boolean; onBack: () => void }) {

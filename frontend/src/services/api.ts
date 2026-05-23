@@ -1,4 +1,6 @@
 import type {
+  AnalysisJobAcceptedResponse,
+  AnalysisJobStatusResponse,
   AnalyzeRepositoryRequest,
   HealthResponse,
   LeaderboardPageResponse,
@@ -30,9 +32,9 @@ export async function getHealth(): Promise<HealthResponse> {
   return response.json() as Promise<HealthResponse>
 }
 
-export async function analyzeRepository(
+export async function submitAnalysis(
   repositoryUrl = DEFAULT_REPOSITORY_URL ?? 'https://github.com/user/repo',
-): Promise<RepositoryAnalysisResponse> {
+): Promise<AnalysisJobAcceptedResponse> {
   const request: AnalyzeRepositoryRequest = { repositoryUrl }
   const response = await fetch('/api/analyze', {
     method: 'POST',
@@ -44,7 +46,20 @@ export async function analyzeRepository(
     throw await toApiError(response, 'Repository analysis failed')
   }
 
-  return response.json() as Promise<RepositoryAnalysisResponse>
+  return response.json() as Promise<AnalysisJobAcceptedResponse>
+}
+
+export async function fetchAnalysisJobStatus(
+  jobId: string,
+  signal?: AbortSignal,
+): Promise<AnalysisJobStatusResponse> {
+  const response = await fetch(`/api/analyze/jobs/${encodeURIComponent(jobId)}`, { signal })
+
+  if (!response.ok) {
+    throw await toApiError(response, 'Job status request failed')
+  }
+
+  return response.json() as Promise<AnalysisJobStatusResponse>
 }
 
 export async function getAnalysis(analysisId: string): Promise<RepositoryAnalysisResponse> {

@@ -81,12 +81,13 @@ Definidos en [`CostEstimationMode`](backend/src/main/java/dev/diegobarrioh/token
 ---
 
 # ⚙️ Cómo funciona
-1. Recibe URL del repositorio
+1. Recibe URL del repositorio y encola un job asíncrono (`POST /api/analyze` → `202 Accepted`)
 2. Clona el repositorio temporalmente
 3. Filtra archivos relevantes
 4. Cuenta tokens por archivo
 5. Calcula costes según modelo
-6. Genera reporte público
+6. Persiste el análisis y expone el progreso vía `GET /api/analyze/jobs/{jobId}`
+7. Genera reporte público a partir del `analysisId` resultante
 
 ---
 
@@ -265,7 +266,7 @@ TokenMeter usa el encoder real `o200k_base` (compatible con `gpt-4o`/`o1`) vía 
 
 # 🌐 API
 
-## Crear análisis
+## Encolar un análisis (asíncrono)
 ```http
 POST /api/analyze
 Content-Type: application/json
@@ -275,11 +276,31 @@ Content-Type: application/json
 }
 ```
 
-La respuesta incluye métricas del repositorio y `costEstimates` plano por modelo/modo.
+Devuelve `202 Accepted` con el `jobId` y la URL para pollear el progreso:
+
+```json
+{
+  "jobId": "0d4b8c8e-9a32-4d2a-9b58-6e9c1d6f7a01",
+  "status": "QUEUED",
+  "statusUrl": "/api/analyze/jobs/0d4b8c8e-9a32-4d2a-9b58-6e9c1d6f7a01",
+  "analysisId": null
+}
+```
+
+Estados posibles del job: `QUEUED → RUNNING → SUCCESS` (happy path) o `FAILED` desde cualquier fase no terminal. La cola admite hasta 32 jobs encolados sobre los workers activos antes de devolver `429 RATE_LIMITED`.
 
 ---
 
-## Obtener análisis
+## Pollear el estado del job
+```http
+GET /api/analyze/jobs/{jobId}
+```
+
+Polling recomendado cada 1.5–2 s. Este endpoint **no** está sujeto al rate limiter. Cuando `status=SUCCESS` el body trae `analysisId` y `progressPercent=100`; en `FAILED` trae `error.code`/`error.message`. Más detalle en [`docs/API.md`](docs/API.md).
+
+---
+
+## Obtener análisis (resultado terminal)
 ```http
 GET /api/analyze/{id}
 ```
@@ -552,5 +573,6 @@ MIT
 MVP en desarrollo activo.
 
 - Refresh dinámico de precios desde LiteLLM con capas `OVERRIDE > REMOTE > FALLBACK` está implementado (cambio `dynamic-pricing-fetch`). Detalle en [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) y [`docs/RUNBOOK.md`](docs/RUNBOOK.md).
+- Jobs de análisis observables y asíncronos (`POST /api/analyze` devuelve `202` con `jobId`; progreso vía `GET /api/analyze/jobs/{jobId}`) está implementado (cambio `observable-analysis-jobs`). Detalle en [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) y [`docs/API.md`](docs/API.md).
 
 Contribuciones, ideas y experimentos son bienvenidos.

@@ -8,6 +8,61 @@ export interface AnalyzeRepositoryRequest {
   repositoryUrl: string
 }
 
+export type JobStatus = 'QUEUED' | 'RUNNING' | 'SUCCESS' | 'FAILED'
+
+export type JobPhase =
+  | 'QUEUED'
+  | 'CHECKING_CACHE'
+  | 'CLONING_REPOSITORY'
+  | 'SCANNING_FILES'
+  | 'FILTERING_FILES'
+  | 'COUNTING_TOKENS'
+  | 'CALCULATING_COSTS'
+  | 'SAVING_REPORT'
+  | 'COMPLETED'
+  | 'FAILED'
+
+export interface AnalysisJobAcceptedResponse {
+  jobId: string
+  status: JobStatus
+  statusUrl: string
+  analysisId: string | null
+}
+
+export interface JobError {
+  code: string
+  message: string
+}
+
+export interface JobMetrics {
+  filesDiscovered: number | null
+  filesProcessed: number | null
+  filesSkipped: number | null
+  tokensCounted: number | null
+  contextWindows: number | null
+  pricingModelsProcessed: number | null
+}
+
+export interface JobTimestamps {
+  createdAt: string
+  startedAt: string | null
+  updatedAt: string
+  completedAt: string | null
+}
+
+export interface AnalysisJobStatusResponse {
+  jobId: string
+  status: JobStatus
+  phase: JobPhase
+  phaseLabel: string
+  progressPercent: number
+  message: string | null
+  analysisId: string | null
+  error: JobError | null
+  metrics: JobMetrics | null
+  timestamps: JobTimestamps
+}
+
 export interface RepositoryAnalysisResponse {
   id: string
   createdAt: string

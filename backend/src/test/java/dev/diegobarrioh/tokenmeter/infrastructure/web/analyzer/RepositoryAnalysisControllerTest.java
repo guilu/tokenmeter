@@ -1,10 +1,8 @@
 package dev.diegobarrioh.tokenmeter.infrastructure.web.analyzer;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -21,8 +19,6 @@ import dev.diegobarrioh.tokenmeter.domain.cost.CostEstimationMode;
 import dev.diegobarrioh.tokenmeter.domain.cost.ModelCostEstimate;
 import dev.diegobarrioh.tokenmeter.domain.pricing.AiProvider;
 import dev.diegobarrioh.tokenmeter.domain.pricing.ModelPricing;
-import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeErrorCode;
-import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeException;
 import dev.diegobarrioh.tokenmeter.domain.tokenizer.LanguageTokenMetrics;
 import dev.diegobarrioh.tokenmeter.domain.tokenizer.RepositoryTokenizationResult;
 import dev.diegobarrioh.tokenmeter.infrastructure.web.PublicOriginProperties;
@@ -43,6 +39,11 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+/**
+ * Verifies the GET endpoints owned by {@link RepositoryAnalysisController} (cost breakdown, badge,
+ * OG image, public HTML, leaderboards). The {@code POST /api/analyze} endpoint has been moved to
+ * {@link AnalysisJobController} and is covered by {@code AnalysisJobControllerTest}.
+ */
 @WebMvcTest(RepositoryAnalysisController.class)
 @Import({
   RepositoryAnalysisMapper.class,
@@ -66,71 +67,6 @@ class RepositoryAnalysisControllerTest {
   @MockitoBean private PricingProvider pricingProvider;
   @MockitoBean private LeaderboardService leaderboardService;
   @MockitoBean private BadgeRenderer badgeRenderer;
-
-  @Test
-  void returnsStandardSuccessResponseForValidRequest() throws Exception {
-    UUID id = UUID.randomUUID();
-    when(analysisService.analyze(anyString()))
-        .thenReturn(
-            new RepositoryAnalysisResult(
-                id,
-                Instant.parse("2026-05-08T20:00:00Z"),
-                "https://github.com/guilu/tokenmeter",
-                "https://github.com/guilu/tokenmeter.git",
-                "guilu",
-                "tokenmeter",
-                new RepositoryScanResult(
-                    2,
-                    10,
-                    120,
-                    List.of(),
-                    Map.of("Java", new LanguageStatistics("Java", 2, 10, 120))),
-                new RepositoryTokenizationResult(
-                    "o200k_base",
-                    2,
-                    25,
-                    List.of(),
-                    Map.of("Java", new LanguageTokenMetrics("Java", 2, 25))),
-                List.of(
-                    new ModelCostEstimate(
-                        AiProvider.OPENAI,
-                        "gpt-4o",
-                        CostEstimationMode.RAW,
-                        25,
-                        0,
-                        25,
-                        new BigDecimal("0.000000"),
-                        new BigDecimal("0.000250"),
-                        new BigDecimal("0.000250"),
-                        "test formula"))));
-
-    mockMvc
-        .perform(
-            post("/api/analyze")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"repositoryUrl\":\"https://github.com/guilu/tokenmeter\"}"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.id").value(id.toString()))
-        .andExpect(jsonPath("$.createdAt").value("2026-05-08T20:00:00Z"))
-        .andExpect(jsonPath("$.repositoryUrl").value("https://github.com/guilu/tokenmeter"))
-        .andExpect(jsonPath("$.status").value("SUCCESS"))
-        .andExpect(jsonPath("$.metrics.totalFiles").value(2))
-        .andExpect(jsonPath("$.metrics.totalLines").value(10))
-        .andExpect(jsonPath("$.metrics.totalBytes").value(120))
-        .andExpect(jsonPath("$.metrics.tokenEncoding").value("o200k_base"))
-        .andExpect(jsonPath("$.metrics.totalTokens").value(25))
-        .andExpect(jsonPath("$.metrics.languages.Java.files").value(2))
-        .andExpect(jsonPath("$.metrics.languages.Java.tokens").value(25))
-        .andExpect(jsonPath("$.costEstimates[0].provider").value("openai"))
-        .andExpect(jsonPath("$.costEstimates[0].model").value("gpt-4o"))
-        .andExpect(jsonPath("$.costEstimates[0].mode").value("raw"))
-        .andExpect(jsonPath("$.costEstimates[0].estimatedOutputTokens").value(25))
-        .andExpect(jsonPath("$.costEstimates[0].totalCost").value(0.000250))
-        .andExpect(jsonPath("$.costEstimates[0].engineeringEffort.seniorEngineerHours").value(0.00))
-        .andExpect(
-            jsonPath("$.costEstimates[0].engineeringEffort.summary")
-                .value("Equivalent to less than 10 minutes of senior engineering work"));
-  }
 
   @Test
   void retrievesAnalysisById() throws Exception {
@@ -309,61 +245,6 @@ class RepositoryAnalysisControllerTest {
         .perform(get("/api/analyze/{id}", id))
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.code").value("ANALYSIS_NOT_FOUND"));
-  }
-
-  @Test
-  void validatesRequiredRepositoryUrl() throws Exception {
-    mockMvc
-        .perform(post("/api/analyze").contentType(MediaType.APPLICATION_JSON).content("{}"))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.code").value("INVALID_URL"))
-        .andExpect(jsonPath("$.path").value("/api/analyze"));
-  }
-
-  @Test
-  void mapsInvalidRepositoryUrlToBadRequest() throws Exception {
-    when(analysisService.analyze(anyString()))
-        .thenThrow(
-            new RepositoryIntakeException(RepositoryIntakeErrorCode.INVALID_URL, "invalid url"));
-
-    mockMvc
-        .perform(
-            post("/api/analyze")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"repositoryUrl\":\"not-a-url\"}"))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.code").value("INVALID_URL"));
-  }
-
-  @Test
-  void mapsMissingRepositoryToNotFound() throws Exception {
-    when(analysisService.analyze(anyString()))
-        .thenThrow(
-            new RepositoryIntakeException(
-                RepositoryIntakeErrorCode.REPOSITORY_NOT_ACCESSIBLE, "not accessible"));
-
-    mockMvc
-        .perform(
-            post("/api/analyze")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"repositoryUrl\":\"https://github.com/guilu/missing\"}"))
-        .andExpect(status().isNotFound())
-        .andExpect(jsonPath("$.code").value("REPOSITORY_NOT_ACCESSIBLE"));
-  }
-
-  @Test
-  void mapsCloneTimeoutToGatewayTimeout() throws Exception {
-    when(analysisService.analyze(anyString()))
-        .thenThrow(
-            new RepositoryIntakeException(RepositoryIntakeErrorCode.CLONE_TIMEOUT, "timeout"));
-
-    mockMvc
-        .perform(
-            post("/api/analyze")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"repositoryUrl\":\"https://github.com/guilu/slow\"}"))
-        .andExpect(status().isGatewayTimeout())
-        .andExpect(jsonPath("$.code").value("CLONE_TIMEOUT"));
   }
 
   @Test
