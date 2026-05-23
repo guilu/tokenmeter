@@ -16,7 +16,7 @@ public record AnalyzeThrottleProperties(
       maxConcurrent = 3;
     }
     if (queueCapacity <= 0) {
-      queueCapacity = 32;
+      queueCapacity = 256;
     }
     if (rateLimitRequestsPerWindow <= 0) {
       rateLimitRequestsPerWindow = 5;

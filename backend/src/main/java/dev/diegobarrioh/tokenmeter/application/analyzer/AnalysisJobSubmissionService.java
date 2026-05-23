@@ -78,12 +78,15 @@ public class AnalysisJobSubmissionService {
       executor.execute(() -> executionService.runJob(id));
     } catch (RejectedExecutionException ex) {
       // Spring's TaskRejectedException extends RejectedExecutionException, so this single catch
-      // covers both. We roll back the row to honour the spec invariant "no orphan job row on 429".
-      LOGGER.warn("Analysis executor rejected jobId={} — rolling back row", id);
+      // covers both. After the concurrent-analysis-limits change, slot contention NEVER raises this
+      // exception (a free queue slot enqueues the task); rejection only fires when the executor's
+      // internal LinkedBlockingQueue reached `tokenmeter.analyze-throttle.queue-capacity`. We roll
+      // back the row to honour the spec invariant "no orphan job row on 429".
+      LOGGER.warn("queue ceiling reached for jobId={} — rolling back row", id);
       jobRepository.deleteById(id.value());
       throw new RepositoryIntakeException(
           RepositoryIntakeErrorCode.RATE_LIMITED,
-          "Server is busy: analysis queue full. Please retry shortly.",
+          "Analysis queue is full. Please retry shortly.",
           ex);
     }
     return persisted;

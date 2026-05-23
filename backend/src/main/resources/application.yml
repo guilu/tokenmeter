@@ -28,7 +28,7 @@ tokenmeter:
   public-origin: ${TOKENMETER_PUBLIC_ORIGIN:http://localhost:8081}
   analyze-throttle:
     max-concurrent: ${TOKENMETER_MAX_CONCURRENT_ANALYSES:3}
-    queue-capacity: ${TOKENMETER_ANALYZE_QUEUE_CAPACITY:32}
+    queue-capacity: ${TOKENMETER_ANALYZE_QUEUE_CAPACITY:256}
     rate-limit-requests-per-window: ${TOKENMETER_RATE_LIMIT_REQUESTS:5}
     rate-limit-window-duration: ${TOKENMETER_RATE_LIMIT_WINDOW:60s}
     retention:
