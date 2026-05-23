@@ -69,28 +69,28 @@ Total: 78 items.
 
 ## 6. Frontend — API y hook
 
-- [ ] 6.1 Modificar `frontend/src/types/api.ts` (o `frontend/src/types/analysisJob.ts` si se prefiere archivo dedicado): añadir `type JobStatus = 'QUEUED'|'RUNNING'|'SUCCESS'|'FAILED'`, `type JobPhase = ...`, `AnalysisJobAcceptedResponse`, `AnalysisJobStatusResponse`, `JobMetrics`, `JobError`, `JobTimestamps` espejando los DTOs del backend.
-- [ ] 6.2 Modificar `frontend/src/services/api.ts` (o `frontend/src/api/analyze.ts`): cambiar `submitAnalysis(url)` para devolver `Promise<AnalysisJobAcceptedResponse>` (POST `/api/analyze`); añadir `fetchAnalysisJobStatus(jobId, signal?)` (`GET /api/analyze/jobs/{jobId}`, 404 lo propaga como `ApiError` con status 404). Mantener `getAnalysis(id)` intacto.
-- [ ] 6.3 Crear `frontend/src/hooks/useAnalysisJob.ts` siguiendo el diseño: `setTimeout` encadenado (no `setInterval`), `AbortController` por request, `abort()` al desmontar o cambiar `jobId`, detiene polling cuando `status ∈ {SUCCESS, FAILED}` o tras error 404; reintenta hasta 3 veces con backoff `intervalMs*(n+1)` en errores 5xx. Devuelve `{ job, isPolling, error }`.
+- [x] 6.1 Modificar `frontend/src/types/api.ts` (o `frontend/src/types/analysisJob.ts` si se prefiere archivo dedicado): añadir `type JobStatus = 'QUEUED'|'RUNNING'|'SUCCESS'|'FAILED'`, `type JobPhase = ...`, `AnalysisJobAcceptedResponse`, `AnalysisJobStatusResponse`, `JobMetrics`, `JobError`, `JobTimestamps` espejando los DTOs del backend.
+- [x] 6.2 Modificar `frontend/src/services/api.ts` (o `frontend/src/api/analyze.ts`): cambiar `submitAnalysis(url)` para devolver `Promise<AnalysisJobAcceptedResponse>` (POST `/api/analyze`); añadir `fetchAnalysisJobStatus(jobId, signal?)` (`GET /api/analyze/jobs/{jobId}`, 404 lo propaga como `ApiError` con status 404). Mantener `getAnalysis(id)` intacto.
+- [x] 6.3 Crear `frontend/src/hooks/useAnalysisJob.ts` siguiendo el diseño: `setTimeout` encadenado (no `setInterval`), `AbortController` por request, `abort()` al desmontar o cambiar `jobId`, detiene polling cuando `status ∈ {SUCCESS, FAILED}` o tras error 404; reintenta hasta 3 veces con backoff `intervalMs*(n+1)` en errores 5xx. Devuelve `{ job, isPolling, error }`.
 
 ## 7. Frontend — rewire UI
 
-- [ ] 7.1 Localizar `LoadingState` (probablemente en `frontend/src/pages/DashboardPage.tsx` o `frontend/src/components/LoadingState.tsx`). Confirmar la ruta antes de tocar.
-- [ ] 7.2 Modificar `DashboardPage.tsx`: `handleSubmit` ahora recibe `AnalysisJobAcceptedResponse` y guarda `setActiveJobId(jobId)`. Pasar `jobId` a `LoadingState`.
-- [ ] 7.3 Modificar `LoadingState`: consumir `useAnalysisJob(jobId)`. Eliminar el `setInterval` que simulaba progreso, el array `liveStats` sintético y el avance autónomo por timer.
-- [ ] 7.4 Implementar el mapping `JobPhase → stageIndex` (tabla del diseño) en el componente para mantener los 8 stages visuales. `activeStage` se calcula desde `job.phase` y, dentro de `COUNTING_TOKENS`, se desplaza a 4/5 según `metrics.contextWindows`/`metrics.pricingModelsProcessed`.
-- [ ] 7.5 Bindear las cards/numbers a `job.metrics` con fallback `"—"` o `0` cuando un campo es `null`.
-- [ ] 7.6 Clampar la barra de progreso visual a `Math.min(99, job.progressPercent)` salvo cuando `status === 'SUCCESS' && analysisId !== null` (allí muestra 100).
-- [ ] 7.7 Al recibir snapshot con `status === 'SUCCESS' && analysisId !== null`: detener polling (lo hace el hook), navegar a la vista de resultado (`window.history.pushState(null, '', analysisPath(analysisId))` + setter de ruta del Dashboard).
-- [ ] 7.8 Al recibir `status === 'FAILED'`: mostrar `toUserMessage({ status: 0, code: job.error.code, message: job.error.message })` reutilizando la alerta de error existente. Limpiar `activeJobId`.
+- [x] 7.1 Localizar `LoadingState` (probablemente en `frontend/src/pages/DashboardPage.tsx` o `frontend/src/components/LoadingState.tsx`). Confirmar la ruta antes de tocar. — Vive como sub-componente en `frontend/src/pages/DashboardPage.tsx`.
+- [x] 7.2 Modificar `DashboardPage.tsx`: `handleSubmit` ahora recibe `AnalysisJobAcceptedResponse` y guarda `setActiveJobId(jobId)`. Pasar `jobId` a `LoadingState`.
+- [x] 7.3 Modificar `LoadingState`: consumir `useAnalysisJob(jobId)`. Eliminar el `setInterval` que simulaba progreso, el array `liveStats` sintético y el avance autónomo por timer.
+- [x] 7.4 Implementar el mapping `JobPhase → stageIndex` (tabla del diseño) en el componente para mantener los 8 stages visuales. `activeStage` se calcula desde `job.phase` y, dentro de `COUNTING_TOKENS`, se desplaza a 4/5 según `metrics.contextWindows`/`metrics.pricingModelsProcessed`. — Helper puro extraído a `frontend/src/utils/analysisJobProgress.ts`.
+- [x] 7.5 Bindear las cards/numbers a `job.metrics` con fallback `"—"` o `0` cuando un campo es `null`.
+- [x] 7.6 Clampar la barra de progreso visual a `Math.min(99, job.progressPercent)` salvo cuando `status === 'SUCCESS' && analysisId !== null` (allí muestra 100). — Implementado en `progressFromJob(job)`.
+- [x] 7.7 Al recibir snapshot con `status === 'SUCCESS' && analysisId !== null`: detener polling (lo hace el hook), navegar a la vista de resultado (`window.history.pushState(null, '', analysisPath(analysisId))` + setter de ruta del Dashboard).
+- [x] 7.8 Al recibir `status === 'FAILED'`: mostrar `toUserMessage({ status: 0, code: job.error.code, message: job.error.message })` reutilizando la alerta de error existente. Limpiar `activeJobId`.
 
 ## 8. Frontend — setup de testing
 
-- [ ] 8.1 Añadir devDeps en `frontend/package.json`: `vitest@^2`, `@testing-library/react@^16`, `@testing-library/jest-dom@^6`, `@testing-library/dom@^10`, `jsdom@^25`. Scripts `"test": "vitest run"`, `"test:watch": "vitest"`.
-- [ ] 8.2 Crear `frontend/vitest.config.ts` con `environment: 'jsdom'`, `setupFiles: ['./src/test/setup.ts']`, `globals: true`. Alternativa: extender `vite.config.ts` con la sección `test` si el equipo prefiere un único config.
-- [ ] 8.3 Crear `frontend/src/test/setup.ts` con `import '@testing-library/jest-dom'` y cualquier mock global (por ejemplo `vi.stubGlobal('fetch', ...)` si se considera necesario).
-- [ ] 8.4 Crear `frontend/src/hooks/useAnalysisJob.test.ts` con `vi.useFakeTimers()`: (a) polling avanza `QUEUED → RUNNING → SUCCESS` y deja de pollear (mock fetch que devuelve snapshots secuenciales); (b) `FAILED` expone `error` y detiene polling; (c) `progressPercent` nunca rinde 100 al consumidor hasta que el snapshot trae `status='SUCCESS' && analysisId != null`.
-- [ ] 8.5 Documentar en `frontend/README.md` (o equivalente) cómo correr `npm run test` localmente. Si no existe README de frontend, añadir un párrafo al `README.md` raíz (sección "Testing").
+- [x] 8.1 Añadir devDeps en `frontend/package.json`: `vitest@^2`, `@testing-library/react@^16`, `@testing-library/jest-dom@^6`, `@testing-library/dom@^10`, `jsdom@^25`. Scripts `"test": "vitest run"`, `"test:watch": "vitest"`.
+- [x] 8.2 Crear `frontend/vitest.config.ts` con `environment: 'jsdom'`, `setupFiles: ['./src/test/setup.ts']`, `globals: true`. Alternativa: extender `vite.config.ts` con la sección `test` si el equipo prefiere un único config.
+- [x] 8.3 Crear `frontend/src/test/setup.ts` con `import '@testing-library/jest-dom'` y cualquier mock global (por ejemplo `vi.stubGlobal('fetch', ...)` si se considera necesario).
+- [x] 8.4 Crear `frontend/src/hooks/useAnalysisJob.test.ts` con `vi.useFakeTimers()`: (a) polling avanza `QUEUED → RUNNING → SUCCESS` y deja de pollear (mock fetch que devuelve snapshots secuenciales); (b) `FAILED` expone `error` y detiene polling; (c) `progressPercent` nunca rinde 100 al consumidor hasta que el snapshot trae `status='SUCCESS' && analysisId != null`. — El clamp 99 vs 100 se cubre en `src/utils/analysisJobProgress.test.ts` (donde vive el helper).
+- [~] 8.5 Documentar en `frontend/README.md` (o equivalente) cómo correr `npm run test` localmente. Si no existe README de frontend, añadir un párrafo al `README.md` raíz (sección "Testing"). — Diferido al batch 4 (docs).
 
 ## 9. Docs
 
