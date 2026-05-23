@@ -140,6 +140,35 @@ describe('useAnalysisJob', () => {
     expect(fetchMock.mock.calls.length).toBe(callsBefore)
   })
 
+  it('exposes queueState from the backend snapshot when present', async () => {
+    const queued = snapshot({
+      status: 'QUEUED',
+      phase: 'QUEUED',
+      phaseLabel: 'Waiting for an analysis slot',
+      progressPercent: 0,
+      queueState: {
+        runningCount: 2,
+        maxConcurrency: 2,
+        queuePosition: 3,
+      },
+    })
+
+    const fetchMock = vi.fn(async () => jsonResponse(queued))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { result } = renderHook(() => useAnalysisJob('job-queued', 1500))
+
+    await flushPending()
+    expect(result.current.job?.status).toBe('QUEUED')
+    expect(result.current.job?.queueState).toEqual({
+      runningCount: 2,
+      maxConcurrency: 2,
+      queuePosition: 3,
+    })
+    expect(result.current.job?.phaseLabel).toBe('Waiting for an analysis slot')
+    expect(result.current.isPolling).toBe(true)
+  })
+
   it('stops polling and exposes a 404 ApiError when the job is unknown', async () => {
     const fetchMock = vi.fn(async () =>
       jsonResponse({ code: 'JOB_NOT_FOUND', message: 'unknown' }, 404),
