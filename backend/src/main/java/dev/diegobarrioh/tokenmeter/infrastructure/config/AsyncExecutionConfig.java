@@ -22,10 +22,15 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 public class AsyncExecutionConfig {
 
   /**
-   * Pool size and queue capacity are driven by {@link AnalyzeThrottleProperties}. {@code
-   * AbortPolicy} causes saturated submissions to surface as {@link
-   * java.util.concurrent.RejectedExecutionException}, which the submission service maps to HTTP
-   * 429.
+   * Pool size and queue capacity are driven by {@link AnalyzeThrottleProperties}. After the
+   * concurrent-analysis-limits change the executor exposes worker contention as visible queueing:
+   * when every {@code corePoolSize == maxPoolSize == maxConcurrent} slot is busy, additional
+   * submissions are enqueued in the internal {@link java.util.concurrent.LinkedBlockingQueue} of
+   * capacity {@code queueCapacity} (default 256). {@code AbortPolicy} only fires when that queue
+   * itself fills up — i.e. the executor cannot accept any more tasks — and that rejection bubbles
+   * up as {@link java.util.concurrent.RejectedExecutionException}, which the submission service
+   * maps to HTTP 429 with {@code error.code = RATE_LIMITED}. Plain worker-slot contention does NOT
+   * produce a 429 any more.
    */
   @Bean(name = "analysisJobExecutor")
   public ThreadPoolTaskExecutor analysisJobExecutor(AnalyzeThrottleProperties properties) {

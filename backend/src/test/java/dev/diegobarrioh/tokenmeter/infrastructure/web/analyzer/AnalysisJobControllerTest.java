@@ -18,8 +18,10 @@ import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobErrorCode;
 import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobId;
 import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobMetrics;
 import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobPhase;
+import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobQueueState;
 import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobSnapshot;
 import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobStatus;
+import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobView;
 import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeErrorCode;
 import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeException;
 import dev.diegobarrioh.tokenmeter.infrastructure.web.PublicOriginProperties;
@@ -38,8 +40,9 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
- * Covers the eight acceptance scenarios from the {@code observable-analysis-jobs} spec for the new
- * {@link AnalysisJobController}.
+ * Covers the eight acceptance scenarios from the {@code observable-analysis-jobs} spec plus the
+ * delta added by {@code concurrent-analysis-limits} (queueState emission + phaseLabel override
+ * under contention).
  */
 @WebMvcTest(AnalysisJobController.class)
 @Import({
@@ -71,7 +74,8 @@ class AnalysisJobControllerTest {
         .andExpect(jsonPath("$.jobId").value(jobId.value().toString()))
         .andExpect(jsonPath("$.status").value("QUEUED"))
         .andExpect(jsonPath("$.statusUrl").value("/api/analyze/jobs/" + jobId.value()))
-        .andExpect(jsonPath("$.analysisId").doesNotExist());
+        .andExpect(jsonPath("$.analysisId").doesNotExist())
+        .andExpect(jsonPath("$.queueState").doesNotExist());
   }
 
   @Test
@@ -88,14 +92,15 @@ class AnalysisJobControllerTest {
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.code").value("INVALID_URL"));
 
-    verify(queryService, never()).findById(any());
+    verify(queryService, never()).getView(any());
   }
 
   @Test
-  void postWhenExecutorSaturatedReturns429RateLimited() throws Exception {
+  void postWhenQueueCeilingReachedReturns429() throws Exception {
     when(submissionService.submit(anyString()))
         .thenThrow(
-            new RepositoryIntakeException(RepositoryIntakeErrorCode.RATE_LIMITED, "queue full"));
+            new RepositoryIntakeException(
+                RepositoryIntakeErrorCode.RATE_LIMITED, "Analysis queue is full"));
 
     mockMvc
         .perform(
@@ -109,8 +114,9 @@ class AnalysisJobControllerTest {
   @Test
   void getQueuedJobReturns200WithProgressUnderHundred() throws Exception {
     AnalysisJobId jobId = AnalysisJobId.random();
-    AnalysisJobSnapshot snapshot = queuedSnapshot(jobId);
-    when(queryService.findById(eq(jobId))).thenReturn(Optional.of(snapshot));
+    AnalysisJobView view =
+        new AnalysisJobView(queuedSnapshot(jobId), new AnalysisJobQueueState(0, 3, 1));
+    when(queryService.getView(eq(jobId))).thenReturn(Optional.of(view));
 
     mockMvc
         .perform(get("/api/analyze/jobs/{jobId}", jobId.value()))
@@ -143,7 +149,8 @@ class AnalysisJobControllerTest {
             now,
             now,
             now);
-    when(queryService.findById(eq(jobId))).thenReturn(Optional.of(snapshot));
+    when(queryService.getView(eq(jobId)))
+        .thenReturn(Optional.of(new AnalysisJobView(snapshot, null)));
 
     mockMvc
         .perform(get("/api/analyze/jobs/{jobId}", jobId.value()))
@@ -175,7 +182,8 @@ class AnalysisJobControllerTest {
             now,
             now,
             now);
-    when(queryService.findById(eq(jobId))).thenReturn(Optional.of(snapshot));
+    when(queryService.getView(eq(jobId)))
+        .thenReturn(Optional.of(new AnalysisJobView(snapshot, null)));
 
     mockMvc
         .perform(get("/api/analyze/jobs/{jobId}", jobId.value()))
@@ -191,7 +199,7 @@ class AnalysisJobControllerTest {
   @Test
   void getUnknownJobIdReturns404() throws Exception {
     UUID unknownId = UUID.randomUUID();
-    when(queryService.findById(any())).thenReturn(Optional.empty());
+    when(queryService.getView(any())).thenReturn(Optional.empty());
 
     mockMvc
         .perform(get("/api/analyze/jobs/{jobId}", unknownId))
@@ -202,11 +210,76 @@ class AnalysisJobControllerTest {
   @Test
   void repeatedPollingNeverHits429BecauseInterceptorIsExcluded() throws Exception {
     AnalysisJobId jobId = AnalysisJobId.random();
-    when(queryService.findById(eq(jobId))).thenReturn(Optional.of(queuedSnapshot(jobId)));
+    AnalysisJobView view =
+        new AnalysisJobView(queuedSnapshot(jobId), new AnalysisJobQueueState(0, 3, 1));
+    when(queryService.getView(eq(jobId))).thenReturn(Optional.of(view));
 
     for (int i = 0; i < 20; i++) {
       mockMvc.perform(get("/api/analyze/jobs/{jobId}", jobId.value())).andExpect(status().isOk());
     }
+  }
+
+  @Test
+  void getJobIncludesQueueStateWhenQueued() throws Exception {
+    AnalysisJobId jobId = AnalysisJobId.random();
+    AnalysisJobView view =
+        new AnalysisJobView(queuedSnapshot(jobId), new AnalysisJobQueueState(1, 3, 2));
+    when(queryService.getView(eq(jobId))).thenReturn(Optional.of(view));
+
+    mockMvc
+        .perform(get("/api/analyze/jobs/{jobId}", jobId.value()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.queueState.runningCount").value(1))
+        .andExpect(jsonPath("$.queueState.maxConcurrency").value(3))
+        .andExpect(jsonPath("$.queueState.queuePosition").value(2))
+        .andExpect(jsonPath("$.phaseLabel").value("Queued"));
+  }
+
+  @Test
+  void getJobPhaseLabelWaitingWhenSlotContention() throws Exception {
+    AnalysisJobId jobId = AnalysisJobId.random();
+    AnalysisJobView view =
+        new AnalysisJobView(queuedSnapshot(jobId), new AnalysisJobQueueState(2, 2, 1));
+    when(queryService.getView(eq(jobId))).thenReturn(Optional.of(view));
+
+    mockMvc
+        .perform(get("/api/analyze/jobs/{jobId}", jobId.value()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.queueState.runningCount").value(2))
+        .andExpect(jsonPath("$.queueState.maxConcurrency").value(2))
+        .andExpect(jsonPath("$.queueState.queuePosition").value(1))
+        .andExpect(jsonPath("$.phaseLabel").value("Waiting for an analysis slot"));
+  }
+
+  @Test
+  void getJobOmitsQueueStateForTerminalJob() throws Exception {
+    AnalysisJobId jobId = AnalysisJobId.random();
+    UUID analysisId = UUID.randomUUID();
+    Instant now = Instant.parse("2026-05-08T20:00:00Z");
+    AnalysisJobSnapshot snapshot =
+        new AnalysisJobSnapshot(
+            jobId,
+            "https://github.com/guilu/tokenmeter",
+            AnalysisJobStatus.SUCCESS,
+            AnalysisJobPhase.COMPLETED,
+            100,
+            "All done",
+            analysisId,
+            null,
+            null,
+            new AnalysisJobMetrics(10L, 10L, 0L, 100L, 1, 1),
+            now,
+            now,
+            now,
+            now);
+    when(queryService.getView(eq(jobId)))
+        .thenReturn(Optional.of(new AnalysisJobView(snapshot, null)));
+
+    mockMvc
+        .perform(get("/api/analyze/jobs/{jobId}", jobId.value()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("SUCCESS"))
+        .andExpect(jsonPath("$.queueState").doesNotExist());
   }
 
   private static AnalysisJobSnapshot queuedSnapshot(AnalysisJobId id) {
