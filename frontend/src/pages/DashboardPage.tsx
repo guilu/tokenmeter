@@ -382,6 +382,11 @@ function LoadingState({
             <div>
               <p className="text-sm font-semibold text-text">{phaseLabel}</p>
               <p className="mt-0.5 text-xs leading-5 text-text/60">{stage.detail}</p>
+              {job?.status === 'QUEUED' && job.queueState && job.queueState.queuePosition != null ? (
+                <p className="mt-1 text-xs text-text/60 tabular-nums">
+                  Position {job.queueState.queuePosition} · {job.queueState.runningCount}/{job.queueState.maxConcurrency} running
+                </p>
+              ) : null}
             </div>
             <p className="ml-auto text-xs text-text/50 tabular-nums">{activeStage + 1} / {analysisStages.length}</p>
           </div>
