@@ -31,6 +31,7 @@ dependencies {
   runtimeOnly("org.postgresql:postgresql")
   testRuntimeOnly("com.h2database:h2")
   testImplementation("org.springframework.boot:spring-boot-starter-test")
+  testImplementation("org.awaitility:awaitility")
   testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

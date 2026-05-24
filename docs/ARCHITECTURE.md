@@ -125,9 +125,10 @@ analysisJobExecutor (thread tm-job-N)
 
 HTTP GET /api/analyze/jobs/{jobId}
   └─▶ AnalysisJobController.getJob(jobId)
-        └─▶ AnalysisJobQueryService.findById(jobId)
-              └─ JpaAnalysisJobRepository.findById → AnalysisJobSnapshot
-        ├─ 200 { jobId, status, phase, phaseLabel, progressPercent, message, analysisId, error?, metrics, timestamps }
+        └─▶ AnalysisJobQueryService.getView(jobId)
+              ├─ JpaAnalysisJobRepository.findById → AnalysisJobSnapshot
+              └─ if !terminal: countByStatus(RUNNING) + countQueuedAheadOf(jobId) → AnalysisJobQueueState
+        ├─ 200 { jobId, status, phase, phaseLabel, progressPercent, message, analysisId, error?, metrics, timestamps, queueState? }
         └─ 404 JOB_NOT_FOUND
 ```
 
@@ -168,9 +169,9 @@ Saltos hacia adelante son legales si una fase es no-op. Cualquier fase no termin
 | Componente | Tipo | Responsabilidad |
 |---|---|---|
 | `AnalysisJobController` | `@RestController` | `POST /api/analyze` y `GET /api/analyze/jobs/{jobId}`. |
-| `AnalysisJobSubmissionService` | `@Service` | Valida URL, persiste `QUEUED`, entrega al executor, mapea rechazos a 429. |
+| `AnalysisJobSubmissionService` | `@Service` | Valida URL, persiste `QUEUED`, entrega al executor. Mapea `RejectedExecutionException` (techo de cola) a 429 con mensaje `"Analysis queue is full"`. |
 | `AnalysisJobExecutionService` | `@Service` con `@Async("analysisJobExecutor")` | Orquesta la pipeline y emite progreso. |
-| `AnalysisJobQueryService` | `@Service` (read-only) | Lectura del snapshot por `jobId`. |
+| `AnalysisJobQueryService` | `@Service` (read-only) | `findById` (snapshot puro) y `getView` (snapshot + `queueState` on-read para no terminales). |
 | `AnalysisJobProgressEmitter` | port + `JpaAnalysisJobProgressEmitter` adapter | Cada emit en `@Transactional(REQUIRES_NEW)` para que el GET poll vea cambios. Clamp `progress ∈ [0..99]` excepto en `success` (único punto que pone 100). `fail` es idempotente. |
 | `AnalysisJobRepository` | port + `JpaAnalysisJobRepository` adapter | CRUD sobre `analysis_job` + queries del reaper/retention. |
 | `AnalysisJobReaper` | `ApplicationRunner` | Al boot reconcilia jobs no terminales heredados → `FAILED/JOB_INTERRUPTED`. |
@@ -181,10 +182,20 @@ Saltos hacia adelante son legales si una fase es no-op. Cualquier fase no termin
 `infrastructure/config/AsyncExecutionConfig` (`@Configuration @EnableAsync @EnableScheduling`) publica el bean `analysisJobExecutor` con:
 
 - `corePoolSize = maxPoolSize = tokenmeter.analyze-throttle.max-concurrent` (default 3)
-- `queueCapacity = tokenmeter.analyze-throttle.queue-capacity` (default 32)
+- `queueCapacity = tokenmeter.analyze-throttle.queue-capacity` (default 256)
 - `threadNamePrefix = "tm-job-"`
-- `RejectedExecutionHandler = AbortPolicy` → propaga `RejectedExecutionException`, mapeada a `RepositoryIntakeException(RATE_LIMITED)` por el submission service.
+- `RejectedExecutionHandler = AbortPolicy` → propaga `RejectedExecutionException` **sólo** cuando el `LinkedBlockingQueue` alcanza `queueCapacity`. La saturación de slots con cola libre **no** dispara `AbortPolicy`: el job queda encolado. El submission service mapea la `RejectedExecutionException` residual a `RepositoryIntakeException(RATE_LIMITED)` con mensaje `"Analysis queue is full"`.
 - `waitForTasksToCompleteOnShutdown = true`, `awaitTerminationSeconds = 30`.
+
+#### Concurrency cap y queue state
+
+Desde el cambio `concurrent-analysis-limits`, la cola interna del executor actúa como una **cola FIFO observable** y el techo de slots ya no devuelve `429`:
+
+- `tokenmeter.analyze-throttle.max-concurrent` fija el número máximo de jobs simultáneos en `status = RUNNING`. El invariante `countByStatus(RUNNING) <= maxConcurrent` se mantiene en todo wall-clock instant.
+- `tokenmeter.analyze-throttle.queue-capacity` (default `256`) es el techo del `LinkedBlockingQueue`. Sobrepasarlo es la única ruta a `429 RATE_LIMITED` desde la saturación del executor (el otro motivo de `429` sigue siendo el rate limiter por IP).
+- Promoción FIFO al liberarse un slot: el `ThreadPoolExecutor` despacha la siguiente tarea encolada; `SUCCESS` y `FAILED` liberan slot por igual.
+- `AnalysisJobQueryService.getView(jobId)` calcula `queueState` on-read sobre `analysis_job` vía `countByStatus(RUNNING)` + `countQueuedAheadOf(jobId)` (índice `idx_analysis_job_status_created_at` introducido por V7). `queueState` es `null` para jobs terminales y `queuePosition` es `null` para `RUNNING`.
+- `AnalysisJobResponseMapper` deriva `phaseLabel = "Waiting for an analysis slot"` cuando `status = QUEUED && runningCount >= maxConcurrency`; en otro caso mantiene `"Queued"`.
 
 Variables de entorno asociadas: `TOKENMETER_ANALYZE_QUEUE_CAPACITY`, `TOKENMETER_JOB_RETENTION_SUCCESS` (`Duration`, default `P7D`), `TOKENMETER_JOB_RETENTION_FAILED` (default `P30D`), `TOKENMETER_JOB_RETENTION_CRON`.
 
@@ -417,7 +428,7 @@ El proxy de Vite (`vite.config.ts`) reenvía `/api/*` a `http://localhost:8080`,
 3. **jtokkit (encoder OpenAI) para todos los modelos**. Aproximación pragmática; mejor un suelo razonable hoy que vaporware multi-tokenizer.
 4. **Postgres + Flyway desde el día 1**. `ddl-auto=validate` para que Hibernate nunca toque el schema.
 5. **Sin caché de análisis** (todavía). Cada `POST /api/analyze` clona de nuevo. Suficiente mientras `max-repository-bytes` esté en 300 MiB.
-6. **Submission asíncrono con polling** (cambio `observable-analysis-jobs`). `POST /api/analyze` persiste un job `QUEUED`, lo entrega a un `ThreadPoolTaskExecutor` (`analysisJobExecutor`, `core=max=tokenmeter.analyze-throttle.max-concurrent`, `queueCapacity=32`) y devuelve `202`. La pipeline corre en `AnalysisJobExecutionService` (`@Async`) y publica progreso a `analysis_job` mediante un emitter `REQUIRES_NEW`. El cliente pollea `GET /api/analyze/jobs/{jobId}` cada 1.5 s. Reaper al boot + retention scheduler completan el ciclo de vida.
+6. **Submission asíncrono con polling** (cambios `observable-analysis-jobs` + `concurrent-analysis-limits`). `POST /api/analyze` persiste un job `QUEUED`, lo entrega a un `ThreadPoolTaskExecutor` (`analysisJobExecutor`, `core=max=tokenmeter.analyze-throttle.max-concurrent`, `queueCapacity=256`) y devuelve `202`. La pipeline corre en `AnalysisJobExecutionService` (`@Async`) y publica progreso a `analysis_job` mediante un emitter `REQUIRES_NEW`. La saturación de slots **no** devuelve 429: el job queda encolado y el snapshot de `GET /api/analyze/jobs/{jobId}` expone `queueState` (FIFO `queuePosition` computada on-read sobre `(status, created_at, id)`). El 429 sólo se devuelve cuando se alcanza el techo de cola. Reaper al boot + retention scheduler completan el ciclo de vida.
 7. **Filesystem temporal**. Clones se borran en `finally`; no se cachean entre requests.
 8. **3 modos hardcoded** (`RAW`/`ASSISTED`/`AGENTIC`). Multiplicadores son la ABI del cálculo: cambiarlos invalida estimaciones históricas. Si fueran configurables, persistirlos en `cost_estimates.formula` (ya se hace).
 

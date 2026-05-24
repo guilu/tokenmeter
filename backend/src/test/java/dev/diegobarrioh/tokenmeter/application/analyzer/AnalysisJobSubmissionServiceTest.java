@@ -65,7 +65,10 @@ class AnalysisJobSubmissionServiceTest {
   }
 
   @Test
-  void rejectsWith429AndRollsBackRowWhenExecutorIsSaturated() {
+  void rejectsWith429WhenQueueCeilingReached() {
+    // The executor's AbortPolicy only raises RejectedExecutionException when its internal
+    // LinkedBlockingQueue is full (queue ceiling reached). Slot contention alone enqueues silently
+    // after the concurrent-analysis-limits change.
     doThrow(new RejectedExecutionException("queue full")).when(executor).execute(any());
 
     assertThatThrownBy(() -> service.submit("https://github.com/guilu/tokenmeter"))
@@ -73,8 +76,12 @@ class AnalysisJobSubmissionServiceTest {
         .extracting("errorCode")
         .isEqualTo(RepositoryIntakeErrorCode.RATE_LIMITED);
 
+    assertThatThrownBy(() -> service.submit("https://github.com/guilu/tokenmeter"))
+        .isInstanceOf(RepositoryIntakeException.class)
+        .hasMessageContaining("queue");
+
     ArgumentCaptor<UUID> idCaptor = ArgumentCaptor.forClass(UUID.class);
-    verify(repository).deleteById(idCaptor.capture());
+    verify(repository, Mockito.atLeastOnce()).deleteById(idCaptor.capture());
     assertThat(idCaptor.getValue()).isNotNull();
   }
 }

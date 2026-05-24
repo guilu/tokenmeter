@@ -19,7 +19,8 @@ public record AnalysisJobStatusResponse(
     UUID analysisId,
     JobErrorResponse error,
     JobMetricsResponse metrics,
-    JobTimestampsResponse timestamps) {
+    JobTimestampsResponse timestamps,
+    QueueStateResponse queueState) {
 
   /** Populated only when {@code status = FAILED}. */
   public record JobErrorResponse(String code, String message) {}
@@ -36,4 +37,10 @@ public record AnalysisJobStatusResponse(
   /** Lifecycle timestamps. */
   public record JobTimestampsResponse(
       Instant createdAt, Instant startedAt, Instant updatedAt, Instant completedAt) {}
+
+  /**
+   * On-read view of the executor queue. Populated for QUEUED and RUNNING jobs; absent (null) for
+   * terminal jobs. {@code queuePosition} is present only when {@code status = QUEUED}.
+   */
+  public record QueueStateResponse(int runningCount, int maxConcurrency, Integer queuePosition) {}
 }

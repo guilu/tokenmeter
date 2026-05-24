@@ -30,7 +30,7 @@ Cualquier endpoint puede devolver:
 | `ANALYSIS_NOT_FOUND` | 404 | `id` no existe en BD |
 | `JOB_NOT_FOUND` | 404 | `jobId` no existe (o fue purgado por retención) |
 | `REPOSITORY_TOO_LARGE` | 413 | Excede `TOKENMETER_MAX_REPOSITORY_BYTES` (default 300 MiB) |
-| `RATE_LIMITED` | 429 | El executor de análisis y su cola (`max-concurrent` + `queue-capacity`) están saturados |
+| `RATE_LIMITED` | 429 | Rate limiter por IP **o** techo de cola del executor (`tokenmeter.analyze-throttle.queue-capacity`, default `256`) alcanzado. La saturación de slots por sí sola **ya no devuelve 429**: se admite el job y se devuelve `202` con `status=QUEUED` (ver `POST /api/analyze`). |
 | `CLONE_FAILED` | 502 | git CLI falló durante el clone |
 | `CLONE_TIMEOUT` | 504 | Excedió `TOKENMETER_CLONE_TIMEOUT` (default 120s) |
 
@@ -113,11 +113,15 @@ Este endpoint está sujeto a rate limiting (`AnalyzeRateLimitInterceptor` por IP
 **Errores**
 
 - `400 INVALID_URL` — URL ausente, malformada o no de `github.com`.
-- `429 RATE_LIMITED` — Rate limiter por IP o cola del executor saturada (los `maxConcurrent` workers están ocupados **y** la cola de `queueCapacity = 32` también está llena).
+- `429 RATE_LIMITED` — exactamente dos causas:
+  1. Rate limiter por IP (`AnalyzeRateLimitInterceptor`) excedido.
+  2. Cola interna del executor (`tokenmeter.analyze-throttle.queue-capacity`, default `256`) llena: todos los slots `maxConcurrent` están ocupados **y** la cola ya tiene `queueCapacity` jobs encolados. `error.message` menciona explícitamente que la cola está al máximo.
+
+  La saturación de slots **sin** que la cola esté llena **no** devuelve 429: el job se admite y se devuelve `202` con `status=QUEUED`. El cliente debe pollear `GET /api/analyze/jobs/{jobId}` para ver `queueState.queuePosition` decrecer.
 
 Los errores que aparecían como HTTP 5xx en la versión síncrona (`CLONE_FAILED`, `CLONE_TIMEOUT`, `REPOSITORY_TOO_LARGE`, `ANALYSIS_FAILED`) ahora se materializan **dentro del body del job** (`status=FAILED`, `error.code`) y se exponen vía `GET /api/analyze/jobs/{jobId}`.
 
-> El estado `QUEUED` significa que el job fue admitido pero todavía no hay un worker libre. Con `queueCapacity = 32` ráfagas cortas dejan de devolver 429 inmediatamente; sólo se devuelve 429 cuando el executor **y** la cola están llenos.
+> El estado `QUEUED` significa que el job fue admitido y está esperando un worker libre. Con `queueCapacity = 256` (default) la API absorbe ráfagas grandes antes de devolver 429; sólo se devuelve 429 cuando los slots **y** la cola están llenos.
 
 ---
 
@@ -126,6 +130,35 @@ Los errores que aparecían como HTTP 5xx en la versión síncrona (`CLONE_FAILED
 Devuelve el snapshot actual de un job de análisis. Diseñado para polling cada 1.5–2 s desde el cliente. **No** está sujeto al `AnalyzeRateLimitInterceptor` — un cliente puede pollear con la cadencia que necesite sin generar 429.
 
 **Path params**: `jobId` (UUID).
+
+**200 OK** — job esperando worker (`QUEUED`):
+
+```json
+{
+  "jobId": "0d4b8c8e-9a32-4d2a-9b58-6e9c1d6f7a01",
+  "status": "QUEUED",
+  "phase": "QUEUED",
+  "phaseLabel": "Waiting for an analysis slot",
+  "progressPercent": 0,
+  "message": null,
+  "analysisId": null,
+  "error": null,
+  "metrics": null,
+  "timestamps": {
+    "createdAt": "2026-05-22T10:15:30.123Z",
+    "startedAt": null,
+    "updatedAt": "2026-05-22T10:15:30.123Z",
+    "completedAt": null
+  },
+  "queueState": {
+    "runningCount": 2,
+    "maxConcurrency": 2,
+    "queuePosition": 3
+  }
+}
+```
+
+`phaseLabel` cambia a `"Waiting for an analysis slot"` cuando `queueState.runningCount >= queueState.maxConcurrency`; en la ventana breve previa al `markStarted` puede aparecer `"Queued"` con `runningCount < maxConcurrency`.
 
 **200 OK** — job activo (`RUNNING`):
 
@@ -152,6 +185,11 @@ Devuelve el snapshot actual de un job de análisis. Diseñado para polling cada 
     "startedAt": "2026-05-22T10:15:30.421Z",
     "updatedAt": "2026-05-22T10:15:42.812Z",
     "completedAt": null
+  },
+  "queueState": {
+    "runningCount": 2,
+    "maxConcurrency": 2,
+    "queuePosition": null
   }
 }
 ```
@@ -243,6 +281,10 @@ Cuando `status = SUCCESS`, `analysisId` apunta al recurso persistido — recuper
 | `timestamps.startedAt` | ISO-8601 \| null | Primera transición a `RUNNING`. |
 | `timestamps.updatedAt` | ISO-8601 | Último emit del progreso. |
 | `timestamps.completedAt` | ISO-8601 \| null | Set cuando el job alcanza un estado terminal (`SUCCESS`/`FAILED`). |
+| `queueState` | object \| null | Vista on-read del executor. Presente para `QUEUED` y `RUNNING`; **omitido o `null`** cuando `status ∈ {SUCCESS, FAILED}`. **No aparece** en el body de `POST /api/analyze`. |
+| `queueState.runningCount` | int (≥ 0) | Filas en `analysis_job` con `status = RUNNING` en el instante del poll. |
+| `queueState.maxConcurrency` | int (≥ 1) | Cap del sistema, leído de `tokenmeter.analyze-throttle.max-concurrent`. |
+| `queueState.queuePosition` | int (≥ 1) \| null | Posición FIFO 1-based ordenando por `(created_at ASC, id ASC)`. **Presente sólo** cuando `status = QUEUED`; `null` cuando `status = RUNNING`. Es estimación best-effort: monótona decreciente en ausencia de nuevas submissions delante del job, pero un fallo en una posición previa puede hacerla saltar. |
 
 **404 JOB_NOT_FOUND** si el `jobId` no existe o fue purgado por el scheduler de retención (por defecto: jobs `SUCCESS` > 7 días, `FAILED` > 30 días).
 

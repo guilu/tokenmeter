@@ -50,6 +50,12 @@ export interface JobTimestamps {
   completedAt: string | null
 }
 
+export interface AnalysisJobQueueStateResponse {
+  runningCount: number
+  maxConcurrency: number
+  queuePosition?: number | null
+}
+
 export interface AnalysisJobStatusResponse {
   jobId: string
   status: JobStatus
@@ -61,6 +67,7 @@ export interface AnalysisJobStatusResponse {
   error: JobError | null
   metrics: JobMetrics | null
   timestamps: JobTimestamps
+  queueState?: AnalysisJobQueueStateResponse | null
 }
 
 export interface RepositoryAnalysisResponse {

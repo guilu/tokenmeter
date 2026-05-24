@@ -47,7 +47,7 @@ public class AnalysisJobController {
   public AnalysisJobStatusResponse getJob(@PathVariable UUID jobId) {
     AnalysisJobId id = new AnalysisJobId(jobId);
     return queryService
-        .findById(id)
+        .getView(id)
         .map(mapper::toStatus)
         .orElseThrow(() -> new AnalysisJobNotFoundException(id));
   }
