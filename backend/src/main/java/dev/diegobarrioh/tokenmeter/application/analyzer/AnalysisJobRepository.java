@@ -6,6 +6,7 @@ import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobMetrics;
 import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobPhase;
 import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobSnapshot;
 import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobStatus;
+import dev.diegobarrioh.tokenmeter.domain.pricing.PricingSnapshotHandle;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -31,6 +32,13 @@ public interface AnalysisJobRepository {
 
   /** Merges the given metrics into the job; never regresses a non-null field to {@code null}. */
   void updateMetrics(AnalysisJobId id, AnalysisJobMetrics metrics);
+
+  /**
+   * Persists the captured {@link PricingSnapshotHandle} on the job row. No-op on terminal jobs.
+   * Used by the worker at the start of {@code CALCULATING_COSTS} so the job and its eventual
+   * analysis row share the same pricing snapshot identifier.
+   */
+  void updatePricing(AnalysisJobId id, PricingSnapshotHandle handle);
 
   /** Marks the job as successful with the produced {@code analysisId} (progress=100). */
   void markSuccess(

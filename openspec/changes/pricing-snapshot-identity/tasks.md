@@ -13,17 +13,17 @@
 
 ## Phase 3: Cost Estimation + Job Pipeline
 
-- [ ] 3.1 Modify `application/cost/RepositoryCostEstimationService.java`: add overload `estimate(long baseTokens, PricingSnapshotHandle handle)` iterating `handle.snapshots()`; existing `estimate(long)` delegates by capturing handle from identity service. Acceptance: unit test asserts handle-driven path ignores mid-call provider mutations.
-- [ ] 3.2 Modify `application/analyzer/RepositoryAnalysisResult.java` to carry an optional `PricingSnapshotHandle pricing` field (nullable).
-- [ ] 3.3 Modify `domain/job/AnalysisJobSnapshot.java` to add nullable `pricing` carrier (id, primarySource, capturedAt) for status mapper.
-- [ ] 3.4 Modify `application/analyzer/AnalysisJobProgressEmitter.java` (and JPA impl) with `markPricing(jobId, handle)` issuing `@Transactional(REQUIRES_NEW)` UPDATE on `analysis_job` pricing columns.
-- [ ] 3.5 Modify `application/analyzer/AnalysisJobExecutionService.runJob`: at start of `CALCULATING_COSTS`, call `identityService.capture()`, `emitter.markPricing(jobId, handle)`, pass handle to `estimate(...)` and downstream `RepositoryAnalysisResult`. Acceptance: integration test asserts job/analysis ids match and mid-job refresh does not desync.
+- [x] 3.1 Modify `application/cost/RepositoryCostEstimationService.java`: add overload `estimate(long baseTokens, PricingSnapshotHandle handle)` iterating `handle.snapshots()`; existing `estimate(long)` delegates by capturing handle from identity service. Acceptance: unit test asserts handle-driven path ignores mid-call provider mutations.
+- [x] 3.2 Modify `application/analyzer/RepositoryAnalysisResult.java` to carry an optional `PricingSnapshotHandle pricing` field (nullable).
+- [x] 3.3 Modify `domain/job/AnalysisJobSnapshot.java` to add nullable `pricing` carrier (id, primarySource, capturedAt) for status mapper.
+- [x] 3.4 Modify `application/analyzer/AnalysisJobProgressEmitter.java` (and JPA impl) with `markPricing(jobId, handle)` issuing `@Transactional(REQUIRES_NEW)` UPDATE on `analysis_job` pricing columns.
+- [x] 3.5 Modify `application/analyzer/AnalysisJobExecutionService.runJob`: at start of `CALCULATING_COSTS`, call `identityService.capture()`, `emitter.markPricing(jobId, handle)`, pass handle to `estimate(...)` and downstream `RepositoryAnalysisResult`. Acceptance: integration test asserts job/analysis ids match and mid-job refresh does not desync.
 
 ## Phase 4: Persistence
 
-- [ ] 4.1 Modify `infrastructure/persistence/analysis/AnalysisEntity.java` adding `pricingSnapshotId`, `pricingPrimarySource`, `pricingCapturedAt` columns + getters/setters.
-- [ ] 4.2 Modify `infrastructure/persistence/analysis/jobs/AnalysisJobEntity.java` adding same three columns + accessors; ensure repository read maps them onto `AnalysisJobSnapshot.pricing`.
-- [ ] 4.3 Modify `infrastructure/persistence/analysis/JpaAnalysisPersistenceService.save(...)` to accept handle and copy pricing fields onto `AnalysisEntity` before persist.
+- [x] 4.1 Modify `infrastructure/persistence/analysis/AnalysisEntity.java` adding `pricingSnapshotId`, `pricingPrimarySource`, `pricingCapturedAt` columns + getters/setters.
+- [x] 4.2 Modify `infrastructure/persistence/analysis/jobs/AnalysisJobEntity.java` adding same three columns + accessors; ensure repository read maps them onto `AnalysisJobSnapshot.pricing`.
+- [x] 4.3 Modify `infrastructure/persistence/analysis/JpaAnalysisPersistenceService.save(...)` to accept handle and copy pricing fields onto `AnalysisEntity` before persist.
 
 ## Phase 5: Web API
 

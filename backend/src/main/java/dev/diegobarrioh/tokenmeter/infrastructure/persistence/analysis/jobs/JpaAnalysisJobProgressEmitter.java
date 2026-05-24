@@ -8,6 +8,7 @@ import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobId;
 import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobMetrics;
 import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobPhase;
 import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobStatus;
+import dev.diegobarrioh.tokenmeter.domain.pricing.PricingSnapshotHandle;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.UUID;
@@ -73,6 +74,21 @@ public class JpaAnalysisJobProgressEmitter implements AnalysisJobProgressEmitter
     try (MdcScope ignored = MdcScope.of("jobId", id.toString())) {
       LOGGER.warn("job failed code={} message={}", code, message);
       jobRepository.markFailed(id, code, message, Instant.now(clock));
+    }
+  }
+
+  @Override
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public void markPricing(AnalysisJobId id, PricingSnapshotHandle handle) {
+    if (handle == null) {
+      return;
+    }
+    try (MdcScope ignored = MdcScope.of("jobId", id.toString())) {
+      LOGGER.info(
+          "job pricing snapshot captured id={} source={}",
+          handle.id().value(),
+          handle.primarySource());
+      jobRepository.updatePricing(id, handle);
     }
   }
 

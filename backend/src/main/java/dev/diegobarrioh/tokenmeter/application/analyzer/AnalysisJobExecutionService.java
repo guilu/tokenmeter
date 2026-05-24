@@ -1,6 +1,7 @@
 package dev.diegobarrioh.tokenmeter.application.analyzer;
 
 import dev.diegobarrioh.tokenmeter.application.cost.RepositoryCostEstimationService;
+import dev.diegobarrioh.tokenmeter.application.pricing.PricingSnapshotIdentityService;
 import dev.diegobarrioh.tokenmeter.application.repository.GitRepositoryCloner;
 import dev.diegobarrioh.tokenmeter.application.repository.RepositoryIntakeProperties;
 import dev.diegobarrioh.tokenmeter.application.repository.RepositorySizeCalculator;
@@ -13,6 +14,7 @@ import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobMetrics;
 import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobPhase;
 import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobSnapshot;
 import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobStatus;
+import dev.diegobarrioh.tokenmeter.domain.pricing.PricingSnapshotHandle;
 import dev.diegobarrioh.tokenmeter.domain.repository.GitHubRepositoryUrl;
 import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryCloneSummary;
 import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeErrorCode;
@@ -50,6 +52,7 @@ public class AnalysisJobExecutionService {
   private final RepositorySizeCalculator sizeCalculator;
   private final AnalysisJobRepository jobRepository;
   private final AnalysisJobProgressEmitter emitter;
+  private final PricingSnapshotIdentityService pricingIdentityService;
 
   @Autowired
   public AnalysisJobExecutionService(
@@ -60,7 +63,8 @@ public class AnalysisJobExecutionService {
       AnalysisPersistenceService persistenceService,
       RepositoryCostEstimationService costEstimationService,
       AnalysisJobRepository jobRepository,
-      AnalysisJobProgressEmitter emitter) {
+      AnalysisJobProgressEmitter emitter,
+      PricingSnapshotIdentityService pricingIdentityService) {
     this(
         cloner,
         properties,
@@ -70,7 +74,8 @@ public class AnalysisJobExecutionService {
         costEstimationService,
         new RepositorySizeCalculator(),
         jobRepository,
-        emitter);
+        emitter,
+        pricingIdentityService);
   }
 
   AnalysisJobExecutionService(
@@ -82,7 +87,8 @@ public class AnalysisJobExecutionService {
       RepositoryCostEstimationService costEstimationService,
       RepositorySizeCalculator sizeCalculator,
       AnalysisJobRepository jobRepository,
-      AnalysisJobProgressEmitter emitter) {
+      AnalysisJobProgressEmitter emitter,
+      PricingSnapshotIdentityService pricingIdentityService) {
     this.cloner = cloner;
     this.properties = properties;
     this.fileScanner = fileScanner;
@@ -92,6 +98,7 @@ public class AnalysisJobExecutionService {
     this.sizeCalculator = sizeCalculator;
     this.jobRepository = jobRepository;
     this.emitter = emitter;
+    this.pricingIdentityService = pricingIdentityService;
   }
 
   /** Async entry point: executes on the {@code analysisJobExecutor} thread pool. */
@@ -155,8 +162,10 @@ public class AnalysisJobExecutionService {
               null));
 
       emitter.transition(id, AnalysisJobPhase.CALCULATING_COSTS, 80, "Estimating costs");
+      PricingSnapshotHandle pricingHandle = pricingIdentityService.capture();
+      emitter.markPricing(id, pricingHandle);
       List<ModelCostEstimate> costEstimates =
-          costEstimationService.estimate(tokenization.totalTokens());
+          costEstimationService.estimate(tokenization.totalTokens(), pricingHandle);
       emitter.updateMetrics(
           id,
           new AnalysisJobMetrics(
@@ -177,7 +186,8 @@ public class AnalysisJobExecutionService {
                   repositoryUrl.name(),
                   scan,
                   tokenization,
-                  costEstimates));
+                  costEstimates,
+                  pricingHandle));
 
       AnalysisJobMetrics finalMetrics =
           new AnalysisJobMetrics(

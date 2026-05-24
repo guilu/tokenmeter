@@ -4,16 +4,24 @@ import dev.diegobarrioh.tokenmeter.application.pricing.PricingProvider;
 import dev.diegobarrioh.tokenmeter.domain.cost.CostEstimationMode;
 import dev.diegobarrioh.tokenmeter.domain.cost.ModelCostEstimate;
 import dev.diegobarrioh.tokenmeter.domain.pricing.ModelPricing;
+import dev.diegobarrioh.tokenmeter.domain.pricing.PricingSnapshot;
+import dev.diegobarrioh.tokenmeter.domain.pricing.PricingSnapshotHandle;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
 import org.springframework.stereotype.Service;
 
 @Service
 public class RepositoryCostEstimationService {
   private static final BigDecimal ONE_MILLION = new BigDecimal("1000000");
+
+  private static final Comparator<PricingSnapshot> CANONICAL_ORDER =
+      Comparator.comparing((PricingSnapshot s) -> s.provider().configKey())
+          .thenComparing(s -> s.model().toLowerCase(Locale.ROOT).trim());
 
   private final PricingProvider pricingProvider;
 
@@ -21,14 +29,39 @@ public class RepositoryCostEstimationService {
     this.pricingProvider = pricingProvider;
   }
 
+  /**
+   * Back-compat overload. Reads the provider snapshot list once at the start of the call, then
+   * iterates the captured copy so a {@link
+   * dev.diegobarrioh.tokenmeter.application.pricing.refresh.PricingRefreshedEvent} arriving
+   * mid-call cannot change the result.
+   */
   public List<ModelCostEstimate> estimate(long baseTokens) {
     if (baseTokens < 0) {
       throw new IllegalArgumentException("base tokens must be positive or zero");
     }
-    return pricingProvider.all().stream()
-        .sorted(
-            Comparator.comparing((ModelPricing pricing) -> pricing.provider().configKey())
-                .thenComparing(ModelPricing::model))
+    List<PricingSnapshot> captured = List.copyOf(pricingProvider.snapshots());
+    return estimateFromSnapshots(captured, baseTokens);
+  }
+
+  /**
+   * Handle-aware overload. Iterates exactly the snapshots carried by the {@link
+   * PricingSnapshotHandle}, ignoring any mutation that may occur on the {@link PricingProvider}
+   * cache during the call. Use this overload from the worker so the job and the resulting analysis
+   * share a single pricing snapshot id.
+   */
+  public List<ModelCostEstimate> estimate(long baseTokens, PricingSnapshotHandle handle) {
+    if (baseTokens < 0) {
+      throw new IllegalArgumentException("base tokens must be positive or zero");
+    }
+    Objects.requireNonNull(handle, "handle is required");
+    return estimateFromSnapshots(handle.snapshots(), baseTokens);
+  }
+
+  private static List<ModelCostEstimate> estimateFromSnapshots(
+      List<PricingSnapshot> snapshots, long baseTokens) {
+    return snapshots.stream()
+        .sorted(CANONICAL_ORDER)
+        .map(PricingSnapshot::pricing)
         .flatMap(
             pricing ->
                 Arrays.stream(CostEstimationMode.values())
@@ -36,7 +69,7 @@ public class RepositoryCostEstimationService {
         .toList();
   }
 
-  private ModelCostEstimate estimate(
+  private static ModelCostEstimate estimate(
       ModelPricing pricing, CostEstimationMode mode, long baseTokens) {
     long estimatedOutputTokens = multiplyCeiling(baseTokens, mode.outputMultiplier());
     long estimatedInputTokens = multiplyCeiling(baseTokens, mode.reasoningInputMultiplier());

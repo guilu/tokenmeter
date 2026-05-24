@@ -7,6 +7,9 @@ import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobMetrics;
 import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobPhase;
 import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobSnapshot;
 import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobStatus;
+import dev.diegobarrioh.tokenmeter.domain.pricing.PricingSnapshotHandle;
+import dev.diegobarrioh.tokenmeter.domain.pricing.PricingSnapshotId;
+import dev.diegobarrioh.tokenmeter.domain.pricing.PricingSource;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -93,6 +96,25 @@ public class JpaAnalysisJobRepository implements AnalysisJobRepository {
               if (metrics.pricingModelsProcessed() != null) {
                 entity.setPricingModelsProcessed(metrics.pricingModelsProcessed());
               }
+            });
+  }
+
+  @Override
+  @Transactional
+  public void updatePricing(AnalysisJobId id, PricingSnapshotHandle handle) {
+    if (handle == null) {
+      return;
+    }
+    delegate
+        .findById(id.value())
+        .ifPresent(
+            entity -> {
+              if (entity.getStatus().isTerminal()) {
+                return;
+              }
+              entity.setPricingSnapshotId(handle.id().value());
+              entity.setPricingPrimarySource(handle.primarySource().name());
+              entity.setPricingCapturedAt(handle.capturedAt());
             });
   }
 
@@ -264,6 +286,7 @@ public class JpaAnalysisJobRepository implements AnalysisJobRepository {
             entity.getPricingModelsProcessed());
     AnalysisJobErrorCode errorCode =
         entity.getErrorCode() == null ? null : AnalysisJobErrorCode.valueOf(entity.getErrorCode());
+    AnalysisJobSnapshot.PricingSnapshotCapture pricing = toPricingCapture(entity);
     return new AnalysisJobSnapshot(
         new AnalysisJobId(entity.getId()),
         entity.getRepositoryUrl(),
@@ -278,6 +301,25 @@ public class JpaAnalysisJobRepository implements AnalysisJobRepository {
         entity.getCreatedAt(),
         entity.getStartedAt(),
         entity.getUpdatedAt(),
-        entity.getCompletedAt());
+        entity.getCompletedAt(),
+        pricing);
+  }
+
+  private static AnalysisJobSnapshot.PricingSnapshotCapture toPricingCapture(
+      AnalysisJobEntity entity) {
+    String storedId = entity.getPricingSnapshotId();
+    Instant capturedAt = entity.getPricingCapturedAt();
+    String storedSource = entity.getPricingPrimarySource();
+    if (storedId == null || storedSource == null || capturedAt == null) {
+      return null;
+    }
+    PricingSource source;
+    try {
+      source = PricingSource.valueOf(storedSource);
+    } catch (IllegalArgumentException ex) {
+      return null;
+    }
+    return new AnalysisJobSnapshot.PricingSnapshotCapture(
+        new PricingSnapshotId(storedId), source, capturedAt);
   }
 }

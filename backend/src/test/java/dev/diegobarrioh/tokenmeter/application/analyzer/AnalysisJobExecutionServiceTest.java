@@ -12,6 +12,7 @@ import static org.mockito.Mockito.when;
 
 import dev.diegobarrioh.tokenmeter.application.cost.RepositoryCostEstimationService;
 import dev.diegobarrioh.tokenmeter.application.pricing.PricingProvider;
+import dev.diegobarrioh.tokenmeter.application.pricing.PricingSnapshotIdentityService;
 import dev.diegobarrioh.tokenmeter.application.repository.RepositoryIntakeProperties;
 import dev.diegobarrioh.tokenmeter.application.tokenizer.OpenAiTokenCounter;
 import dev.diegobarrioh.tokenmeter.application.tokenizer.RepositoryTokenizationService;
@@ -29,6 +30,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -60,7 +62,8 @@ class AnalysisJobExecutionServiceTest {
             persistenceServiceReturning(analysisId),
             costEstimationService(),
             jobRepository,
-            emitter);
+            emitter,
+            identityService());
 
     service.runJobInternal(jobId);
 
@@ -105,7 +108,8 @@ class AnalysisJobExecutionServiceTest {
             persistenceServiceReturning(UUID.randomUUID()),
             costEstimationService(),
             jobRepository,
-            emitter);
+            emitter,
+            identityService());
 
     service.runJobInternal(jobId);
 
@@ -132,7 +136,8 @@ class AnalysisJobExecutionServiceTest {
             persistenceServiceReturning(UUID.randomUUID()),
             costEstimationService(),
             jobRepository,
-            emitter);
+            emitter,
+            identityService());
 
     service.runJobInternal(jobId);
 
@@ -160,7 +165,8 @@ class AnalysisJobExecutionServiceTest {
             persistenceServiceReturning(UUID.randomUUID()),
             costEstimationService(),
             jobRepository,
-            emitter);
+            emitter,
+            identityService());
 
     service.runJobInternal(jobId);
 
@@ -201,7 +207,8 @@ class AnalysisJobExecutionServiceTest {
             persistenceServiceReturning(UUID.randomUUID()),
             costEstimationService(),
             jobRepository,
-            emitter);
+            emitter,
+            identityService());
 
     service.runJobInternal(jobId);
 
@@ -265,20 +272,27 @@ class AnalysisJobExecutionServiceTest {
   }
 
   private static RepositoryCostEstimationService costEstimationService() {
-    return new RepositoryCostEstimationService(
-        new PricingProvider() {
-          @Override
-          public List<ModelPricing> all() {
-            return List.of(
-                new ModelPricing(
-                    AiProvider.OPENAI, "gpt-4o", new BigDecimal("2.50"), new BigDecimal("10.00")));
-          }
+    return new RepositoryCostEstimationService(testPricingProvider());
+  }
 
-          @Override
-          public Optional<ModelPricing> find(AiProvider provider, String model) {
-            return Optional.empty();
-          }
-        });
+  private static PricingSnapshotIdentityService identityService() {
+    return new PricingSnapshotIdentityService(testPricingProvider(), Clock.systemUTC());
+  }
+
+  private static PricingProvider testPricingProvider() {
+    return new PricingProvider() {
+      @Override
+      public List<ModelPricing> all() {
+        return List.of(
+            new ModelPricing(
+                AiProvider.OPENAI, "gpt-4o", new BigDecimal("2.50"), new BigDecimal("10.00")));
+      }
+
+      @Override
+      public Optional<ModelPricing> find(AiProvider provider, String model) {
+        return Optional.empty();
+      }
+    };
   }
 
   private static void writeFile(Path directory, String relativePath, String content) {
