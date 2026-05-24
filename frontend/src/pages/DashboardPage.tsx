@@ -499,19 +499,45 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
             {copyState === 'copied' ? 'Copied!' : copyState === 'failed' ? 'Copy failed' : 'Copy public URL'}
           </button>
           <a
-            className="rounded-2xl border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-medium text-primary transition hover:bg-primary/20"
+            className="inline-flex items-center gap-2 rounded-2xl border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-medium text-primary transition hover:bg-primary/20"
             href={selectedOpenGraphImageUrl}
             rel="noreferrer"
             target="_blank"
           >
+            <svg
+              aria-hidden="true"
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              viewBox="0 0 24 24"
+            >
+              <circle cx="18" cy="5" r="3" strokeLinecap="round" strokeLinejoin="round" />
+              <circle cx="6" cy="12" r="3" strokeLinecap="round" strokeLinejoin="round" />
+              <circle cx="18" cy="19" r="3" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
             Download badge
           </a>
           <a
-            className="rounded-2xl border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-medium text-primary transition hover:bg-primary/20"
+            className="inline-flex items-center gap-2 rounded-2xl border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-medium text-primary transition hover:bg-primary/20"
             href={`/api/analyze/${analysis.id}/badge.svg`}
             rel="noreferrer"
             target="_blank"
           >
+            <svg
+              aria-hidden="true"
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              viewBox="0 0 24 24"
+            >
+              <circle cx="18" cy="5" r="3" strokeLinecap="round" strokeLinejoin="round" />
+              <circle cx="6" cy="12" r="3" strokeLinecap="round" strokeLinejoin="round" />
+              <circle cx="18" cy="19" r="3" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
             Download mini badge
           </a>
         </div>
