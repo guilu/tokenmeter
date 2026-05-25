@@ -26,4 +26,5 @@ coverage/
 *.jar
 
 # local agent settings
+.atl/
 .claude/settings.local.json
