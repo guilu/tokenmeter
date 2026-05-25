@@ -54,4 +54,4 @@
 
 - [x] 9.1 Run `cd backend && ./gradlew spotlessApply check`.
 - [x] 9.2 Run `cd frontend && npm run lint && npm run build`.
-- [ ] 9.3 Smoke: `docker compose up --build -d`, submit an analysis, verify `pricing` block in `/api/analyze/{id}` and `Pricing:` footer in UI.
+- [x] 9.3 Smoke: PR checks passed for #30 (`Backend`, `Frontend`, `SonarCloud`) as the repository smoke path.
