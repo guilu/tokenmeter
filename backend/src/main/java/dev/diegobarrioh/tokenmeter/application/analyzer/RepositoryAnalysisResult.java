@@ -13,8 +13,8 @@ import java.util.UUID;
  *
  * <p>The optional {@code pricing} handle propagates the snapshot identifier captured at the start
  * of {@code CALCULATING_COSTS} from the worker to the persistence service so the same id lands on
- * both the {@code analysis_job} row and the resulting {@code analysis} row. Legacy code paths
- * (e.g. tests, in-memory persistence) MAY pass {@code null}.
+ * both the {@code analysis_job} row and the resulting {@code analysis} row. Legacy code paths (e.g.
+ * tests, in-memory persistence) MAY pass {@code null}.
  */
 public record RepositoryAnalysisResult(
     UUID id,
@@ -58,7 +58,16 @@ public record RepositoryAnalysisResult(
       RepositoryTokenizationResult tokenization,
       List<ModelCostEstimate> costEstimates,
       PricingSnapshotHandle pricing) {
-    this(null, null, repositoryUrl, cloneUrl, owner, name, scan, tokenization, costEstimates,
+    this(
+        null,
+        null,
+        repositoryUrl,
+        cloneUrl,
+        owner,
+        name,
+        scan,
+        tokenization,
+        costEstimates,
         pricing);
   }
 
@@ -72,7 +81,16 @@ public record RepositoryAnalysisResult(
       RepositoryScanResult scan,
       RepositoryTokenizationResult tokenization,
       List<ModelCostEstimate> costEstimates) {
-    this(id, createdAt, repositoryUrl, cloneUrl, owner, name, scan, tokenization, costEstimates,
+    this(
+        id,
+        createdAt,
+        repositoryUrl,
+        cloneUrl,
+        owner,
+        name,
+        scan,
+        tokenization,
+        costEstimates,
         null);
   }
 

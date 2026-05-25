@@ -19,9 +19,10 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
 /**
- * Canonicalises the active {@link PricingSnapshot} list and exposes a deterministic, content-derived
- * {@link PricingSnapshotId}. The id is cached per refresh cycle; a {@link PricingRefreshedEvent}
- * invalidates the cache so the next read recomputes from the post-refresh snapshot.
+ * Canonicalises the active {@link PricingSnapshot} list and exposes a deterministic,
+ * content-derived {@link PricingSnapshotId}. The id is cached per refresh cycle; a {@link
+ * PricingRefreshedEvent} invalidates the cache so the next read recomputes from the post-refresh
+ * snapshot.
  *
  * <p>Canonical input (UTF-8, no BOM, fed to SHA-256):
  *

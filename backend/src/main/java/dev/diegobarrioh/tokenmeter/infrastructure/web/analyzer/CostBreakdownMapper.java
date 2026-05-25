@@ -26,7 +26,8 @@ public class CostBreakdownMapper {
         result.repositoryUrl(),
         new CostBreakdownSummaryResponse(
             result.tokenization().totalTokens(), models.size(), totalModes),
-        models);
+        models,
+        RepositoryAnalysisMapper.toPricingMetadata(result.pricing()));
   }
 
   private List<CostBreakdownModelResponse> toModels(RepositoryAnalysisResult result) {

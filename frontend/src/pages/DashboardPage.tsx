@@ -557,6 +557,11 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
         <p className="mt-3 text-sm text-text/60">
           Analysis id: {analysis.id} · {dateFormatter.format(new Date(analysis.createdAt))}
         </p>
+        {analysis.pricing ? (
+          <p className="mt-1 text-sm text-text/60">
+            Pricing: {analysis.pricing.primarySource} · captured {dateFormatter.format(new Date(analysis.pricing.capturedAt))}
+          </p>
+        ) : null}
       </header>
 
       <ModeSwitch selectedMode={selectedMode} onSelectMode={setSelectedMode} />

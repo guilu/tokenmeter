@@ -219,11 +219,16 @@ Devuelve el snapshot actual de un job de análisis. Diseñado para polling cada 
     "startedAt": "2026-05-22T10:15:30.421Z",
     "updatedAt": "2026-05-22T10:15:54.118Z",
     "completedAt": "2026-05-22T10:15:54.118Z"
+  },
+  "pricing": {
+    "snapshotId": "v1:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "primarySource": "REMOTE",
+    "capturedAt": "2026-05-22T10:15:50.012Z"
   }
 }
 ```
 
-Cuando `status = SUCCESS`, `analysisId` apunta al recurso persistido — recuperable con `GET /api/analyze/{id}`.
+Cuando `status = SUCCESS`, `analysisId` apunta al recurso persistido — recuperable con `GET /api/analyze/{id}`. El bloque opcional `pricing` aparece desde `CALCULATING_COSTS`, una vez capturado el snapshot de precios; se omite por completo para jobs previos a esa fase y para filas legacy sin identidad.
 
 **200 OK** — job terminado en fallo (`FAILED`):
 
@@ -285,6 +290,10 @@ Cuando `status = SUCCESS`, `analysisId` apunta al recurso persistido — recuper
 | `queueState.runningCount` | int (≥ 0) | Filas en `analysis_job` con `status = RUNNING` en el instante del poll. |
 | `queueState.maxConcurrency` | int (≥ 1) | Cap del sistema, leído de `tokenmeter.analyze-throttle.max-concurrent`. |
 | `queueState.queuePosition` | int (≥ 1) \| null | Posición FIFO 1-based ordenando por `(created_at ASC, id ASC)`. **Presente sólo** cuando `status = QUEUED`; `null` cuando `status = RUNNING`. Es estimación best-effort: monótona decreciente en ausencia de nuevas submissions delante del job, pero un fallo en una posición previa puede hacerla saltar. |
+| `pricing` | object \| ausente | Metadata opcional del snapshot de precios capturado en `CALCULATING_COSTS`. Omitido cuando `pricing_snapshot_id IS NULL`. |
+| `pricing.snapshotId` | string | `v1:` + SHA-256 hex de la canonicalización de precios activa. |
+| `pricing.primarySource` | enum | `OVERRIDE`, `REMOTE` o `FALLBACK`; capa ganadora de mayor precedencia en el snapshot capturado. |
+| `pricing.capturedAt` | ISO-8601 | Instante en el que el worker capturó el snapshot para ese job. |
 
 **404 JOB_NOT_FOUND** si el `jobId` no existe o fue purgado por el scheduler de retención (por defecto: jobs `SUCCESS` > 7 días, `FAILED` > 30 días).
 
@@ -332,11 +341,16 @@ Devuelve un análisis previamente persistido (resultado terminal de un job con `
       "totalCost": 1.428150,
       "formula": "inputCost=(baseTokens*0*inputPricePerMillion)/1_000_000; outputCost=(baseTokens*1*outputPricePerMillion)/1_000_000; totalCost=inputCost+outputCost"
     }
-  ]
+  ],
+  "pricing": {
+    "snapshotId": "v1:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "primarySource": "REMOTE",
+    "capturedAt": "2026-05-22T10:15:50.012Z"
+  }
 }
 ```
 
-`costEstimates` contiene `N modelos × 3 modos` entradas (modos `raw`, `assisted`, `agentic`).
+`costEstimates` contiene `N modelos × 3 modos` entradas (modos `raw`, `assisted`, `agentic`). El bloque `pricing` es opcional y se omite por completo para análisis legacy con `analysis.pricing_snapshot_id IS NULL`.
 
 **404 ANALYSIS_NOT_FOUND** si el `id` no existe.
 
@@ -367,11 +381,16 @@ Vista alternativa del análisis enfocada en el desglose de costes (sin métricas
           "inputCost": 0.0, "outputCost": 1.428150, "totalCost": 1.428150 }
       ]
     }
-  ]
+  ],
+  "pricing": {
+    "snapshotId": "v1:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "primarySource": "REMOTE",
+    "capturedAt": "2026-05-22T10:15:50.012Z"
+  }
 }
 ```
 
-> Forma exacta dependiente de `CostBreakdownMapper`. Verificar `CostBreakdownResponse` para el contrato canónico.
+El bloque `pricing` tiene la misma semántica que en `GET /api/analyze/{id}` y se omite para filas legacy sin `pricing_snapshot_id`.
 
 **404 ANALYSIS_NOT_FOUND** si `id` no existe.
 

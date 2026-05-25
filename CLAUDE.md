@@ -75,8 +75,8 @@ En el worker (`tm-job-N`), `AnalysisJobExecutionService.runJob`:
 3. `RepositorySizeCalculator.summarize` + `enforceSizeLimit` (max 300 MiB default).
 4. `RepositoryFileScanner.scan` ignora `.git`, `node_modules`, `target`, `build`, `dist`, `coverage`. `BinaryFileDetector` filtra binarios.
 5. `RepositoryTokenizationService.tokenize` por archivo con `OpenAiTokenCounter`.
-6. `RepositoryCostEstimationService.estimate` calcula 3 modos × N modelos.
-7. `JpaAnalysisPersistenceService.save` → tablas `analysis`, `language_stats`, `cost_estimates`.
+6. Al entrar en `CALCULATING_COSTS`, `PricingSnapshotIdentityService.capture()` lee una vez el snapshot activo, calcula `pricing_snapshot_id` (`v1:` + SHA-256 de precios canonicalizados), guarda la metadata en `analysis_job` vía `emitter.markPricing` y pasa el handle a `RepositoryCostEstimationService.estimate`.
+7. `JpaAnalysisPersistenceService.save` → tablas `analysis`, `language_stats`, `cost_estimates`; copia el mismo `pricing_snapshot_id`, `pricing_primary_source` y `pricing_captured_at` al análisis.
 8. `emitter.success(jobId, analysisId, finalMetrics)` → único punto que pone `progress=100, status=SUCCESS, phase=COMPLETED`.
 9. `catch RepositoryIntakeException → emitter.fail(fromIntakeCode(e), e.message)`; `catch Throwable → emitter.fail(ANALYSIS_FAILED, t.message)`.
 10. `finally` → `deleteRecursively(tempDir)`.

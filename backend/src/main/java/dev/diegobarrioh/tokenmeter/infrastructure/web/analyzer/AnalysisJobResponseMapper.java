@@ -73,7 +73,8 @@ public class AnalysisJobResponseMapper {
         error,
         metricsResponse,
         timestamps,
-        queueStateResponse);
+        queueStateResponse,
+        RepositoryAnalysisMapper.toPricingMetadata(snapshot.pricing()));
   }
 
   /**

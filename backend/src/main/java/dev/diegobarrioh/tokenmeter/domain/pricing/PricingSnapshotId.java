@@ -10,8 +10,8 @@ import java.util.regex.Pattern;
  * stored inline to keep the identifier self-describing and future-proof: a future canonicalisation
  * change MUST introduce a new prefix (e.g. {@code v2:}) rather than overwrite the existing one.
  *
- * <p>Total length is exactly 67 chars; the column reserves 80 to leave headroom for a future
- * prefix bump.
+ * <p>Total length is exactly 67 chars; the column reserves 80 to leave headroom for a future prefix
+ * bump.
  */
 public record PricingSnapshotId(String value) {
 

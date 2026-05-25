@@ -32,16 +32,40 @@ class PricingSnapshotIdentityServiceTest {
   void identicalPricesYieldIdenticalIdsRegardlessOfFetchedAt() {
     List<PricingSnapshot> s1 =
         List.of(
-            snapshot(AiProvider.OPENAI, "gpt-5", "5.000000", "15.000000", PricingSource.REMOTE,
-                FETCHED_AT_A, "openai/gpt-5"),
-            snapshot(AiProvider.ANTHROPIC, "claude-opus", "15.000000", "75.000000",
-                PricingSource.REMOTE, FETCHED_AT_A, "anthropic/claude-opus"));
+            snapshot(
+                AiProvider.OPENAI,
+                "gpt-5",
+                "5.000000",
+                "15.000000",
+                PricingSource.REMOTE,
+                FETCHED_AT_A,
+                "openai/gpt-5"),
+            snapshot(
+                AiProvider.ANTHROPIC,
+                "claude-opus",
+                "15.000000",
+                "75.000000",
+                PricingSource.REMOTE,
+                FETCHED_AT_A,
+                "anthropic/claude-opus"));
     List<PricingSnapshot> s2 =
         List.of(
-            snapshot(AiProvider.OPENAI, "gpt-5", "5.000000", "15.000000", PricingSource.REMOTE,
-                FETCHED_AT_B, "openai/gpt-5-v2"),
-            snapshot(AiProvider.ANTHROPIC, "claude-opus", "15.000000", "75.000000",
-                PricingSource.REMOTE, FETCHED_AT_B, null));
+            snapshot(
+                AiProvider.OPENAI,
+                "gpt-5",
+                "5.000000",
+                "15.000000",
+                PricingSource.REMOTE,
+                FETCHED_AT_B,
+                "openai/gpt-5-v2"),
+            snapshot(
+                AiProvider.ANTHROPIC,
+                "claude-opus",
+                "15.000000",
+                "75.000000",
+                PricingSource.REMOTE,
+                FETCHED_AT_B,
+                null));
 
     PricingSnapshotId id1 = PricingSnapshotIdentityService.computeId(s1);
     PricingSnapshotId id2 = PricingSnapshotIdentityService.computeId(s2);
@@ -52,11 +76,25 @@ class PricingSnapshotIdentityServiceTest {
   @Test
   void aPriceChangeProducesADifferentId() {
     List<PricingSnapshot> base =
-        List.of(snapshot(AiProvider.OPENAI, "gpt-5", "5.000000", "15.000000",
-            PricingSource.REMOTE, FETCHED_AT_A, null));
+        List.of(
+            snapshot(
+                AiProvider.OPENAI,
+                "gpt-5",
+                "5.000000",
+                "15.000000",
+                PricingSource.REMOTE,
+                FETCHED_AT_A,
+                null));
     List<PricingSnapshot> bumped =
-        List.of(snapshot(AiProvider.OPENAI, "gpt-5", "5.500000", "15.000000",
-            PricingSource.REMOTE, FETCHED_AT_A, null));
+        List.of(
+            snapshot(
+                AiProvider.OPENAI,
+                "gpt-5",
+                "5.500000",
+                "15.000000",
+                PricingSource.REMOTE,
+                FETCHED_AT_A,
+                null));
 
     assertThat(PricingSnapshotIdentityService.computeId(base).value())
         .isNotEqualTo(PricingSnapshotIdentityService.computeId(bumped).value());
@@ -65,11 +103,25 @@ class PricingSnapshotIdentityServiceTest {
   @Test
   void aSourceChangeProducesADifferentId() {
     List<PricingSnapshot> fallbackSourced =
-        List.of(snapshot(AiProvider.OPENAI, "gpt-5", "5.000000", "15.000000",
-            PricingSource.FALLBACK, FETCHED_AT_A, null));
+        List.of(
+            snapshot(
+                AiProvider.OPENAI,
+                "gpt-5",
+                "5.000000",
+                "15.000000",
+                PricingSource.FALLBACK,
+                FETCHED_AT_A,
+                null));
     List<PricingSnapshot> remoteSourced =
-        List.of(snapshot(AiProvider.OPENAI, "gpt-5", "5.000000", "15.000000",
-            PricingSource.REMOTE, FETCHED_AT_A, null));
+        List.of(
+            snapshot(
+                AiProvider.OPENAI,
+                "gpt-5",
+                "5.000000",
+                "15.000000",
+                PricingSource.REMOTE,
+                FETCHED_AT_A,
+                null));
 
     assertThat(PricingSnapshotIdentityService.computeId(fallbackSourced).value())
         .isNotEqualTo(PricingSnapshotIdentityService.computeId(remoteSourced).value());
@@ -79,10 +131,22 @@ class PricingSnapshotIdentityServiceTest {
   void canonicalisationReSortsInputs() {
     List<PricingSnapshot> sorted =
         List.of(
-            snapshot(AiProvider.ANTHROPIC, "claude-opus", "15.000000", "75.000000",
-                PricingSource.REMOTE, FETCHED_AT_A, null),
-            snapshot(AiProvider.OPENAI, "gpt-5", "5.000000", "15.000000", PricingSource.REMOTE,
-                FETCHED_AT_A, null));
+            snapshot(
+                AiProvider.ANTHROPIC,
+                "claude-opus",
+                "15.000000",
+                "75.000000",
+                PricingSource.REMOTE,
+                FETCHED_AT_A,
+                null),
+            snapshot(
+                AiProvider.OPENAI,
+                "gpt-5",
+                "5.000000",
+                "15.000000",
+                PricingSource.REMOTE,
+                FETCHED_AT_A,
+                null));
     List<PricingSnapshot> shuffled = new ArrayList<>(sorted);
     Collections.reverse(shuffled);
 
@@ -94,8 +158,15 @@ class PricingSnapshotIdentityServiceTest {
   void identifierCarriesV1PrefixAnd64HexSuffix() {
     PricingSnapshotId id =
         PricingSnapshotIdentityService.computeId(
-            List.of(snapshot(AiProvider.OPENAI, "gpt-5", "5.000000", "15.000000",
-                PricingSource.REMOTE, FETCHED_AT_A, null)));
+            List.of(
+                snapshot(
+                    AiProvider.OPENAI,
+                    "gpt-5",
+                    "5.000000",
+                    "15.000000",
+                    PricingSource.REMOTE,
+                    FETCHED_AT_A,
+                    null)));
 
     assertThat(id.value()).startsWith("v1:");
     assertThat(id.value()).hasSize(PricingSnapshotId.EXPECTED_LENGTH);
@@ -106,12 +177,30 @@ class PricingSnapshotIdentityServiceTest {
   void primarySourcePromotesOverrideOverRemoteAndFallback() {
     List<PricingSnapshot> mixed =
         List.of(
-            snapshot(AiProvider.OPENAI, "gpt-5", "5.000000", "15.000000", PricingSource.FALLBACK,
-                FETCHED_AT_A, null),
-            snapshot(AiProvider.ANTHROPIC, "claude-opus", "15.000000", "75.000000",
-                PricingSource.REMOTE, FETCHED_AT_A, null),
-            snapshot(AiProvider.OPENAI, "internal", "1.000000", "2.000000", PricingSource.OVERRIDE,
-                FETCHED_AT_A, null));
+            snapshot(
+                AiProvider.OPENAI,
+                "gpt-5",
+                "5.000000",
+                "15.000000",
+                PricingSource.FALLBACK,
+                FETCHED_AT_A,
+                null),
+            snapshot(
+                AiProvider.ANTHROPIC,
+                "claude-opus",
+                "15.000000",
+                "75.000000",
+                PricingSource.REMOTE,
+                FETCHED_AT_A,
+                null),
+            snapshot(
+                AiProvider.OPENAI,
+                "internal",
+                "1.000000",
+                "2.000000",
+                PricingSource.OVERRIDE,
+                FETCHED_AT_A,
+                null));
 
     assertThat(PricingSnapshotIdentityService.computePrimarySource(mixed))
         .isEqualTo(PricingSource.OVERRIDE);
@@ -122,17 +211,35 @@ class PricingSnapshotIdentityServiceTest {
     assertThat(
             PricingSnapshotIdentityService.computePrimarySource(
                 List.of(
-                    snapshot(AiProvider.OPENAI, "gpt-5", "5.000000", "15.000000",
-                        PricingSource.REMOTE, FETCHED_AT_A, null),
-                    snapshot(AiProvider.ANTHROPIC, "claude-opus", "15.000000", "75.000000",
-                        PricingSource.FALLBACK, FETCHED_AT_A, null))))
+                    snapshot(
+                        AiProvider.OPENAI,
+                        "gpt-5",
+                        "5.000000",
+                        "15.000000",
+                        PricingSource.REMOTE,
+                        FETCHED_AT_A,
+                        null),
+                    snapshot(
+                        AiProvider.ANTHROPIC,
+                        "claude-opus",
+                        "15.000000",
+                        "75.000000",
+                        PricingSource.FALLBACK,
+                        FETCHED_AT_A,
+                        null))))
         .isEqualTo(PricingSource.REMOTE);
 
     assertThat(
             PricingSnapshotIdentityService.computePrimarySource(
                 List.of(
-                    snapshot(AiProvider.OPENAI, "gpt-5", "5.000000", "15.000000",
-                        PricingSource.FALLBACK, FETCHED_AT_A, null))))
+                    snapshot(
+                        AiProvider.OPENAI,
+                        "gpt-5",
+                        "5.000000",
+                        "15.000000",
+                        PricingSource.FALLBACK,
+                        FETCHED_AT_A,
+                        null))))
         .isEqualTo(PricingSource.FALLBACK);
   }
 
@@ -140,7 +247,8 @@ class PricingSnapshotIdentityServiceTest {
   void captureIsStableAcrossReadsWithoutRefresh() {
     CountingProvider provider = new CountingProvider(samplePricings(PricingSource.REMOTE));
     PricingSnapshotIdentityService service =
-        new PricingSnapshotIdentityService(provider, Clock.fixed(Instant.parse("2026-05-24T18:42:11Z"), ZoneOffset.UTC));
+        new PricingSnapshotIdentityService(
+            provider, Clock.fixed(Instant.parse("2026-05-24T18:42:11Z"), ZoneOffset.UTC));
 
     PricingSnapshotHandle first = service.capture();
     PricingSnapshotHandle second = service.capture();
@@ -168,8 +276,14 @@ class PricingSnapshotIdentityServiceTest {
   private static List<PricingSnapshot> samplePricings(PricingSource source) {
     return List.of(
         snapshot(AiProvider.OPENAI, "gpt-5", "5.000000", "15.000000", source, FETCHED_AT_A, null),
-        snapshot(AiProvider.ANTHROPIC, "claude-opus", "15.000000", "75.000000", source,
-            FETCHED_AT_A, null));
+        snapshot(
+            AiProvider.ANTHROPIC,
+            "claude-opus",
+            "15.000000",
+            "75.000000",
+            source,
+            FETCHED_AT_A,
+            null));
   }
 
   private static PricingSnapshot snapshot(

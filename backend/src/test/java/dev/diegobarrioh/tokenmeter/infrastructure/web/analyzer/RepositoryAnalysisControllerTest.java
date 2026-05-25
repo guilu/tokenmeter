@@ -19,6 +19,9 @@ import dev.diegobarrioh.tokenmeter.domain.cost.CostEstimationMode;
 import dev.diegobarrioh.tokenmeter.domain.cost.ModelCostEstimate;
 import dev.diegobarrioh.tokenmeter.domain.pricing.AiProvider;
 import dev.diegobarrioh.tokenmeter.domain.pricing.ModelPricing;
+import dev.diegobarrioh.tokenmeter.domain.pricing.PricingSnapshotHandle;
+import dev.diegobarrioh.tokenmeter.domain.pricing.PricingSnapshotId;
+import dev.diegobarrioh.tokenmeter.domain.pricing.PricingSource;
 import dev.diegobarrioh.tokenmeter.domain.tokenizer.LanguageTokenMetrics;
 import dev.diegobarrioh.tokenmeter.domain.tokenizer.RepositoryTokenizationResult;
 import dev.diegobarrioh.tokenmeter.infrastructure.web.PublicOriginProperties;
@@ -96,7 +99,22 @@ class RepositoryAnalysisControllerTest {
         .andExpect(jsonPath("$.id").value(id.toString()))
         .andExpect(jsonPath("$.repositoryUrl").value("https://github.com/guilu/tokenmeter"))
         .andExpect(jsonPath("$.metrics.totalTokens").value(12))
-        .andExpect(jsonPath("$.metrics.languages.Java.tokens").value(12));
+        .andExpect(jsonPath("$.metrics.languages.Java.tokens").value(12))
+        .andExpect(jsonPath("$.pricing").doesNotExist());
+  }
+
+  @Test
+  void retrievesAnalysisWithPricingMetadataWhenPresent() throws Exception {
+    UUID id = UUID.randomUUID();
+    when(analysisService.findById(id))
+        .thenReturn(sampleAnalysis(id, sampleCostEstimates(), samplePricingHandle()));
+
+    mockMvc
+        .perform(get("/api/analyze/{id}", id))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.pricing.snapshotId").value(samplePricingId()))
+        .andExpect(jsonPath("$.pricing.primarySource").value("REMOTE"))
+        .andExpect(jsonPath("$.pricing.capturedAt").value("2026-05-24T18:42:11Z"));
   }
 
   @Test
@@ -123,7 +141,22 @@ class RepositoryAnalysisControllerTest {
         .andExpect(jsonPath("$.models[0].pricing.outputTokenPricePerMillion").value(10.00))
         .andExpect(jsonPath("$.models[0].modes[0].mode").value("raw"))
         .andExpect(jsonPath("$.models[0].modes[1].mode").value("assisted"))
-        .andExpect(jsonPath("$.models[0].modes[2].mode").value("agentic"));
+        .andExpect(jsonPath("$.models[0].modes[2].mode").value("agentic"))
+        .andExpect(jsonPath("$.pricing").doesNotExist());
+  }
+
+  @Test
+  void returnsCostBreakdownWithPricingMetadataWhenPresent() throws Exception {
+    UUID id = UUID.randomUUID();
+    when(analysisService.findById(id))
+        .thenReturn(sampleAnalysis(id, sampleCostEstimates(), samplePricingHandle()));
+
+    mockMvc
+        .perform(get("/api/analyze/{id}/cost-breakdown", id))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.pricing.snapshotId").value(samplePricingId()))
+        .andExpect(jsonPath("$.pricing.primarySource").value("REMOTE"))
+        .andExpect(jsonPath("$.pricing.capturedAt").value("2026-05-24T18:42:11Z"));
   }
 
   @Test
@@ -277,6 +310,11 @@ class RepositoryAnalysisControllerTest {
 
   private static RepositoryAnalysisResult sampleAnalysis(
       UUID id, List<ModelCostEstimate> costEstimates) {
+    return sampleAnalysis(id, costEstimates, null);
+  }
+
+  private static RepositoryAnalysisResult sampleAnalysis(
+      UUID id, List<ModelCostEstimate> costEstimates, PricingSnapshotHandle pricing) {
     return new RepositoryAnalysisResult(
         id,
         Instant.parse("2026-05-08T20:00:00Z"),
@@ -292,7 +330,20 @@ class RepositoryAnalysisControllerTest {
             25,
             List.of(),
             Map.of("Java", new LanguageTokenMetrics("Java", 2, 25))),
-        costEstimates);
+        costEstimates,
+        pricing);
+  }
+
+  private static PricingSnapshotHandle samplePricingHandle() {
+    return new PricingSnapshotHandle(
+        new PricingSnapshotId(samplePricingId()),
+        PricingSource.REMOTE,
+        Instant.parse("2026-05-24T18:42:11Z"),
+        List.of());
+  }
+
+  private static String samplePricingId() {
+    return "v1:" + "0".repeat(64);
   }
 
   private static List<ModelCostEstimate> sampleCostEstimates() {

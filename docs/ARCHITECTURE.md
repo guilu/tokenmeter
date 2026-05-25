@@ -113,11 +113,14 @@ analysisJobExecutor (thread tm-job-N)
         │     └─ OpenAiTokenCounter.count(text)           ← jtokkit O200K_BASE
         │  emitter.updateMetrics(tokensCounted, filesProcessed)
         │  emitter.transition(... → CALCULATING_COSTS)
-        ├─ RepositoryCostEstimationService.estimate(totalTokens)
-        │     └─ N modelos × {RAW, ASSISTED, AGENTIC}
+        ├─ PricingSnapshotIdentityService.capture()
+        │     └─ snapshot id v1:sha256(canonical prices), primarySource, capturedAt
+        │  emitter.markPricing(jobId, handle)              [REQUIRES_NEW]
+        ├─ RepositoryCostEstimationService.estimate(totalTokens, handle)
+        │     └─ N modelos × {RAW, ASSISTED, AGENTIC} sobre el snapshot capturado
         │  emitter.transition(... → SAVING_REPORT)
         ├─ JpaAnalysisPersistenceService.save(...)
-        │     └─ analysis + language_stats + cost_estimates
+        │     └─ analysis + language_stats + cost_estimates + pricing_snapshot_id
         │  emitter.success(jobId, analysisId, finalMetrics)  ← progress=100, status=SUCCESS, phase=COMPLETED
         ├─ catch RepositoryIntakeException e → emitter.fail(fromIntakeCode(e), e.message)
         ├─ catch Throwable t                 → emitter.fail(ANALYSIS_FAILED, t.message)
@@ -276,7 +279,10 @@ analysis_job (
   CHECK ((status IN ('SUCCESS','FAILED')) = (completed_at IS NOT NULL)),
   CHECK (status <> 'FAILED' OR (error_code IS NOT NULL AND error_message IS NOT NULL))
 )
--- índices: idx_analysis_job_status, idx_analysis_job_completed_at, idx_analysis_job_created_at
+-- V8__pricing_snapshot_identity.sql añade a analysis y analysis_job:
+pricing_snapshot_id VARCHAR(80), pricing_primary_source VARCHAR(64), pricing_captured_at TIMESTAMPTZ
+-- índices: idx_analysis_job_status, idx_analysis_job_completed_at, idx_analysis_job_created_at,
+--          idx_analysis_pricing_snapshot_id
 ```
 
 `spring.jpa.hibernate.ddl-auto=validate` en todos los perfiles. Schema lo gestiona Flyway, no Hibernate.
@@ -385,6 +391,16 @@ Si `fetch()` o `map()` lanzan `PricingFetchException`, la transacción nunca se 
 ### Cold-start
 
 En arranque sobre una BBDD vacía, `FallbackSeedRunner` (`ApplicationRunner`) inserta 17 filas con `source=FALLBACK` desde el YAML semilla. El boot **nunca depende del remoto**: el endpoint `/api/pricing` responde 200 con `primarySource=fallback` y `lastRefreshedAt=null` hasta que la primera refresh REMOTE complete.
+
+### Identidad del snapshot de pricing
+
+Cada análisis exitoso conserva una identidad determinística del set de precios usado. `PricingSnapshotIdentityService` vive en `application/pricing`, lee `PricingProvider.snapshots()` una sola vez por ciclo de refresh y calcula `PricingSnapshotHandle(id, primarySource, capturedAt, snapshots)`. El `id` usa `v1:` + SHA-256 hex sobre la canonicalización UTF-8 de las filas ordenadas por `provider.configKey()` y `model.toLowerCase(Locale.ROOT).trim()`:
+
+```text
+configKey \t modelLowerTrim \t inputPerM(scale=6,HALF_UP) \t outputPerM(scale=6,HALF_UP) \t source \n
+```
+
+`externalModelId` y `fetchedAt` quedan fuera para que reseeds con los mismos precios produzcan el mismo id. `PricingRefreshedEvent` invalida la caché; un job ya en marcha conserva su handle y por eso `analysis_job.pricing_snapshot_id` y `analysis.pricing_snapshot_id` coinciden aunque haya una refresh durante `CALCULATING_COSTS`.
 
 ### Rollback y operativa
 

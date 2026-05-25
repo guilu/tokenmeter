@@ -56,6 +56,12 @@ export interface AnalysisJobQueueStateResponse {
   queuePosition?: number | null
 }
 
+export interface PricingMetadataResponse {
+  snapshotId: string
+  primarySource: 'REMOTE' | 'FALLBACK' | 'OVERRIDE'
+  capturedAt: string
+}
+
 export interface AnalysisJobStatusResponse {
   jobId: string
   status: JobStatus
@@ -68,6 +74,7 @@ export interface AnalysisJobStatusResponse {
   metrics: JobMetrics | null
   timestamps: JobTimestamps
   queueState?: AnalysisJobQueueStateResponse | null
+  pricing?: PricingMetadataResponse
 }
 
 export interface RepositoryAnalysisResponse {
@@ -77,6 +84,45 @@ export interface RepositoryAnalysisResponse {
   status: 'SUCCESS'
   metrics: RepositoryAnalysisMetricsResponse
   costEstimates: RepositoryAnalysisCostEstimateResponse[]
+  pricing?: PricingMetadataResponse
+}
+
+export interface CostBreakdownResponse {
+  analysisId: string
+  createdAt: string
+  repositoryUrl: string
+  summary: CostBreakdownSummaryResponse
+  models: CostBreakdownModelResponse[]
+  pricing?: PricingMetadataResponse
+}
+
+export interface CostBreakdownSummaryResponse {
+  totalTokens: number
+  totalModels: number
+  totalModes: number
+}
+
+export interface CostBreakdownModelResponse {
+  provider: string
+  model: string
+  pricing: CostBreakdownPricingResponse | null
+  modes: CostBreakdownModeResponse[]
+}
+
+export interface CostBreakdownPricingResponse {
+  inputTokenPricePerMillion: number
+  outputTokenPricePerMillion: number
+}
+
+export interface CostBreakdownModeResponse {
+  mode: 'raw' | 'assisted' | 'agentic'
+  baseTokens: number
+  estimatedInputTokens: number
+  estimatedOutputTokens: number
+  inputCost: number
+  outputCost: number
+  totalCost: number
+  formula: string
 }
 
 export interface RepositoryAnalysisMetricsResponse {

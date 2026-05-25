@@ -27,31 +27,31 @@
 
 ## Phase 5: Web API
 
-- [ ] 5.1 Create nested `PricingMetadata` record (`snapshotId`, `primarySource`, `capturedAt`) and apply `@JsonInclude(JsonInclude.Include.NON_NULL)` on `infrastructure/web/analyzer/RepositoryAnalysisResponse.java`, `CostBreakdownResponse.java`, `AnalysisJobStatusResponse.java`. Acceptance: MockMvc test asserts `pricing` key omitted when null, present when set.
-- [ ] 5.2 Update mappers `RepositoryAnalysisMapper`, `CostBreakdownMapper`, `AnalysisJobResponseMapper` to populate `pricing` from entity/snapshot when non-null.
+- [x] 5.1 Create nested `PricingMetadata` record (`snapshotId`, `primarySource`, `capturedAt`) and apply `@JsonInclude(JsonInclude.Include.NON_NULL)` on `infrastructure/web/analyzer/RepositoryAnalysisResponse.java`, `CostBreakdownResponse.java`, `AnalysisJobStatusResponse.java`. Acceptance: MockMvc test asserts `pricing` key omitted when null, present when set.
+- [x] 5.2 Update mappers `RepositoryAnalysisMapper`, `CostBreakdownMapper`, `AnalysisJobResponseMapper` to populate `pricing` from entity/snapshot when non-null.
 
 ## Phase 6: Frontend
 
-- [ ] 6.1 Add optional `pricing?: { snapshotId; primarySource; capturedAt }` to `frontend/src/types/api.ts` on `RepositoryAnalysisResponse`, `AnalysisJobStatusResponse`, cost-breakdown type.
-- [ ] 6.2 Modify `frontend/src/pages/DashboardPage.tsx` to render `Pricing: <primarySource> · captured <date>` line under `Analysis id` using the same date helper; render only when `analysis.pricing` is defined. Acceptance: Vitest/RTL test asserts footer presence/absence per scenario.
+- [x] 6.1 Add optional `pricing?: { snapshotId; primarySource; capturedAt }` to `frontend/src/types/api.ts` on `RepositoryAnalysisResponse`, `AnalysisJobStatusResponse`, cost-breakdown type.
+- [x] 6.2 Modify `frontend/src/pages/DashboardPage.tsx` to render `Pricing: <primarySource> · captured <date>` line under `Analysis id` using the same date helper; render only when `analysis.pricing` is defined. Acceptance: Vitest/RTL test asserts footer presence/absence per scenario.
 
 ## Phase 7: Tests
 
-- [ ] 7.1 Unit: `PricingSnapshotIdentityServiceTest` covers determinism, shuffle, price/source change, exclusion of `fetchedAt`/`externalModelId`, refresh invalidation (per pricing spec scenarios).
-- [ ] 7.2 Unit: `PricingSnapshotIdTest` covers prefix/length validation.
-- [ ] 7.3 Unit: `RepositoryCostEstimationServiceTest` adds case for handle-driven invocation (mid-call refresh ignored).
-- [ ] 7.4 Integration: `@SpringBootTest` job run asserts `analysis.pricing_snapshot_id == analysis_job.pricing_snapshot_id` and pre-cost failure leaves NULL.
-- [ ] 7.5 Web: `MockMvc` tests for `/api/analyze/{id}`, `/cost-breakdown`, `/jobs/{jobId}` asserting block present/omitted.
-- [ ] 7.6 Frontend: Vitest/RTL test on `DashboardPage` footer rendering.
+- [x] 7.1 Unit: `PricingSnapshotIdentityServiceTest` covers determinism, shuffle, price/source change, exclusion of `fetchedAt`/`externalModelId`, refresh invalidation (per pricing spec scenarios).
+- [x] 7.2 Unit: `PricingSnapshotIdTest` covers prefix/length validation.
+- [x] 7.3 Unit: `RepositoryCostEstimationServiceTest` adds case for handle-driven invocation (mid-call refresh ignored).
+- [x] 7.4 Integration: `@SpringBootTest` job run asserts `analysis.pricing_snapshot_id == analysis_job.pricing_snapshot_id` and pre-cost failure leaves NULL.
+- [x] 7.5 Web: `MockMvc` tests for `/api/analyze/{id}`, `/cost-breakdown`, `/jobs/{jobId}` asserting block present/omitted.
+- [x] 7.6 Frontend: Vitest/RTL test on `DashboardPage` footer rendering.
 
 ## Phase 8: Documentation
 
-- [ ] 8.1 Update `docs/API.md` documenting nested `pricing` block on analysis/cost-breakdown/job responses.
-- [ ] 8.2 Update `docs/ARCHITECTURE.md` describing capture point at `CALCULATING_COSTS` and identity canonicalisation.
-- [ ] 8.3 Update `CLAUDE.md` flow section to mention `pricing_snapshot_id` propagation.
+- [x] 8.1 Update `docs/API.md` documenting nested `pricing` block on analysis/cost-breakdown/job responses.
+- [x] 8.2 Update `docs/ARCHITECTURE.md` describing capture point at `CALCULATING_COSTS` and identity canonicalisation.
+- [x] 8.3 Update `CLAUDE.md` flow section to mention `pricing_snapshot_id` propagation.
 
 ## Phase 9: Quality gate
 
-- [ ] 9.1 Run `cd backend && ./gradlew spotlessApply check`.
-- [ ] 9.2 Run `cd frontend && npm run lint && npm run build`.
+- [x] 9.1 Run `cd backend && ./gradlew spotlessApply check`.
+- [x] 9.2 Run `cd frontend && npm run lint && npm run build`.
 - [ ] 9.3 Smoke: `docker compose up --build -d`, submit an analysis, verify `pricing` block in `/api/analyze/{id}` and `Pricing:` footer in UI.
