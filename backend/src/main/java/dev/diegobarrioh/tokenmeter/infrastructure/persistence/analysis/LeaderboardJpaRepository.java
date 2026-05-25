@@ -25,7 +25,10 @@ public interface LeaderboardJpaRepository extends Repository<AnalysisEntity, UUI
                  ce.provider,
                  ce.model,
                  ce.mode,
-                 ce.total_cost
+                 ce.total_cost,
+                 a.pricing_snapshot_id,
+                 a.pricing_primary_source,
+                 a.pricing_captured_at
           FROM analysis a
           JOIN LATERAL (
               SELECT provider, model, mode, total_cost
@@ -64,7 +67,10 @@ public interface LeaderboardJpaRepository extends Repository<AnalysisEntity, UUI
                  ce.provider,
                  ce.model,
                  ce.mode,
-                 ce.total_cost
+                 ce.total_cost,
+                 a.pricing_snapshot_id,
+                 a.pricing_primary_source,
+                 a.pricing_captured_at
           FROM analysis a
           JOIN LATERAL (
               SELECT provider, model, mode, total_cost
@@ -103,7 +109,10 @@ public interface LeaderboardJpaRepository extends Repository<AnalysisEntity, UUI
                  ce.provider,
                  ce.model,
                  ce.mode,
-                 ce.total_cost
+                 ce.total_cost,
+                 a.pricing_snapshot_id,
+                 a.pricing_primary_source,
+                 a.pricing_captured_at
           FROM analysis a
           JOIN LATERAL (
               SELECT provider, model, mode, total_cost
@@ -133,7 +142,8 @@ public interface LeaderboardJpaRepository extends Repository<AnalysisEntity, UUI
           WITH deduped AS (
               SELECT DISTINCT ON (repository_url)
                      id, repository_url, owner_name, repository_name, created_at,
-                     total_files, total_lines, total_bytes, total_tokens
+                     total_files, total_lines, total_bytes, total_tokens,
+                     pricing_snapshot_id, pricing_primary_source, pricing_captured_at
               FROM analysis
               ORDER BY repository_url, total_bytes DESC, created_at DESC
           )
@@ -150,7 +160,10 @@ public interface LeaderboardJpaRepository extends Repository<AnalysisEntity, UUI
                  ce.provider,
                  ce.model,
                  ce.mode,
-                 ce.total_cost
+                 ce.total_cost,
+                 d.pricing_snapshot_id,
+                 d.pricing_primary_source,
+                 d.pricing_captured_at
           FROM deduped d
           LEFT JOIN LATERAL (
               SELECT provider, model, mode, total_cost
@@ -179,7 +192,8 @@ public interface LeaderboardJpaRepository extends Repository<AnalysisEntity, UUI
           WITH deduped AS (
               SELECT DISTINCT ON (repository_url)
                      id, repository_url, owner_name, repository_name, created_at,
-                     total_files, total_lines, total_bytes, total_tokens
+                     total_files, total_lines, total_bytes, total_tokens,
+                     pricing_snapshot_id, pricing_primary_source, pricing_captured_at
               FROM analysis
               ORDER BY repository_url, total_tokens DESC, created_at DESC
           )
@@ -196,7 +210,10 @@ public interface LeaderboardJpaRepository extends Repository<AnalysisEntity, UUI
                  ce.provider,
                  ce.model,
                  ce.mode,
-                 ce.total_cost
+                 ce.total_cost,
+                 d.pricing_snapshot_id,
+                 d.pricing_primary_source,
+                 d.pricing_captured_at
           FROM deduped d
           LEFT JOIN LATERAL (
               SELECT provider, model, mode, total_cost
@@ -232,6 +249,9 @@ public interface LeaderboardJpaRepository extends Repository<AnalysisEntity, UUI
                      total_lines,
                      total_bytes,
                      total_tokens,
+                     pricing_snapshot_id,
+                     pricing_primary_source,
+                     pricing_captured_at,
                      COUNT(*) OVER (PARTITION BY repository_url)          AS analysis_count,
                      ROW_NUMBER() OVER (PARTITION BY repository_url
                                         ORDER BY created_at DESC)         AS rn
@@ -250,7 +270,10 @@ public interface LeaderboardJpaRepository extends Repository<AnalysisEntity, UUI
                  ce.provider,
                  ce.model,
                  ce.mode,
-                 ce.total_cost
+                 ce.total_cost,
+                 r.pricing_snapshot_id,
+                 r.pricing_primary_source,
+                 r.pricing_captured_at
           FROM ranked r
           LEFT JOIN LATERAL (
               SELECT provider, model, mode, total_cost

@@ -198,6 +198,7 @@ export interface LeaderboardEntryResponse {
   mode?: 'raw' | 'assisted' | 'agentic' | null
   totalCost?: number | null
   costPerMillionTokens?: number | null
+  pricing?: PricingMetadataResponse
 }
 
 export interface PricingResponse {

@@ -182,6 +182,11 @@ function LeaderboardRow({ entry, category }: { entry: LeaderboardEntryResponse; 
         </div>
         <p className="mt-1 break-all text-sm text-text/60">{entry.repositoryUrl}</p>
         <p className="mt-2 text-xs text-text/50">Analyzed {dateFormatter.format(new Date(entry.analyzedAt))} · {compactFormatter.format(entry.totalTokens)} tokens · {compactFormatter.format(entry.totalFiles)} files</p>
+        {entry.pricing ? (
+          <p className="mt-1 text-xs text-text/40">
+            Pricing: {entry.pricing.primarySource} · captured {dateFormatter.format(new Date(entry.pricing.capturedAt))}
+          </p>
+        ) : null}
       </div>
       <div className="text-left sm:text-right">
         <div className="text-xl font-semibold text-text">{mainMetric(entry, category)}</div>

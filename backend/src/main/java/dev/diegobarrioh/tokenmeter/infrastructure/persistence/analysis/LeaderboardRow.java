@@ -32,4 +32,10 @@ public interface LeaderboardRow {
   String getMode();
 
   BigDecimal getTotalCost();
+
+  String getPricingSnapshotId();
+
+  String getPricingPrimarySource();
+
+  Instant getPricingCapturedAt();
 }
