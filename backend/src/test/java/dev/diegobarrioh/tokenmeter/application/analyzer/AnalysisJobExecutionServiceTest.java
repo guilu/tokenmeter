@@ -268,6 +268,11 @@ class AnalysisJobExecutionServiceTest {
       public Optional<RepositoryAnalysisResult> findById(UUID id) {
         return Optional.empty();
       }
+
+      @Override
+      public Optional<UUID> findLatestSuccessIdFor(String repositoryUrl, String pricingSnapshotId) {
+        return Optional.empty();
+      }
     };
   }
 

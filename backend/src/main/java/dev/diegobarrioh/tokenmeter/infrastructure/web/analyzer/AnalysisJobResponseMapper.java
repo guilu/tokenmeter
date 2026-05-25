@@ -21,7 +21,8 @@ public class AnalysisJobResponseMapper {
   public AnalysisJobAcceptedResponse toAccepted(AnalysisJobSnapshot snapshot) {
     String jobId = snapshot.id().value().toString();
     String statusUrl = "/api/analyze/jobs/" + jobId;
-    return new AnalysisJobAcceptedResponse(jobId, snapshot.status(), statusUrl, null);
+    return new AnalysisJobAcceptedResponse(
+        jobId, snapshot.status(), statusUrl, snapshot.analysisId());
   }
 
   /** Builds the 200 body for {@code GET /api/analyze/jobs/{jobId}}. */

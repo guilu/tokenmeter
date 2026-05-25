@@ -1,15 +1,19 @@
 package dev.diegobarrioh.tokenmeter.application.analyzer;
 
+import dev.diegobarrioh.tokenmeter.application.pricing.PricingSnapshotIdentityService;
 import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobId;
 import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobMetrics;
 import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobPhase;
 import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobSnapshot;
 import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobStatus;
+import dev.diegobarrioh.tokenmeter.domain.pricing.PricingSnapshotHandle;
 import dev.diegobarrioh.tokenmeter.domain.repository.GitHubRepositoryUrl;
 import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeErrorCode;
 import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeException;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
 import org.slf4j.Logger;
@@ -31,16 +35,22 @@ public class AnalysisJobSubmissionService {
   private final AnalysisJobExecutionService executionService;
   private final Executor executor;
   private final Clock clock;
+  private final PricingSnapshotIdentityService pricingIdentityService;
+  private final AnalysisPersistenceService analysisPersistenceService;
 
   public AnalysisJobSubmissionService(
       AnalysisJobRepository jobRepository,
       AnalysisJobExecutionService executionService,
       @Qualifier("analysisJobExecutor") Executor executor,
-      Clock clock) {
+      Clock clock,
+      PricingSnapshotIdentityService pricingIdentityService,
+      AnalysisPersistenceService analysisPersistenceService) {
     this.jobRepository = jobRepository;
     this.executionService = executionService;
     this.executor = executor;
     this.clock = clock;
+    this.pricingIdentityService = pricingIdentityService;
+    this.analysisPersistenceService = analysisPersistenceService;
   }
 
   /**
@@ -73,6 +83,22 @@ public class AnalysisJobSubmissionService {
             now,
             null);
     AnalysisJobSnapshot persisted = jobRepository.save(initial);
+
+    PricingSnapshotHandle pricingHandle = pricingIdentityService.capture();
+    Optional<UUID> cachedAnalysisId =
+        analysisPersistenceService.findLatestSuccessIdFor(
+            repositoryUrl.normalizedUrl(), pricingHandle.id().value());
+    if (cachedAnalysisId.isPresent()) {
+      LOGGER.info(
+          "reusing cached analysis {} for repo {} under snapshot {} — skipping pipeline",
+          cachedAnalysisId.get(),
+          repositoryUrl.normalizedUrl(),
+          pricingHandle.id().value());
+      jobRepository.updatePricing(id, pricingHandle);
+      jobRepository.markSuccess(
+          id, cachedAnalysisId.get(), AnalysisJobMetrics.empty(), Instant.now(clock));
+      return jobRepository.findById(id).orElse(persisted);
+    }
 
     try {
       executor.execute(() -> executionService.runJob(id));
