@@ -348,14 +348,17 @@ public interface LeaderboardJpaRepository extends Repository<AnalysisEntity, UUI
                  COALESCE(SUM(ce.total_cost), 0)    AS total_cost,
                  COUNT(DISTINCT ce.analysis_id)     AS analysis_count
           FROM cost_estimates ce
-          WHERE (:provider IS NULL OR ce.provider = :provider)
+          WHERE (:mode     IS NULL OR ce.mode     = :mode)
+            AND (:provider IS NULL OR ce.provider = :provider)
             AND (:model    IS NULL OR LOWER(ce.model) = LOWER(:model))
           GROUP BY ce.mode
           ORDER BY ce.mode
           """,
       nativeQuery = true)
   List<CostByModeProjection> findCostsByMode(
-      @Nullable @Param("provider") String provider, @Nullable @Param("model") String model);
+      @Nullable @Param("mode") String mode,
+      @Nullable @Param("provider") String provider,
+      @Nullable @Param("model") String model);
 
   @Query(
       value =
@@ -370,4 +373,7 @@ public interface LeaderboardJpaRepository extends Repository<AnalysisEntity, UUI
           """,
       nativeQuery = true)
   List<LanguageInsightProjection> findTopLanguages();
+
+  @Query(value = "SELECT COALESCE(SUM(tokens), 0) FROM language_stats", nativeQuery = true)
+  long findTotalLanguageTokens();
 }

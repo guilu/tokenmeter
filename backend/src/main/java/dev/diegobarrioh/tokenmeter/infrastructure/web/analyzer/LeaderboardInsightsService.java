@@ -33,7 +33,7 @@ public class LeaderboardInsightsService {
         leaderboardRepository.findOverview(normalizedMode, normalizedProvider, normalizedModel);
 
     List<CostByModeProjection> costRows =
-        leaderboardRepository.findCostsByMode(normalizedProvider, normalizedModel);
+        leaderboardRepository.findCostsByMode(normalizedMode, normalizedProvider, normalizedModel);
 
     List<CostByModeEntry> costsByMode = new ArrayList<>();
     for (CostByModeProjection row : costRows) {
@@ -54,13 +54,13 @@ public class LeaderboardInsightsService {
         filters.isEmpty() ? null : filters);
   }
 
-  public LeaderboardLanguagesResponse getLanguages() {
-    List<LanguageInsightProjection> rows = leaderboardRepository.findTopLanguages();
+  public LeaderboardLanguagesResponse getLanguages(String mode, String provider, String model) {
+    String normalizedMode = LeaderboardFilterNormalizer.normalizeMode(mode);
+    String normalizedProvider = LeaderboardFilterNormalizer.normalizeProvider(provider);
+    String normalizedModel = LeaderboardFilterNormalizer.normalizeModel(model);
 
-    long totalTokensAllLanguages = 0L;
-    for (LanguageInsightProjection row : rows) {
-      totalTokensAllLanguages += row.getTotalTokens();
-    }
+    List<LanguageInsightProjection> rows = leaderboardRepository.findTopLanguages();
+    long totalTokensAllLanguages = leaderboardRepository.findTotalLanguageTokens();
 
     List<LanguageInsightEntry> languages = new ArrayList<>();
     for (LanguageInsightProjection row : rows) {
@@ -76,7 +76,9 @@ public class LeaderboardInsightsService {
               row.getLanguageName(), row.getTotalTokens(), row.getRepoCount(), sharePercent));
     }
 
-    return new LeaderboardLanguagesResponse(languages, totalTokensAllLanguages, null);
+    Map<String, String> filters = buildFilters(normalizedMode, normalizedProvider, normalizedModel);
+    return new LeaderboardLanguagesResponse(
+        languages, totalTokensAllLanguages, filters.isEmpty() ? null : filters);
   }
 
   private static Map<String, String> buildFilters(String mode, String provider, String model) {
