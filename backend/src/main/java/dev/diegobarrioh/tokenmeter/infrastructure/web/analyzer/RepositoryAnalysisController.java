@@ -62,15 +62,19 @@ public class RepositoryAnalysisController {
   }
 
   @GetMapping("/api/leaderboards")
-  public LeaderboardPageResponse getLeaderboard(
+  public ResponseEntity<LeaderboardPageResponse> getLeaderboard(
       @RequestParam(defaultValue = "most-expensive") String category,
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "12") int size,
       @RequestParam(required = false) String mode,
       @RequestParam(required = false) String provider,
       @RequestParam(required = false) String model) {
-    return leaderboardService.getLeaderboard(
-        LeaderboardCategory.fromSlug(category), page, size, mode, provider, model);
+    LeaderboardPageResponse body =
+        leaderboardService.getLeaderboard(
+            LeaderboardCategory.fromSlug(category), page, size, mode, provider, model);
+    return ResponseEntity.ok()
+        .cacheControl(CacheControl.maxAge(Duration.ofSeconds(30)).cachePublic())
+        .body(body);
   }
 
   @GetMapping(value = "/leaderboards", produces = MediaType.TEXT_HTML_VALUE)
