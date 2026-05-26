@@ -30,8 +30,11 @@ public class LeaderboardInsightsController {
   }
 
   @GetMapping("/languages")
-  public ResponseEntity<LeaderboardLanguagesResponse> getLanguages() {
-    LeaderboardLanguagesResponse body = insightsService.getLanguages();
+  public ResponseEntity<LeaderboardLanguagesResponse> getLanguages(
+      @RequestParam(required = false) String mode,
+      @RequestParam(required = false) String provider,
+      @RequestParam(required = false) String model) {
+    LeaderboardLanguagesResponse body = insightsService.getLanguages(mode, provider, model);
     return ResponseEntity.ok()
         .cacheControl(CacheControl.maxAge(Duration.ofSeconds(300)).cachePublic())
         .body(body);

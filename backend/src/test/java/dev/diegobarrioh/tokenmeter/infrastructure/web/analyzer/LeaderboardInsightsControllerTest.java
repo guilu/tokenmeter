@@ -15,6 +15,7 @@ import dev.diegobarrioh.tokenmeter.infrastructure.web.WebMvcConfiguration;
 import dev.diegobarrioh.tokenmeter.infrastructure.web.repository.RepositoryIntakeExceptionHandler;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -50,7 +51,7 @@ class LeaderboardInsightsControllerTest {
 
   @Test
   void languagesReturns200WithJsonAndCacheControlHeader() throws Exception {
-    when(insightsService.getLanguages()).thenReturn(emptyLanguages());
+    when(insightsService.getLanguages(any(), any(), any())).thenReturn(emptyLanguages());
 
     mockMvc
         .perform(get("/api/leaderboards/insights/languages"))
@@ -58,6 +59,38 @@ class LeaderboardInsightsControllerTest {
         .andExpect(jsonPath("$.languages").isArray())
         .andExpect(jsonPath("$.totalTokensAllLanguages").value(0))
         .andExpect(header().string("Cache-Control", "max-age=300, public"));
+  }
+
+  @Test
+  void languagesFilterParamsPropagatedToService() throws Exception {
+    when(insightsService.getLanguages("raw", "openai", "gpt-4o")).thenReturn(emptyLanguages());
+
+    mockMvc
+        .perform(
+            get("/api/leaderboards/insights/languages")
+                .param("mode", "raw")
+                .param("provider", "openai")
+                .param("model", "gpt-4o"))
+        .andExpect(status().isOk());
+
+    verify(insightsService).getLanguages("raw", "openai", "gpt-4o");
+  }
+
+  @Test
+  void languagesFilterEchoedInResponse() throws Exception {
+    LeaderboardLanguagesResponse responseWithFilters =
+        new LeaderboardLanguagesResponse(
+            List.of(), 0L, Map.of("mode", "raw", "provider", "openai"));
+    when(insightsService.getLanguages(any(), any(), any())).thenReturn(responseWithFilters);
+
+    mockMvc
+        .perform(
+            get("/api/leaderboards/insights/languages")
+                .param("mode", "raw")
+                .param("provider", "openai"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.filters.mode").value("raw"))
+        .andExpect(jsonPath("$.filters.provider").value("openai"));
   }
 
   @Test
@@ -129,7 +162,7 @@ class LeaderboardInsightsControllerTest {
             List.of(new LanguageInsightEntry("Java", 7_000L, 3L, new BigDecimal("70.00"))),
             10_000L,
             null);
-    when(insightsService.getLanguages()).thenReturn(response);
+    when(insightsService.getLanguages(any(), any(), any())).thenReturn(response);
 
     mockMvc
         .perform(get("/api/leaderboards/insights/languages"))
