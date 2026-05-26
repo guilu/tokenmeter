@@ -4,6 +4,7 @@ import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobErrorCode;
 import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobId;
 import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobMetrics;
 import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobPhase;
+import dev.diegobarrioh.tokenmeter.domain.pricing.PricingSnapshotHandle;
 import java.util.UUID;
 
 /**
@@ -30,4 +31,11 @@ public interface AnalysisJobProgressEmitter {
   void success(AnalysisJobId id, UUID analysisId, AnalysisJobMetrics finalMetrics);
 
   void fail(AnalysisJobId id, AnalysisJobErrorCode code, String message);
+
+  /**
+   * Persists the captured {@link PricingSnapshotHandle} on the {@code analysis_job} row in its own
+   * {@code REQUIRES_NEW} transaction so HTTP pollers see the {@code pricing} block as soon as the
+   * worker enters {@code CALCULATING_COSTS}. No-op on terminal jobs.
+   */
+  void markPricing(AnalysisJobId id, PricingSnapshotHandle handle);
 }

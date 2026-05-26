@@ -1,5 +1,6 @@
 package dev.diegobarrioh.tokenmeter.infrastructure.web.analyzer;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobPhase;
 import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobStatus;
 import java.time.Instant;
@@ -9,6 +10,7 @@ import java.util.UUID;
  * Wire representation of an {@code AnalysisJob} snapshot served by {@code GET
  * /api/analyze/jobs/{jobId}}.
  */
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public record AnalysisJobStatusResponse(
     String jobId,
     AnalysisJobStatus status,
@@ -20,7 +22,8 @@ public record AnalysisJobStatusResponse(
     JobErrorResponse error,
     JobMetricsResponse metrics,
     JobTimestampsResponse timestamps,
-    QueueStateResponse queueState) {
+    QueueStateResponse queueState,
+    PricingMetadata pricing) {
 
   /** Populated only when {@code status = FAILED}. */
   public record JobErrorResponse(String code, String message) {}

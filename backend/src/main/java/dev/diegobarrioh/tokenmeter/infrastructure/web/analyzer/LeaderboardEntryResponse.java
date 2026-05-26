@@ -1,9 +1,11 @@
 package dev.diegobarrioh.tokenmeter.infrastructure.web.analyzer;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public record LeaderboardEntryResponse(
     int rank,
     UUID analysisId,
@@ -20,4 +22,5 @@ public record LeaderboardEntryResponse(
     String model,
     String mode,
     BigDecimal totalCost,
-    BigDecimal costPerMillionTokens) {}
+    BigDecimal costPerMillionTokens,
+    PricingMetadata pricing) {}

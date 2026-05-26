@@ -5,6 +5,9 @@ import dev.diegobarrioh.tokenmeter.application.analyzer.RepositoryAnalysisResult
 import dev.diegobarrioh.tokenmeter.domain.analyzer.LanguageStatistics;
 import dev.diegobarrioh.tokenmeter.domain.analyzer.RepositoryScanResult;
 import dev.diegobarrioh.tokenmeter.domain.cost.ModelCostEstimate;
+import dev.diegobarrioh.tokenmeter.domain.pricing.PricingSnapshotHandle;
+import dev.diegobarrioh.tokenmeter.domain.pricing.PricingSnapshotId;
+import dev.diegobarrioh.tokenmeter.domain.pricing.PricingSource;
 import dev.diegobarrioh.tokenmeter.domain.tokenizer.LanguageTokenMetrics;
 import dev.diegobarrioh.tokenmeter.domain.tokenizer.RepositoryTokenizationResult;
 import java.time.Instant;
@@ -37,6 +40,19 @@ public class JpaAnalysisPersistenceService implements AnalysisPersistenceService
     return repository.findById(id).map(this::toResult);
   }
 
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<UUID> findLatestSuccessIdFor(String repositoryUrl, String pricingSnapshotId) {
+    if (repositoryUrl == null || pricingSnapshotId == null) {
+      return Optional.empty();
+    }
+    return repository
+        .findLatestSuccessId(
+            repositoryUrl, pricingSnapshotId, org.springframework.data.domain.PageRequest.of(0, 1))
+        .stream()
+        .findFirst();
+  }
+
   private static AnalysisEntity toEntity(RepositoryAnalysisResult result) {
     UUID id = result.id() == null ? UUID.randomUUID() : result.id();
     Instant createdAt = result.createdAt() == null ? Instant.now() : result.createdAt();
@@ -54,6 +70,13 @@ public class JpaAnalysisPersistenceService implements AnalysisPersistenceService
             result.tokenization().encoding(),
             result.tokenization().totalTokens(),
             createdAt);
+
+    PricingSnapshotHandle pricing = result.pricing();
+    if (pricing != null) {
+      entity.setPricingSnapshotId(pricing.id().value());
+      entity.setPricingPrimarySource(pricing.primarySource().name());
+      entity.setPricingCapturedAt(pricing.capturedAt());
+    }
 
     result
         .scan()
@@ -148,6 +171,25 @@ public class JpaAnalysisPersistenceService implements AnalysisPersistenceService
             entity.getTotalTokens(),
             List.of(),
             tokenLanguages),
-        costEstimates);
+        costEstimates,
+        toPricingHandle(entity));
+  }
+
+  private static PricingSnapshotHandle toPricingHandle(AnalysisEntity entity) {
+    String storedId = entity.getPricingSnapshotId();
+    String storedSource = entity.getPricingPrimarySource();
+    Instant capturedAt = entity.getPricingCapturedAt();
+    if (storedId == null || storedSource == null || capturedAt == null) {
+      return null;
+    }
+    PricingSource source;
+    try {
+      source = PricingSource.valueOf(storedSource);
+    } catch (IllegalArgumentException ex) {
+      return null;
+    }
+    // Snapshots themselves are not reconstructed from the row — only the identity carrier.
+    return new PricingSnapshotHandle(
+        new PricingSnapshotId(storedId), source, capturedAt, List.of());
   }
 }

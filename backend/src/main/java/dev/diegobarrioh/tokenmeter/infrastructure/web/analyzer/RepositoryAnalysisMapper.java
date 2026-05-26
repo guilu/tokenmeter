@@ -5,6 +5,8 @@ import dev.diegobarrioh.tokenmeter.application.cost.EngineeringEffortEstimate;
 import dev.diegobarrioh.tokenmeter.application.cost.EngineeringEffortEstimator;
 import dev.diegobarrioh.tokenmeter.domain.analyzer.LanguageStatistics;
 import dev.diegobarrioh.tokenmeter.domain.cost.ModelCostEstimate;
+import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobSnapshot;
+import dev.diegobarrioh.tokenmeter.domain.pricing.PricingSnapshotHandle;
 import dev.diegobarrioh.tokenmeter.domain.tokenizer.LanguageTokenMetrics;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -33,7 +35,24 @@ public class RepositoryAnalysisMapper {
             tokenization.encoding(),
             tokenization.totalTokens(),
             toLanguageMetrics(result)),
-        result.costEstimates().stream().map(this::toCostEstimate).toList());
+        result.costEstimates().stream().map(this::toCostEstimate).toList(),
+        toPricingMetadata(result.pricing()));
+  }
+
+  static PricingMetadata toPricingMetadata(PricingSnapshotHandle handle) {
+    if (handle == null) {
+      return null;
+    }
+    return new PricingMetadata(
+        handle.id().value(), handle.primarySource().name(), handle.capturedAt());
+  }
+
+  static PricingMetadata toPricingMetadata(AnalysisJobSnapshot.PricingSnapshotCapture pricing) {
+    if (pricing == null) {
+      return null;
+    }
+    return new PricingMetadata(
+        pricing.snapshotId().value(), pricing.primarySource().name(), pricing.capturedAt());
   }
 
   private RepositoryAnalysisCostEstimateResponse toCostEstimate(ModelCostEstimate estimate) {

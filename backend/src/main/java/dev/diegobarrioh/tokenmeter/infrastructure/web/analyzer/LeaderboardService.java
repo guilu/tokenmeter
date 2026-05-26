@@ -114,7 +114,16 @@ public class LeaderboardService {
         row.getModel(),
         row.getMode() == null ? null : row.getMode().toLowerCase(Locale.ROOT),
         totalCost,
-        costPerMillionTokens);
+        costPerMillionTokens,
+        toPricingMetadata(row));
+  }
+
+  private static PricingMetadata toPricingMetadata(LeaderboardRow row) {
+    if (row.getPricingSnapshotId() == null) {
+      return null;
+    }
+    return new PricingMetadata(
+        row.getPricingSnapshotId(), row.getPricingPrimarySource(), row.getPricingCapturedAt());
   }
 
   private static Map<String, String> buildFilters(String mode, String provider, String model) {

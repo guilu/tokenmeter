@@ -22,6 +22,8 @@ import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobQueueState;
 import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobSnapshot;
 import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobStatus;
 import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobView;
+import dev.diegobarrioh.tokenmeter.domain.pricing.PricingSnapshotId;
+import dev.diegobarrioh.tokenmeter.domain.pricing.PricingSource;
 import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeErrorCode;
 import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeException;
 import dev.diegobarrioh.tokenmeter.infrastructure.web.PublicOriginProperties;
@@ -125,7 +127,8 @@ class AnalysisJobControllerTest {
         .andExpect(jsonPath("$.phase").value("QUEUED"))
         .andExpect(jsonPath("$.progressPercent").value(0))
         .andExpect(jsonPath("$.analysisId").doesNotExist())
-        .andExpect(jsonPath("$.error").doesNotExist());
+        .andExpect(jsonPath("$.error").doesNotExist())
+        .andExpect(jsonPath("$.pricing").doesNotExist());
   }
 
   @Test
@@ -159,7 +162,43 @@ class AnalysisJobControllerTest {
         .andExpect(jsonPath("$.phase").value("COMPLETED"))
         .andExpect(jsonPath("$.progressPercent").value(100))
         .andExpect(jsonPath("$.analysisId").value(analysisId.toString()))
-        .andExpect(jsonPath("$.error").doesNotExist());
+        .andExpect(jsonPath("$.error").doesNotExist())
+        .andExpect(jsonPath("$.pricing").doesNotExist());
+  }
+
+  @Test
+  void getJobReturnsPricingMetadataWhenCaptured() throws Exception {
+    AnalysisJobId jobId = AnalysisJobId.random();
+    UUID analysisId = UUID.randomUUID();
+    Instant now = Instant.parse("2026-05-08T20:00:00Z");
+    Instant capturedAt = Instant.parse("2026-05-24T18:42:11Z");
+    AnalysisJobSnapshot snapshot =
+        new AnalysisJobSnapshot(
+            jobId,
+            "https://github.com/guilu/tokenmeter",
+            AnalysisJobStatus.SUCCESS,
+            AnalysisJobPhase.COMPLETED,
+            100,
+            "All done",
+            analysisId,
+            null,
+            null,
+            new AnalysisJobMetrics(10L, 10L, 0L, 100L, 1, 1),
+            now,
+            now,
+            now,
+            now,
+            new AnalysisJobSnapshot.PricingSnapshotCapture(
+                new PricingSnapshotId(samplePricingId()), PricingSource.REMOTE, capturedAt));
+    when(queryService.getView(eq(jobId)))
+        .thenReturn(Optional.of(new AnalysisJobView(snapshot, null)));
+
+    mockMvc
+        .perform(get("/api/analyze/jobs/{jobId}", jobId.value()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.pricing.snapshotId").value(samplePricingId()))
+        .andExpect(jsonPath("$.pricing.primarySource").value("REMOTE"))
+        .andExpect(jsonPath("$.pricing.capturedAt").value("2026-05-24T18:42:11Z"));
   }
 
   @Test
@@ -299,5 +338,9 @@ class AnalysisJobControllerTest {
         null,
         now,
         null);
+  }
+
+  private static String samplePricingId() {
+    return "v1:" + "0".repeat(64);
   }
 }

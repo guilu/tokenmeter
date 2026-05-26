@@ -61,6 +61,36 @@ class LeaderboardServiceTest {
   }
 
   @Test
+  void exposesPricingSnapshotMetadataWhenPresent() {
+    LeaderboardService service = new LeaderboardService(leaderboardRepository);
+    when(leaderboardRepository.countCostFiltered(any(), any(), any())).thenReturn(1L);
+    when(leaderboardRepository.findMostExpensive(any(), any(), any(), anyInt(), anyLong()))
+        .thenReturn(List.of(row("repo", new BigDecimal("1.00"), 10_000)));
+
+    LeaderboardPageResponse response =
+        service.getLeaderboard(LeaderboardCategory.MOST_EXPENSIVE, 0, 10, "raw", "openai", null);
+
+    PricingMetadata pricing = response.entries().getFirst().pricing();
+    assertThat(pricing).isNotNull();
+    assertThat(pricing.snapshotId()).isEqualTo(SNAPSHOT_ID);
+    assertThat(pricing.primarySource()).isEqualTo("REMOTE");
+    assertThat(pricing.capturedAt()).isEqualTo(SNAPSHOT_CAPTURED_AT);
+  }
+
+  @Test
+  void omitsPricingForLegacyRowsWithNullSnapshotId() {
+    LeaderboardService service = new LeaderboardService(leaderboardRepository);
+    when(leaderboardRepository.countCostFiltered(any(), any(), any())).thenReturn(1L);
+    when(leaderboardRepository.findMostExpensive(any(), any(), any(), anyInt(), anyLong()))
+        .thenReturn(List.of(legacyRow("legacy", new BigDecimal("1.00"), 10_000)));
+
+    LeaderboardPageResponse response =
+        service.getLeaderboard(LeaderboardCategory.MOST_EXPENSIVE, 0, 10, "raw", "openai", null);
+
+    assertThat(response.entries().getFirst().pricing()).isNull();
+  }
+
+  @Test
   void invalidModeFilterIsIgnored() {
     LeaderboardService service = new LeaderboardService(leaderboardRepository);
     when(leaderboardRepository.countDistinctRepositories()).thenReturn(1L);
@@ -76,6 +106,82 @@ class LeaderboardServiceTest {
   private static LeaderboardRow row(String name, BigDecimal totalCost, long totalTokens) {
     return rowWithCount(name, totalCost, totalTokens, 1);
   }
+
+  private static LeaderboardRow legacyRow(String name, BigDecimal totalCost, long totalTokens) {
+    LeaderboardRow delegate = rowWithCount(name, totalCost, totalTokens, 1);
+    return new LeaderboardRow() {
+      public UUID getId() {
+        return delegate.getId();
+      }
+
+      public String getRepositoryUrl() {
+        return delegate.getRepositoryUrl();
+      }
+
+      public String getOwnerName() {
+        return delegate.getOwnerName();
+      }
+
+      public String getRepositoryName() {
+        return delegate.getRepositoryName();
+      }
+
+      public Instant getCreatedAt() {
+        return delegate.getCreatedAt();
+      }
+
+      public long getTotalFiles() {
+        return delegate.getTotalFiles();
+      }
+
+      public long getTotalLines() {
+        return delegate.getTotalLines();
+      }
+
+      public long getTotalBytes() {
+        return delegate.getTotalBytes();
+      }
+
+      public long getTotalTokens() {
+        return delegate.getTotalTokens();
+      }
+
+      public long getAnalysisCount() {
+        return delegate.getAnalysisCount();
+      }
+
+      public String getProvider() {
+        return delegate.getProvider();
+      }
+
+      public String getModel() {
+        return delegate.getModel();
+      }
+
+      public String getMode() {
+        return delegate.getMode();
+      }
+
+      public BigDecimal getTotalCost() {
+        return delegate.getTotalCost();
+      }
+
+      public String getPricingSnapshotId() {
+        return null;
+      }
+
+      public String getPricingPrimarySource() {
+        return null;
+      }
+
+      public Instant getPricingCapturedAt() {
+        return null;
+      }
+    };
+  }
+
+  private static final String SNAPSHOT_ID = "v1:" + "0".repeat(64);
+  private static final Instant SNAPSHOT_CAPTURED_AT = Instant.parse("2026-05-24T18:42:11Z");
 
   private static LeaderboardRow rowWithCount(
       String name, BigDecimal totalCost, long totalTokens, long analysisCount) {
@@ -134,6 +240,18 @@ class LeaderboardServiceTest {
 
       public BigDecimal getTotalCost() {
         return totalCost;
+      }
+
+      public String getPricingSnapshotId() {
+        return SNAPSHOT_ID;
+      }
+
+      public String getPricingPrimarySource() {
+        return "REMOTE";
+      }
+
+      public Instant getPricingCapturedAt() {
+        return SNAPSHOT_CAPTURED_AT;
       }
     };
   }

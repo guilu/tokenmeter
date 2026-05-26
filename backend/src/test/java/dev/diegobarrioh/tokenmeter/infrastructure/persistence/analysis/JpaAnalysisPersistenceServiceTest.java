@@ -8,11 +8,16 @@ import dev.diegobarrioh.tokenmeter.domain.analyzer.RepositoryScanResult;
 import dev.diegobarrioh.tokenmeter.domain.cost.CostEstimationMode;
 import dev.diegobarrioh.tokenmeter.domain.cost.ModelCostEstimate;
 import dev.diegobarrioh.tokenmeter.domain.pricing.AiProvider;
+import dev.diegobarrioh.tokenmeter.domain.pricing.PricingSnapshotHandle;
+import dev.diegobarrioh.tokenmeter.domain.pricing.PricingSnapshotId;
+import dev.diegobarrioh.tokenmeter.domain.pricing.PricingSource;
 import dev.diegobarrioh.tokenmeter.domain.tokenizer.LanguageTokenMetrics;
 import dev.diegobarrioh.tokenmeter.domain.tokenizer.RepositoryTokenizationResult;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -63,6 +68,42 @@ class JpaAnalysisPersistenceServiceTest {
   }
 
   @Test
+  void findsLatestSuccessIdByRepositoryUrlAndSnapshot() {
+    String snapshotId = "v1:" + "a".repeat(64);
+    PricingSnapshotHandle handle =
+        new PricingSnapshotHandle(
+            new PricingSnapshotId(snapshotId),
+            PricingSource.REMOTE,
+            Instant.parse("2026-05-25T12:00:00Z"),
+            List.of());
+    RepositoryAnalysisResult older = persistenceService.save(sampleResultWithPricing(handle));
+    RepositoryAnalysisResult newer = persistenceService.save(sampleResultWithPricing(handle));
+
+    Optional<UUID> found =
+        persistenceService.findLatestSuccessIdFor(
+            "https://github.com/guilu/tokenmeter", snapshotId);
+
+    assertThat(found).isPresent();
+    assertThat(List.of(older.id(), newer.id())).contains(found.get());
+  }
+
+  @Test
+  void findLatestSuccessIdReturnsEmptyForDifferentSnapshot() {
+    PricingSnapshotHandle handle =
+        new PricingSnapshotHandle(
+            new PricingSnapshotId("v1:" + "b".repeat(64)),
+            PricingSource.REMOTE,
+            Instant.parse("2026-05-25T12:00:00Z"),
+            List.of());
+    persistenceService.save(sampleResultWithPricing(handle));
+
+    assertThat(
+            persistenceService.findLatestSuccessIdFor(
+                "https://github.com/guilu/tokenmeter", "v1:" + "c".repeat(64)))
+        .isEmpty();
+  }
+
+  @Test
   void deletesLanguageStatsThroughForeignKeyRelationship() {
     RepositoryAnalysisResult saved = persistenceService.save(sampleResult());
 
@@ -70,6 +111,19 @@ class JpaAnalysisPersistenceServiceTest {
     repository.flush();
 
     assertThat(repository.findById(saved.id())).isEmpty();
+  }
+
+  private static RepositoryAnalysisResult sampleResultWithPricing(PricingSnapshotHandle handle) {
+    RepositoryAnalysisResult base = sampleResult();
+    return new RepositoryAnalysisResult(
+        base.repositoryUrl(),
+        base.cloneUrl(),
+        base.owner(),
+        base.name(),
+        base.scan(),
+        base.tokenization(),
+        base.costEstimates(),
+        handle);
   }
 
   private static RepositoryAnalysisResult sampleResult() {

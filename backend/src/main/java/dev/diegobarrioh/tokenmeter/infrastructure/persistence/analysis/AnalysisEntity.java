@@ -52,6 +52,15 @@ public class AnalysisEntity {
   @Column(name = "created_at", nullable = false)
   private Instant createdAt;
 
+  @Column(name = "pricing_snapshot_id", length = 80)
+  private String pricingSnapshotId;
+
+  @Column(name = "pricing_primary_source", length = 64)
+  private String pricingPrimarySource;
+
+  @Column(name = "pricing_captured_at")
+  private Instant pricingCapturedAt;
+
   @OneToMany(mappedBy = "analysis", cascade = CascadeType.ALL, orphanRemoval = true)
   private List<LanguageStatsEntity> languages = new ArrayList<>();
 
@@ -147,5 +156,29 @@ public class AnalysisEntity {
 
   public List<CostEstimateEntity> getCostEstimates() {
     return List.copyOf(costEstimates);
+  }
+
+  public String getPricingSnapshotId() {
+    return pricingSnapshotId;
+  }
+
+  public void setPricingSnapshotId(String pricingSnapshotId) {
+    this.pricingSnapshotId = pricingSnapshotId;
+  }
+
+  public String getPricingPrimarySource() {
+    return pricingPrimarySource;
+  }
+
+  public void setPricingPrimarySource(String pricingPrimarySource) {
+    this.pricingPrimarySource = pricingPrimarySource;
+  }
+
+  public Instant getPricingCapturedAt() {
+    return pricingCapturedAt;
+  }
+
+  public void setPricingCapturedAt(Instant pricingCapturedAt) {
+    this.pricingCapturedAt = pricingCapturedAt;
   }
 }

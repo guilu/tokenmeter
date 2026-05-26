@@ -3,18 +3,28 @@ package dev.diegobarrioh.tokenmeter.application.analyzer;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import dev.diegobarrioh.tokenmeter.application.pricing.PricingSnapshotIdentityService;
+import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobId;
+import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobMetrics;
+import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobPhase;
 import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobSnapshot;
 import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobStatus;
+import dev.diegobarrioh.tokenmeter.domain.pricing.PricingSnapshotHandle;
+import dev.diegobarrioh.tokenmeter.domain.pricing.PricingSnapshotId;
+import dev.diegobarrioh.tokenmeter.domain.pricing.PricingSource;
 import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeErrorCode;
 import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
@@ -25,10 +35,14 @@ import org.mockito.Mockito;
 
 class AnalysisJobSubmissionServiceTest {
 
+  private static final String SNAPSHOT_ID = "v1:" + "0".repeat(64);
+
   private AnalysisJobRepository repository;
   private AnalysisJobExecutionService executionService;
   private Executor executor;
   private Clock clock;
+  private PricingSnapshotIdentityService pricingIdentityService;
+  private AnalysisPersistenceService analysisPersistenceService;
   private AnalysisJobSubmissionService service;
 
   @BeforeEach
@@ -37,8 +51,26 @@ class AnalysisJobSubmissionServiceTest {
     executionService = Mockito.mock(AnalysisJobExecutionService.class);
     executor = Mockito.mock(Executor.class);
     clock = Clock.fixed(Instant.parse("2026-05-23T08:00:00Z"), ZoneOffset.UTC);
+    pricingIdentityService = Mockito.mock(PricingSnapshotIdentityService.class);
+    analysisPersistenceService = Mockito.mock(AnalysisPersistenceService.class);
     when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
-    service = new AnalysisJobSubmissionService(repository, executionService, executor, clock);
+    when(pricingIdentityService.capture())
+        .thenReturn(
+            new PricingSnapshotHandle(
+                new PricingSnapshotId(SNAPSHOT_ID),
+                PricingSource.REMOTE,
+                Instant.parse("2026-05-23T08:00:00Z"),
+                List.of()));
+    when(analysisPersistenceService.findLatestSuccessIdFor(any(), any()))
+        .thenReturn(Optional.empty());
+    service =
+        new AnalysisJobSubmissionService(
+            repository,
+            executionService,
+            executor,
+            clock,
+            pricingIdentityService,
+            analysisPersistenceService);
   }
 
   @Test
@@ -62,6 +94,44 @@ class AnalysisJobSubmissionServiceTest {
 
     runnableCaptor.getValue().run();
     verify(executionService).runJob(persisted.id());
+  }
+
+  @Test
+  void shortCircuitsWhenAnalysisAlreadyExistsForSameSnapshot() {
+    UUID cachedAnalysisId = UUID.randomUUID();
+    when(analysisPersistenceService.findLatestSuccessIdFor(
+            eq("https://github.com/guilu/tokenmeter"), eq(SNAPSHOT_ID)))
+        .thenReturn(Optional.of(cachedAnalysisId));
+    when(repository.findById(any(AnalysisJobId.class)))
+        .thenAnswer(
+            invocation -> {
+              AnalysisJobId id = invocation.getArgument(0);
+              return Optional.of(
+                  new AnalysisJobSnapshot(
+                      id,
+                      "https://github.com/guilu/tokenmeter",
+                      AnalysisJobStatus.SUCCESS,
+                      AnalysisJobPhase.COMPLETED,
+                      100,
+                      "Job queued",
+                      cachedAnalysisId,
+                      null,
+                      null,
+                      AnalysisJobMetrics.empty(),
+                      Instant.parse("2026-05-23T08:00:00Z"),
+                      null,
+                      Instant.parse("2026-05-23T08:00:00Z"),
+                      Instant.parse("2026-05-23T08:00:00Z"),
+                      null));
+            });
+
+    AnalysisJobSnapshot result = service.submit("https://github.com/guilu/tokenmeter");
+
+    assertThat(result.status()).isEqualTo(AnalysisJobStatus.SUCCESS);
+    assertThat(result.analysisId()).isEqualTo(cachedAnalysisId);
+    verify(executor, never()).execute(any());
+    verify(repository).markSuccess(any(), eq(cachedAnalysisId), any(), any());
+    verify(repository).updatePricing(any(), any());
   }
 
   @Test
