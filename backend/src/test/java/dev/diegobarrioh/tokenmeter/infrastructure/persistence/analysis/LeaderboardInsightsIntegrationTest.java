@@ -34,8 +34,11 @@ class LeaderboardInsightsIntegrationTest {
 
   @BeforeEach
   void clearData() {
+    // Delete in FK-safe order: jobs reference analysis, cost_estimates and language_stats reference
+    // analysis
     jdbcTemplate.execute("DELETE FROM cost_estimates");
     jdbcTemplate.execute("DELETE FROM language_stats");
+    jdbcTemplate.execute("DELETE FROM analysis_job");
     jdbcTemplate.execute("DELETE FROM analysis");
   }
 
