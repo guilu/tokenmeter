@@ -27,7 +27,7 @@ class LeaderboardInsightsServiceTest {
     LeaderboardInsightsService service = new LeaderboardInsightsService(leaderboardRepository);
     when(leaderboardRepository.findOverview(isNull(), isNull(), isNull()))
         .thenReturn(overviewProjection(5L, 10L, 100_000L, 500_000L));
-    when(leaderboardRepository.findCostsByMode(isNull(), isNull()))
+    when(leaderboardRepository.findCostsByMode(isNull(), isNull(), isNull()))
         .thenReturn(
             List.of(
                 costByModeProjection("RAW", new BigDecimal("12.50"), 10L),
@@ -51,7 +51,7 @@ class LeaderboardInsightsServiceTest {
     LeaderboardInsightsService service = new LeaderboardInsightsService(leaderboardRepository);
     when(leaderboardRepository.findOverview(any(), any(), any()))
         .thenReturn(overviewProjection(0L, 0L, 0L, 0L));
-    when(leaderboardRepository.findCostsByMode(any(), any())).thenReturn(List.of());
+    when(leaderboardRepository.findCostsByMode(any(), any(), any())).thenReturn(List.of());
 
     LeaderboardOverviewResponse response = service.getOverview(null, null, null);
 
@@ -67,12 +67,12 @@ class LeaderboardInsightsServiceTest {
     LeaderboardInsightsService service = new LeaderboardInsightsService(leaderboardRepository);
     when(leaderboardRepository.findOverview("RAW", "OPENAI", "gpt-4o"))
         .thenReturn(overviewProjection(2L, 4L, 50_000L, 200_000L));
-    when(leaderboardRepository.findCostsByMode("OPENAI", "gpt-4o")).thenReturn(List.of());
+    when(leaderboardRepository.findCostsByMode("RAW", "OPENAI", "gpt-4o")).thenReturn(List.of());
 
     service.getOverview("raw", "openai", "gpt-4o");
 
     verify(leaderboardRepository).findOverview("RAW", "OPENAI", "gpt-4o");
-    verify(leaderboardRepository).findCostsByMode("OPENAI", "gpt-4o");
+    verify(leaderboardRepository).findCostsByMode("RAW", "OPENAI", "gpt-4o");
   }
 
   @Test
@@ -80,11 +80,82 @@ class LeaderboardInsightsServiceTest {
     LeaderboardInsightsService service = new LeaderboardInsightsService(leaderboardRepository);
     when(leaderboardRepository.findOverview(isNull(), isNull(), isNull()))
         .thenReturn(overviewProjection(1L, 1L, 1L, 1L));
-    when(leaderboardRepository.findCostsByMode(isNull(), isNull())).thenReturn(List.of());
+    when(leaderboardRepository.findCostsByMode(isNull(), isNull(), isNull())).thenReturn(List.of());
 
     service.getOverview("INVALID_MODE", null, null);
 
     verify(leaderboardRepository).findOverview(null, null, null);
+  }
+
+  @Test
+  void getOverviewForwardsModeToFindCostsByMode() {
+    LeaderboardInsightsService service = new LeaderboardInsightsService(leaderboardRepository);
+    when(leaderboardRepository.findOverview("RAW", null, null))
+        .thenReturn(overviewProjection(1L, 2L, 1_000L, 5_000L));
+    when(leaderboardRepository.findCostsByMode("RAW", null, null))
+        .thenReturn(List.of(costByModeProjection("RAW", new BigDecimal("0.50"), 2L)));
+
+    LeaderboardOverviewResponse response = service.getOverview("raw", null, null);
+
+    verify(leaderboardRepository).findCostsByMode("RAW", null, null);
+    assertThat(response.costsByMode()).hasSize(1);
+    assertThat(response.costsByMode().getFirst().mode()).isEqualTo("raw");
+  }
+
+  @Test
+  void getLanguagesForwardsFiltersToResponseAndDoesNotAlterDataset() {
+    LeaderboardInsightsService service = new LeaderboardInsightsService(leaderboardRepository);
+    when(leaderboardRepository.findTopLanguages())
+        .thenReturn(List.of(languageProjection("Java", 7_000L, 3L)));
+    when(leaderboardRepository.findTotalLanguageTokens()).thenReturn(10_000L);
+
+    LeaderboardLanguagesResponse response = service.getLanguages("raw", "openai", "gpt-4o");
+
+    // dataset unchanged — still calls findTopLanguages() without filtering
+    verify(leaderboardRepository).findTopLanguages();
+    // filters are echoed in the response
+    assertThat(response.filters()).isNotNull();
+    assertThat(response.filters()).containsEntry("mode", "raw");
+    assertThat(response.filters()).containsEntry("provider", "openai");
+    assertThat(response.filters()).containsEntry("model", "gpt-4o");
+  }
+
+  @Test
+  void getLanguagesWithNoFiltersReturnsNullFilters() {
+    LeaderboardInsightsService service = new LeaderboardInsightsService(leaderboardRepository);
+    when(leaderboardRepository.findTopLanguages()).thenReturn(List.of());
+    when(leaderboardRepository.findTotalLanguageTokens()).thenReturn(0L);
+
+    LeaderboardLanguagesResponse response = service.getLanguages(null, null, null);
+
+    assertThat(response.filters()).isNull();
+  }
+
+  @Test
+  void getLanguagesUsesGlobalTokensAsDenominator() {
+    LeaderboardInsightsService service = new LeaderboardInsightsService(leaderboardRepository);
+    // Top 2 returned by findTopLanguages, but global total is 20_000 (long tail of 10_000
+    // elsewhere)
+    when(leaderboardRepository.findTopLanguages())
+        .thenReturn(
+            List.of(
+                languageProjection("Java", 7_000L, 3L), languageProjection("Python", 3_000L, 2L)));
+    when(leaderboardRepository.findTotalLanguageTokens()).thenReturn(20_000L);
+
+    LeaderboardLanguagesResponse response = service.getLanguages(null, null, null);
+
+    // sharePercent must use 20_000 as denominator, NOT 10_000 (sum of top-2)
+    assertThat(response.totalTokensAllLanguages()).isEqualTo(20_000L);
+    assertThat(response.languages().getFirst().sharePercent())
+        .isEqualByComparingTo(new BigDecimal("35.00")); // 7_000 / 20_000 * 100
+    assertThat(response.languages().get(1).sharePercent())
+        .isEqualByComparingTo(new BigDecimal("15.00")); // 3_000 / 20_000 * 100
+    // top-2 shares do NOT sum to 100% because there is a long tail
+    BigDecimal sum =
+        response.languages().stream()
+            .map(LanguageInsightEntry::sharePercent)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+    assertThat(sum).isLessThan(new BigDecimal("100.00"));
   }
 
   @Test
@@ -94,8 +165,9 @@ class LeaderboardInsightsServiceTest {
         .thenReturn(
             List.of(
                 languageProjection("Java", 7_000L, 3L), languageProjection("Python", 3_000L, 2L)));
+    when(leaderboardRepository.findTotalLanguageTokens()).thenReturn(10_000L);
 
-    LeaderboardLanguagesResponse response = service.getLanguages();
+    LeaderboardLanguagesResponse response = service.getLanguages(null, null, null);
 
     assertThat(response.languages()).hasSize(2);
     assertThat(response.totalTokensAllLanguages()).isEqualTo(10_000L);
@@ -112,8 +184,9 @@ class LeaderboardInsightsServiceTest {
   void getLanguagesGuardsAgainstZeroDenominator() {
     LeaderboardInsightsService service = new LeaderboardInsightsService(leaderboardRepository);
     when(leaderboardRepository.findTopLanguages()).thenReturn(List.of());
+    when(leaderboardRepository.findTotalLanguageTokens()).thenReturn(0L);
 
-    LeaderboardLanguagesResponse response = service.getLanguages();
+    LeaderboardLanguagesResponse response = service.getLanguages(null, null, null);
 
     assertThat(response.languages()).isEmpty();
     assertThat(response.totalTokensAllLanguages()).isEqualTo(0L);

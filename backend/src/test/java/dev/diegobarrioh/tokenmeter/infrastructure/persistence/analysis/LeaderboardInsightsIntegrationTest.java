@@ -72,7 +72,7 @@ class LeaderboardInsightsIntegrationTest {
     seedAnalysis("https://github.com/org/repo-c", "TypeScript", 10_000L, 5_000L);
     seedAnalysis("https://github.com/org/repo-d", "Go", 8_000L, 4_000L);
 
-    List<CostByModeProjection> costs = leaderboardRepo.findCostsByMode(null, null);
+    List<CostByModeProjection> costs = leaderboardRepo.findCostsByMode(null, null, null);
 
     // seeded 1 cost per mode per analysis (3 modes × 2 analyses = 6 rows; grouped by mode = 3)
     assertThat(costs).hasSize(3);
@@ -87,8 +87,56 @@ class LeaderboardInsightsIntegrationTest {
 
   @Test
   void findCostsByModeReturnsEmptyListForEmptyDataset() {
-    List<CostByModeProjection> costs = leaderboardRepo.findCostsByMode(null, null);
+    List<CostByModeProjection> costs = leaderboardRepo.findCostsByMode(null, null, null);
     assertThat(costs).isEmpty();
+  }
+
+  @Test
+  void findCostsByModeFilteredByModeReturnsOnlyMatchingMode() {
+    seedAnalysis("https://github.com/org/repo-e", "Java", 5_000L, 2_000L);
+
+    List<CostByModeProjection> rawOnly = leaderboardRepo.findCostsByMode("RAW", null, null);
+
+    assertThat(rawOnly).hasSize(1);
+    assertThat(rawOnly.getFirst().getMode()).isEqualTo("RAW");
+  }
+
+  @Test
+  void findTotalLanguageTokensReturnsGlobalSum() {
+    // seed 12 languages — total tokens should be sum of ALL, not just top 10
+    Map<String, LanguageStatistics> langs = java.util.LinkedHashMap.newLinkedHashMap(12);
+    Map<String, LanguageTokenMetrics> tokenLangs = java.util.LinkedHashMap.newLinkedHashMap(12);
+    String[] names = {
+      "TypeScript",
+      "Java",
+      "Python",
+      "Go",
+      "Rust",
+      "Kotlin",
+      "Swift",
+      "Ruby",
+      "C++",
+      "C#",
+      "PHP",
+      "Scala"
+    };
+    long expectedTotal = 0L;
+    for (int i = 0; i < names.length; i++) {
+      long tokens = (names.length - i) * 1_000L;
+      expectedTotal += tokens;
+      langs.put(names[i], new LanguageStatistics(names[i], 1, 10, 100));
+      tokenLangs.put(names[i], new LanguageTokenMetrics(names[i], 1, tokens));
+    }
+    persistenceService.save(
+        buildResult("https://github.com/org/multi-lang-total", langs, tokenLangs, List.of()));
+
+    long total = leaderboardRepo.findTotalLanguageTokens();
+
+    assertThat(total).isEqualTo(expectedTotal);
+    // top-10 tokens sum is less than total (long tail exists)
+    List<LanguageInsightProjection> top10 = leaderboardRepo.findTopLanguages();
+    long top10Sum = top10.stream().mapToLong(LanguageInsightProjection::getTotalTokens).sum();
+    assertThat(top10Sum).isLessThan(total);
   }
 
   @Test
