@@ -551,7 +551,15 @@ Métricas globales de todos los análisis (o filtradas por `mode`/`provider`/`mo
 
 ## `GET /api/leaderboards/insights/languages`
 
-Top 10 lenguajes por volumen de tokens en todos los análisis. No acepta filtros de modo/proveedor/modelo en v1 (distribución de lenguajes es agnóstica al proveedor).
+Top 10 lenguajes por volumen de tokens en todos los análisis. Acepta los mismos parámetros de filtro que el endpoint de overview (`mode`, `provider`, `model`), pero **en v1 el dataset no se altera**: la distribución de lenguajes es global e independiente del proveedor. Los filtros válidos se devuelven en el campo `filters` para que el cliente pueda confirmar qué filtros están activos.
+
+**Query params** (todos opcionales)
+
+| Parámetro | Descripción |
+|---|---|
+| `mode` | `raw`, `assisted` o `agentic` (insensible a mayúsculas); valor inválido silenciosamente ignorado |
+| `provider` | `openai`, `anthropic`, etc. |
+| `model` | nombre del modelo (p.ej. `gpt-4o`) |
 
 **200 OK** `Cache-Control: public, max-age=300`
 
@@ -561,9 +569,12 @@ Top 10 lenguajes por volumen de tokens en todos los análisis. No acepta filtros
     { "language": "TypeScript", "totalTokens": 3200000, "repoCount": 87, "sharePercent": "25.70" },
     { "language": "Python",     "totalTokens": 2100000, "repoCount": 64, "sharePercent": "16.87" }
   ],
-  "totalTokensAllLanguages": 12450000
+  "totalTokensAllLanguages": 12450000,
+  "filters": { "mode": "raw" }
 }
 ```
+
+> `filters` se omite (campo `null`) cuando no se proporciona ningún filtro válido.
 
 | Campo | Tipo | Notas |
 |---|---|---|
@@ -572,7 +583,8 @@ Top 10 lenguajes por volumen de tokens en todos los análisis. No acepta filtros
 | `totalTokens` | long | Suma de tokens de todas las filas de ese lenguaje |
 | `repoCount` | long | `COUNT(DISTINCT analysis_id)` |
 | `sharePercent` | string | `totalTokens / totalTokensAllLanguages × 100`, 2 decimales (`BigDecimal`); `0.00` si no hay datos |
-| `totalTokensAllLanguages` | long | Base usada para calcular `sharePercent` (suma de todos los lenguajes, no solo top-10) |
+| `totalTokensAllLanguages` | long | `SUM(tokens)` sobre **todos** los lenguajes en `language_stats` (no solo el top-10); es la base real para calcular `sharePercent` |
+| `filters` | object \| null | Filtros activos (normalizados); omitido si no hay ninguno |
 
 ---
 
