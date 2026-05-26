@@ -476,6 +476,106 @@ Se devuelve cuando:
 
 ---
 
+## `GET /api/leaderboards`
+
+Devuelve una página del ranking público de repositorios. Los parámetros `mode`, `provider` y `model` filtran los registros. Valores inválidos se ignoran silenciosamente.
+
+**Query params**
+
+| Param | Default | Descripción |
+|---|---|---|
+| `category` | `most-expensive` | `most-expensive`, `cheapest`, `best-cost-efficiency`, `largest`, `highest-token-count`, `most-analyzed` |
+| `page` | `0` | Página (0-indexed) |
+| `size` | `12` | Tamaño de página (máx 50) |
+| `mode` | — | `raw`, `assisted`, `agentic` |
+| `provider` | — | Nombre del proveedor (ej. `openai`) |
+| `model` | — | Nombre del modelo (ej. `gpt-4o`) |
+
+**200 OK** `Cache-Control: public, max-age=30`
+
+```json
+{
+  "category": "most-expensive",
+  "page": 0,
+  "size": 12,
+  "totalElements": 42,
+  "totalPages": 4,
+  "filters": { "mode": "raw" },
+  "entries": [
+    {
+      "rank": 1,
+      "analysisId": "...",
+      "repositoryUrl": "https://github.com/org/repo",
+      "totalTokens": 120000,
+      "totalCost": "1.234500"
+    }
+  ]
+}
+```
+
+---
+
+## `GET /api/leaderboards/insights/overview`
+
+Métricas globales de todos los análisis (o filtradas por `mode`/`provider`/`model`). Valores de filtro inválidos se ignoran silenciosamente.
+
+**Query params**: `mode`, `provider`, `model` (mismos que `/api/leaderboards`).
+
+**200 OK** `Cache-Control: public, max-age=60`
+
+```json
+{
+  "totalRepos": 142,
+  "totalAnalyses": 380,
+  "totalTokens": 12450000,
+  "totalBytes": 89324551,
+  "costsByMode": [
+    { "mode": "raw",      "totalCost": "12.4500", "analysisCount": 120 },
+    { "mode": "assisted", "totalCost": "62.2500", "analysisCount": 120 },
+    { "mode": "agentic",  "totalCost": "249.00",  "analysisCount": 120 }
+  ],
+  "filters": { "mode": "raw", "provider": "openai" }
+}
+```
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `totalRepos` | long | `COUNT(DISTINCT repository_url)` de los análisis que cumplen el filtro |
+| `totalAnalyses` | long | Total de filas en `analysis` que cumplen el filtro |
+| `totalTokens` | long | Suma de `total_tokens` |
+| `totalBytes` | long | Suma de `total_bytes` |
+| `costsByMode` | array | Máximo 3 entradas (solo modos con datos); `totalCost` como `BigDecimal` serializado |
+| `filters` | object \| null | Filtros efectivos aplicados (ausente cuando no hay ninguno) |
+
+---
+
+## `GET /api/leaderboards/insights/languages`
+
+Top 10 lenguajes por volumen de tokens en todos los análisis. No acepta filtros de modo/proveedor/modelo en v1 (distribución de lenguajes es agnóstica al proveedor).
+
+**200 OK** `Cache-Control: public, max-age=300`
+
+```json
+{
+  "languages": [
+    { "language": "TypeScript", "totalTokens": 3200000, "repoCount": 87, "sharePercent": "25.70" },
+    { "language": "Python",     "totalTokens": 2100000, "repoCount": 64, "sharePercent": "16.87" }
+  ],
+  "totalTokensAllLanguages": 12450000
+}
+```
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `languages` | array (≤10) | Ordenado por `totalTokens DESC` |
+| `language` | string | Nombre del lenguaje (`language_name` en `language_stats`) |
+| `totalTokens` | long | Suma de tokens de todas las filas de ese lenguaje |
+| `repoCount` | long | `COUNT(DISTINCT analysis_id)` |
+| `sharePercent` | string | `totalTokens / totalTokensAllLanguages × 100`, 2 decimales (`BigDecimal`); `0.00` si no hay datos |
+| `totalTokensAllLanguages` | long | Base usada para calcular `sharePercent` (suma de todos los lenguajes, no solo top-10) |
+
+---
+
 ## `POST /api/repositories/intake` (legacy)
 
 Endpoint inicial que solo clona y valida un repo, sin tokenizar ni estimar costes. Mantenido para compatibilidad.
