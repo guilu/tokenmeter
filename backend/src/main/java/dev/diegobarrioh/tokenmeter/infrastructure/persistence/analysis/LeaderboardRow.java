@@ -42,4 +42,7 @@ public interface LeaderboardRow {
 
   @Nullable
   Instant getPricingCapturedAt();
+
+  @Nullable
+  String getDominantLanguage();
 }

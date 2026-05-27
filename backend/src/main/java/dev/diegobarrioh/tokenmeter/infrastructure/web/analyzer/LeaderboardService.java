@@ -113,7 +113,8 @@ public class LeaderboardService {
         row.getMode() == null ? null : row.getMode().toLowerCase(Locale.ROOT),
         totalCost,
         costPerMillionTokens,
-        toPricingMetadata(row));
+        toPricingMetadata(row),
+        row.getDominantLanguage());
   }
 
   private static PricingMetadata toPricingMetadata(LeaderboardRow row) {

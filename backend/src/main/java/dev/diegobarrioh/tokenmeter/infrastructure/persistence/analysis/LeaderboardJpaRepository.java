@@ -30,7 +30,10 @@ public interface LeaderboardJpaRepository extends Repository<AnalysisEntity, UUI
                  ce.total_cost,
                  a.pricing_snapshot_id,
                  a.pricing_primary_source,
-                 a.pricing_captured_at
+                 a.pricing_captured_at,
+                 (SELECT language_name FROM language_stats
+                  WHERE analysis_id = a.id
+                  ORDER BY tokens DESC LIMIT 1) AS dominant_language
           FROM analysis a
           JOIN LATERAL (
               SELECT provider, model, mode, total_cost
@@ -72,7 +75,10 @@ public interface LeaderboardJpaRepository extends Repository<AnalysisEntity, UUI
                  ce.total_cost,
                  a.pricing_snapshot_id,
                  a.pricing_primary_source,
-                 a.pricing_captured_at
+                 a.pricing_captured_at,
+                 (SELECT language_name FROM language_stats
+                  WHERE analysis_id = a.id
+                  ORDER BY tokens DESC LIMIT 1) AS dominant_language
           FROM analysis a
           JOIN LATERAL (
               SELECT provider, model, mode, total_cost
@@ -114,7 +120,10 @@ public interface LeaderboardJpaRepository extends Repository<AnalysisEntity, UUI
                  ce.total_cost,
                  a.pricing_snapshot_id,
                  a.pricing_primary_source,
-                 a.pricing_captured_at
+                 a.pricing_captured_at,
+                 (SELECT language_name FROM language_stats
+                  WHERE analysis_id = a.id
+                  ORDER BY tokens DESC LIMIT 1) AS dominant_language
           FROM analysis a
           JOIN LATERAL (
               SELECT provider, model, mode, total_cost
@@ -165,7 +174,10 @@ public interface LeaderboardJpaRepository extends Repository<AnalysisEntity, UUI
                  ce.total_cost,
                  d.pricing_snapshot_id,
                  d.pricing_primary_source,
-                 d.pricing_captured_at
+                 d.pricing_captured_at,
+                 (SELECT language_name FROM language_stats
+                  WHERE analysis_id = d.id
+                  ORDER BY tokens DESC LIMIT 1) AS dominant_language
           FROM deduped d
           LEFT JOIN LATERAL (
               SELECT provider, model, mode, total_cost
@@ -215,7 +227,10 @@ public interface LeaderboardJpaRepository extends Repository<AnalysisEntity, UUI
                  ce.total_cost,
                  d.pricing_snapshot_id,
                  d.pricing_primary_source,
-                 d.pricing_captured_at
+                 d.pricing_captured_at,
+                 (SELECT language_name FROM language_stats
+                  WHERE analysis_id = d.id
+                  ORDER BY tokens DESC LIMIT 1) AS dominant_language
           FROM deduped d
           LEFT JOIN LATERAL (
               SELECT provider, model, mode, total_cost
@@ -275,7 +290,10 @@ public interface LeaderboardJpaRepository extends Repository<AnalysisEntity, UUI
                  ce.total_cost,
                  r.pricing_snapshot_id,
                  r.pricing_primary_source,
-                 r.pricing_captured_at
+                 r.pricing_captured_at,
+                 (SELECT language_name FROM language_stats
+                  WHERE analysis_id = r.id
+                  ORDER BY tokens DESC LIMIT 1) AS dominant_language
           FROM ranked r
           LEFT JOIN LATERAL (
               SELECT provider, model, mode, total_cost
