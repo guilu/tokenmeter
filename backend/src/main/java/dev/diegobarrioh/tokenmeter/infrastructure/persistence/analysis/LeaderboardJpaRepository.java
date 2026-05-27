@@ -7,6 +7,8 @@ import org.springframework.data.repository.Repository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.lang.Nullable;
 
+// Aggregate queries added for TKM-46 leaderboard insights
+
 public interface LeaderboardJpaRepository extends Repository<AnalysisEntity, UUID> {
 
   @Query(
@@ -314,4 +316,64 @@ public interface LeaderboardJpaRepository extends Repository<AnalysisEntity, UUI
 
   @Query(value = "SELECT COUNT(DISTINCT repository_url) FROM analysis", nativeQuery = true)
   long countDistinctRepositories();
+
+  @Query(
+      value =
+          """
+          SELECT
+            COUNT(DISTINCT a.repository_url) AS total_repos,
+            COUNT(*)                         AS total_analyses,
+            COALESCE(SUM(a.total_tokens), 0) AS total_tokens,
+            COALESCE(SUM(a.total_bytes), 0)  AS total_bytes
+          FROM analysis a
+          WHERE (:mode IS NULL AND :provider IS NULL AND :model IS NULL)
+             OR EXISTS (
+                  SELECT 1 FROM cost_estimates ce
+                  WHERE ce.analysis_id = a.id
+                    AND (:mode     IS NULL OR ce.mode     = :mode)
+                    AND (:provider IS NULL OR ce.provider = :provider)
+                    AND (:model    IS NULL OR LOWER(ce.model) = LOWER(:model))
+                )
+          """,
+      nativeQuery = true)
+  LeaderboardOverviewProjection findOverview(
+      @Nullable @Param("mode") String mode,
+      @Nullable @Param("provider") String provider,
+      @Nullable @Param("model") String model);
+
+  @Query(
+      value =
+          """
+          SELECT ce.mode,
+                 COALESCE(SUM(ce.total_cost), 0)    AS total_cost,
+                 COUNT(DISTINCT ce.analysis_id)     AS analysis_count
+          FROM cost_estimates ce
+          WHERE (:mode     IS NULL OR ce.mode     = :mode)
+            AND (:provider IS NULL OR ce.provider = :provider)
+            AND (:model    IS NULL OR LOWER(ce.model) = LOWER(:model))
+          GROUP BY ce.mode
+          ORDER BY ce.mode
+          """,
+      nativeQuery = true)
+  List<CostByModeProjection> findCostsByMode(
+      @Nullable @Param("mode") String mode,
+      @Nullable @Param("provider") String provider,
+      @Nullable @Param("model") String model);
+
+  @Query(
+      value =
+          """
+          SELECT ls.language_name           AS language_name,
+                 SUM(ls.tokens)             AS total_tokens,
+                 COUNT(DISTINCT ls.analysis_id) AS repo_count
+          FROM language_stats ls
+          GROUP BY ls.language_name
+          ORDER BY SUM(ls.tokens) DESC
+          LIMIT 10
+          """,
+      nativeQuery = true)
+  List<LanguageInsightProjection> findTopLanguages();
+
+  @Query(value = "SELECT COALESCE(SUM(tokens), 0) FROM language_stats", nativeQuery = true)
+  long findTotalLanguageTokens();
 }

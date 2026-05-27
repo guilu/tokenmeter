@@ -1,7 +1,5 @@
 package dev.diegobarrioh.tokenmeter.infrastructure.web.analyzer;
 
-import dev.diegobarrioh.tokenmeter.domain.cost.CostEstimationMode;
-import dev.diegobarrioh.tokenmeter.domain.pricing.AiProvider;
 import dev.diegobarrioh.tokenmeter.infrastructure.persistence.analysis.LeaderboardJpaRepository;
 import dev.diegobarrioh.tokenmeter.infrastructure.persistence.analysis.LeaderboardRow;
 import java.math.BigDecimal;
@@ -34,9 +32,9 @@ public class LeaderboardService {
       String model) {
     int page = Math.max(0, requestedPage);
     int size = Math.max(1, Math.min(MAX_PAGE_SIZE, requestedSize));
-    String normalizedMode = normalizeMode(mode);
-    String normalizedProvider = normalizeProvider(provider);
-    String normalizedModel = (model == null || model.isBlank()) ? null : model.trim();
+    String normalizedMode = LeaderboardFilterNormalizer.normalizeMode(mode);
+    String normalizedProvider = LeaderboardFilterNormalizer.normalizeProvider(provider);
+    String normalizedModel = LeaderboardFilterNormalizer.normalizeModel(model);
 
     long totalElements = countFor(category, normalizedMode, normalizedProvider, normalizedModel);
     int totalPages = totalElements == 0 ? 0 : (int) Math.ceil((double) totalElements / size);
@@ -132,27 +130,5 @@ public class LeaderboardService {
     if (provider != null) filters.put("provider", provider.toLowerCase(Locale.ROOT));
     if (model != null) filters.put("model", model);
     return filters;
-  }
-
-  private static String normalizeMode(String value) {
-    if (value == null || value.isBlank()) return null;
-    String upper = value.trim().toUpperCase(Locale.ROOT);
-    try {
-      CostEstimationMode.valueOf(upper);
-      return upper;
-    } catch (IllegalArgumentException e) {
-      return null;
-    }
-  }
-
-  private static String normalizeProvider(String value) {
-    if (value == null || value.isBlank()) return null;
-    String upper = value.trim().toUpperCase(Locale.ROOT);
-    try {
-      AiProvider.valueOf(upper);
-      return upper;
-    } catch (IllegalArgumentException e) {
-      return null;
-    }
   }
 }

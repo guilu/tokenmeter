@@ -3,6 +3,7 @@ package dev.diegobarrioh.tokenmeter.infrastructure.web.analyzer;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -286,6 +287,20 @@ class RepositoryAnalysisControllerTest {
         .perform(get("/api/leaderboards").param("category", "not-a-real-category"))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+  }
+
+  @Test
+  void leaderboardEndpointReturnsCacheControlHeader() throws Exception {
+    when(leaderboardService.getLeaderboard(
+            any(), any(Integer.class), any(Integer.class), any(), any(), any()))
+        .thenReturn(
+            new LeaderboardPageResponse(
+                "most-expensive", 0, 12, 0L, 0, java.util.Map.of(), java.util.List.of()));
+
+    mockMvc
+        .perform(get("/api/leaderboards"))
+        .andExpect(status().isOk())
+        .andExpect(header().string("Cache-Control", "max-age=30, public"));
   }
 
   @Test
