@@ -254,8 +254,15 @@ export function DashboardPage() {
             </button>
           </div>
           {error ? (
-            <p className="mt-3 rounded-2xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-200">
-              {error}
+            <p
+              aria-live="polite"
+              className="mt-3 flex items-start gap-2 rounded-2xl border border-red-500/50 bg-red-500/15 px-4 py-3 text-sm font-medium text-red-200"
+              role="alert"
+            >
+              <svg aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-red-300" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <span>{error}</span>
             </p>
           ) : null}
         </form>
@@ -457,7 +464,7 @@ function SharedAnalysisState({ error, loading, onBack }: { error: string | null;
         ) : null}
         {error ? (
           <>
-            <p className="text-sm text-red-200">Analysis not available</p>
+            <p className="text-sm font-medium text-red-300">Analysis not available</p>
             <h1 className="mt-3 text-3xl font-semibold text-text">This public analysis could not be loaded.</h1>
             <p className="mt-3 text-text/60">{error}</p>
           </>
