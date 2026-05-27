@@ -89,6 +89,8 @@ export function LeaderboardsPage() {
     return () => {
       overviewActiveRef.current = false
     }
+  // filterKey aggregates mode/provider/model into a single signal; useRef + capturedKey
+  // guard against stale results when filters change mid-flight (replaces let-active).
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterKey])
 
@@ -110,6 +112,8 @@ export function LeaderboardsPage() {
     return () => {
       languagesActiveRef.current = false
     }
+  // filterKey aggregates mode/provider/model into a single signal; useRef + capturedKey
+  // guard against stale results when filters change mid-flight (replaces let-active).
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterKey])
 
@@ -131,6 +135,8 @@ export function LeaderboardsPage() {
     return () => {
       rankingsActiveRef.current = false
     }
+  // rankingsKey aggregates filterKey + category + page; useRef + capturedKey guard
+  // against stale results when sort/page change mid-flight (replaces let-active).
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rankingsKey])
 
