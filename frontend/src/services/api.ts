@@ -3,6 +3,8 @@ import type {
   AnalysisJobStatusResponse,
   AnalyzeRepositoryRequest,
   HealthResponse,
+  LeaderboardLanguagesResponse,
+  LeaderboardOverviewResponse,
   LeaderboardPageResponse,
   PricingResponse,
   RepositoryAnalysisResponse,
@@ -106,6 +108,46 @@ export async function getLeaderboard(params: {
   }
 
   return response.json() as Promise<LeaderboardPageResponse>
+}
+
+export async function getLeaderboardOverview(params: {
+  mode?: string
+  provider?: string
+  model?: string
+}): Promise<LeaderboardOverviewResponse> {
+  const searchParams = new URLSearchParams()
+  if (params.mode) searchParams.set('mode', params.mode)
+  if (params.provider) searchParams.set('provider', params.provider)
+  if (params.model) searchParams.set('model', params.model)
+
+  const query = searchParams.toString()
+  const response = await fetch(`/api/leaderboards/insights/overview${query ? `?${query}` : ''}`)
+
+  if (!response.ok) {
+    throw await toApiError(response, 'Leaderboard overview request failed')
+  }
+
+  return response.json() as Promise<LeaderboardOverviewResponse>
+}
+
+export async function getLeaderboardLanguages(params: {
+  mode?: string
+  provider?: string
+  model?: string
+}): Promise<LeaderboardLanguagesResponse> {
+  const searchParams = new URLSearchParams()
+  if (params.mode) searchParams.set('mode', params.mode)
+  if (params.provider) searchParams.set('provider', params.provider)
+  if (params.model) searchParams.set('model', params.model)
+
+  const query = searchParams.toString()
+  const response = await fetch(`/api/leaderboards/insights/languages${query ? `?${query}` : ''}`)
+
+  if (!response.ok) {
+    throw await toApiError(response, 'Leaderboard languages request failed')
+  }
+
+  return response.json() as Promise<LeaderboardLanguagesResponse>
 }
 
 async function toApiError(response: Response, fallbackMessage: string) {

@@ -1,227 +1,221 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
-import { ApiError, getLeaderboard } from '../services/api'
-import type { LeaderboardEntryResponse, LeaderboardPageResponse } from '../types/api'
+import { LeaderboardFilterBar } from '../components/leaderboards/LeaderboardFilterBar'
+import { LanguageInsightsSection } from '../components/leaderboards/LanguageInsightsSection'
+import { LeaderboardRankingsSection } from '../components/leaderboards/LeaderboardRankingsSection'
+import { OverviewMetricsSection } from '../components/leaderboards/OverviewMetricsSection'
+import { ApiError, getLeaderboard, getLeaderboardLanguages, getLeaderboardOverview } from '../services/api'
+import type {
+  LeaderboardLanguagesResponse,
+  LeaderboardOverviewResponse,
+  LeaderboardPageResponse,
+} from '../types/api'
 
-const categories = [
-  { id: 'most-expensive', label: 'Most expensive', metric: 'Cost' },
-  { id: 'cheapest', label: 'Cheapest', metric: 'Cost' },
-  { id: 'largest', label: 'Largest repositories', metric: 'Size' },
-  { id: 'most-analyzed', label: 'Most analyzed', metric: 'Runs' },
-  { id: 'highest-token-count', label: 'Highest token count', metric: 'Tokens' },
-  { id: 'best-cost-efficiency', label: 'Best cost efficiency', metric: '$ / 1M tokens' },
-] as const
+type FetchResult<T> =
+  | { status: 'ok'; data: T; error: null }
+  | { status: 'error'; data: null; error: string }
 
-const modes = ['raw', 'assisted', 'agentic'] as const
-const providers = ['openai', 'anthropic', 'google', 'deepseek'] as const
+function toUserMessage(reason: unknown) {
+  if (reason instanceof ApiError) return reason.message
+  if (reason instanceof Error) return reason.message
+  return 'TokenMeter could not load leaderboard data.'
+}
 
-const numberFormatter = new Intl.NumberFormat('en-US')
-const compactFormatter = new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 })
-const currencyFormatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 })
-const dateFormatter = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' })
+function getInitialCategory() {
+  const category = new URLSearchParams(window.location.search).get('category')
+  const valid = [
+    'most-expensive',
+    'cheapest',
+    'largest',
+    'most-analyzed',
+    'highest-token-count',
+    'best-cost-efficiency',
+  ]
+  return valid.includes(category ?? '') ? category! : 'most-expensive'
+}
 
 export function LeaderboardsPage() {
-  const [category, setCategory] = useState(() => getInitialCategory())
+  // Shared filter state — drives overview + languages + rankings
   const [mode, setMode] = useState('raw')
   const [provider, setProvider] = useState('')
   const [model, setModel] = useState('')
+
+  // Rankings-specific state (category + page don't affect overview/languages)
+  const [category, setCategory] = useState(() => getInitialCategory())
   const [page, setPage] = useState(0)
-  const [result, setResult] = useState<{ key: string; data: LeaderboardPageResponse | null; error: string | null } | null>(null)
 
-  const activeCategory = useMemo(() => categories.find((candidate) => candidate.id === category) ?? categories[0], [category])
-  const usesCostFilters = ['most-expensive', 'cheapest', 'best-cost-efficiency'].includes(category)
-  const requestKey = `${category}:${page}:${usesCostFilters ? mode : ''}:${usesCostFilters ? provider : ''}:${usesCostFilters ? model : ''}`
-  const leaderboard = result?.key === requestKey ? result.data : null
-  const error = result?.key === requestKey ? result.error : null
-  const loading = result?.key !== requestKey
+  // Keys track which filter combination each result belongs to
+  const filterKey = `${mode}:${provider}:${model}`
+  const rankingsKey = `${filterKey}:${category}:${page}`
 
+  // Per-section results indexed by the key that produced them
+  const [overviewResult, setOverviewResult] = useState<(FetchResult<LeaderboardOverviewResponse> & { key: string }) | null>(null)
+  const [languagesResult, setLanguagesResult] = useState<(FetchResult<LeaderboardLanguagesResponse> & { key: string }) | null>(null)
+  const [rankingsResult, setRankingsResult] = useState<(FetchResult<LeaderboardPageResponse> & { key: string }) | null>(null)
+
+  // Derive per-section loading/ok/error states from key comparison
+  const overviewLoading = overviewResult?.key !== filterKey
+  const overviewData = overviewResult?.key === filterKey && overviewResult.status === 'ok' ? overviewResult.data : null
+  const overviewError = overviewResult?.key === filterKey && overviewResult.status === 'error' ? overviewResult.error : null
+
+  const languagesLoading = languagesResult?.key !== filterKey
+  const languagesData = languagesResult?.key === filterKey && languagesResult.status === 'ok' ? languagesResult.data : null
+  const languagesError = languagesResult?.key === filterKey && languagesResult.status === 'error' ? languagesResult.error : null
+
+  const rankingsLoading = rankingsResult?.key !== rankingsKey
+  const rankingsData = rankingsResult?.key === rankingsKey && rankingsResult.status === 'ok' ? rankingsResult.data : null
+  const rankingsError = rankingsResult?.key === rankingsKey && rankingsResult.status === 'error' ? rankingsResult.error : null
+
+  // Track active effect instances to cancel stale fetches
+  const overviewActiveRef = useRef(true)
+  const languagesActiveRef = useRef(true)
+  const rankingsActiveRef = useRef(true)
+
+  // Overview fetch
   useEffect(() => {
-    let active = true
-    getLeaderboard({
-      category,
-      page,
-      mode: usesCostFilters ? mode : undefined,
-      provider: usesCostFilters ? provider : undefined,
-      model: usesCostFilters ? model : undefined,
-    })
+    overviewActiveRef.current = true
+    const capturedKey = filterKey
+    getLeaderboardOverview({ mode, provider, model })
       .then((data) => {
-        if (active) setResult({ key: requestKey, data, error: null })
+        if (overviewActiveRef.current) {
+          setOverviewResult({ key: capturedKey, status: 'ok', data, error: null })
+        }
       })
-      .catch((reason: unknown) => {
-        if (active) setResult({ key: requestKey, data: null, error: toUserMessage(reason) })
+      .catch((err: unknown) => {
+        if (overviewActiveRef.current) {
+          setOverviewResult({ key: capturedKey, status: 'error', data: null, error: toUserMessage(err) })
+        }
       })
-
     return () => {
-      active = false
+      overviewActiveRef.current = false
     }
-  }, [category, mode, model, page, provider, requestKey, usesCostFilters])
+  // filterKey aggregates mode/provider/model into a single signal; useRef + capturedKey
+  // guard against stale results when filters change mid-flight (replaces let-active).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterKey])
 
-  function selectCategory(nextCategory: string) {
+  // Languages fetch
+  useEffect(() => {
+    languagesActiveRef.current = true
+    const capturedKey = filterKey
+    getLeaderboardLanguages({ mode, provider, model })
+      .then((data) => {
+        if (languagesActiveRef.current) {
+          setLanguagesResult({ key: capturedKey, status: 'ok', data, error: null })
+        }
+      })
+      .catch((err: unknown) => {
+        if (languagesActiveRef.current) {
+          setLanguagesResult({ key: capturedKey, status: 'error', data: null, error: toUserMessage(err) })
+        }
+      })
+    return () => {
+      languagesActiveRef.current = false
+    }
+  // filterKey aggregates mode/provider/model into a single signal; useRef + capturedKey
+  // guard against stale results when filters change mid-flight (replaces let-active).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterKey])
+
+  // Rankings fetch
+  useEffect(() => {
+    rankingsActiveRef.current = true
+    const capturedKey = rankingsKey
+    getLeaderboard({ category, page, mode, provider, model })
+      .then((data) => {
+        if (rankingsActiveRef.current) {
+          setRankingsResult({ key: capturedKey, status: 'ok', data, error: null })
+        }
+      })
+      .catch((err: unknown) => {
+        if (rankingsActiveRef.current) {
+          setRankingsResult({ key: capturedKey, status: 'error', data: null, error: toUserMessage(err) })
+        }
+      })
+    return () => {
+      rankingsActiveRef.current = false
+    }
+  // rankingsKey aggregates filterKey + category + page; useRef + capturedKey guard
+  // against stale results when sort/page change mid-flight (replaces let-active).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rankingsKey])
+
+  function handleCategoryChange(nextCategory: string) {
     setCategory(nextCategory)
     setPage(0)
     window.history.replaceState(null, '', `/leaderboards?category=${nextCategory}`)
   }
 
+  const overviewStatus = overviewLoading ? 'loading' : overviewError ? 'error' : 'ok'
+  const languagesStatus = languagesLoading ? 'loading' : languagesError ? 'error' : 'ok'
+  const rankingsStatus = rankingsLoading ? 'loading' : rankingsError ? 'error' : 'ok'
+
   return (
-    <section className="mx-auto max-w-6xl px-6 py-10">
-      <div className="mb-8 rounded-[2rem] border border-text/10 bg-card/20 p-8 shadow-2xl shadow-bg/20">
-        <p className="mb-3 text-sm font-semibold uppercase tracking-[0.3em] text-primary">Community benchmarks</p>
-        <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
-          <div>
-            <h1 className="text-4xl font-semibold tracking-tight text-text sm:text-5xl">Public repository leaderboards</h1>
-            <p className="mt-4 max-w-2xl text-base leading-7 text-text/80">
-              Browse the repositories TokenMeter has analyzed by AI generation cost, token footprint, size and popularity.
-            </p>
-          </div>
-          <div className="rounded-2xl border border-primary/20 bg-primary/10 p-5 text-sm text-primary">
-            Rankings update from persisted analyses automatically. Open any entry to inspect the full public cost report.
-          </div>
-        </div>
-      </div>
+    <div>
+      {/* Sticky filter bar — drives all three sections */}
+      <LeaderboardFilterBar
+        mode={mode}
+        provider={provider}
+        model={model}
+        onModeChange={(next) => {
+          setMode(next)
+          setPage(0)
+        }}
+        onProviderChange={(next) => {
+          setProvider(next)
+          setPage(0)
+        }}
+        onModelChange={(next) => {
+          setModel(next)
+          setPage(0)
+        }}
+      />
 
-      <div className="mb-6 flex flex-wrap gap-2">
-        {categories.map((item) => (
-          <button
-            className={`rounded-full border px-4 py-2 text-sm transition ${
-              item.id === category ? 'border-primary bg-primary text-bg' : 'border-text/10 bg-card/20 text-text/80 hover:border-primary/60 hover:text-text'
-            }`}
-            key={item.id}
-            onClick={() => selectCategory(item.id)}
-            type="button"
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
-
-      {usesCostFilters ? (
-        <div className="mb-6 grid gap-3 rounded-2xl border border-text/10 bg-card/60 p-4 sm:grid-cols-3">
-          <label className="text-xs font-semibold uppercase tracking-[0.2em] text-text/60">
-            Mode
-            <div className="relative mt-2">
-              <select className="w-full appearance-none rounded-xl border border-text/10 bg-bg px-3 py-2 pr-8 text-sm text-text" value={mode} onChange={(event) => { setMode(event.target.value); setPage(0) }}>
-                {modes.map((item) => <option key={item} value={item}>{item}</option>)}
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center">
-                <svg className="h-4 w-4 text-text/50" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" /></svg>
-              </div>
-            </div>
-          </label>
-          <label className="text-xs font-semibold uppercase tracking-[0.2em] text-text/60">
-            Provider
-            <div className="relative mt-2">
-              <select className="w-full appearance-none rounded-xl border border-text/10 bg-bg px-3 py-2 pr-8 text-sm text-text" value={provider} onChange={(event) => { setProvider(event.target.value); setPage(0) }}>
-                <option value="">All providers</option>
-                {providers.map((item) => <option key={item} value={item}>{item}</option>)}
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center">
-                <svg className="h-4 w-4 text-text/50" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" /></svg>
-              </div>
-            </div>
-          </label>
-          <label className="text-xs font-semibold uppercase tracking-[0.2em] text-text/60">
-            Model
-            <input className="mt-2 w-full rounded-xl border border-text/10 bg-bg px-3 py-2 text-sm text-text placeholder:text-text/40" placeholder="e.g. gpt-4o" value={model} onChange={(event) => { setModel(event.target.value); setPage(0) }} />
-          </label>
-        </div>
-      ) : null}
-
-      <div className="overflow-hidden rounded-3xl border border-text/10 bg-card/70">
-        <div className="flex items-center justify-between border-b border-text/10 px-5 py-4">
-          <div>
-            <h2 className="text-lg font-semibold text-text">{activeCategory.label}</h2>
-            <p className="text-sm text-text/60">{leaderboard ? `${numberFormatter.format(leaderboard.totalElements)} ranked entries` : 'Loading rankings'}</p>
-          </div>
-          <span className="hidden rounded-full bg-text/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-text/80 sm:inline">{activeCategory.metric}</span>
-        </div>
-
-        {error ? <div className="p-6 text-sm text-rose-300">{error}</div> : null}
-        {loading ? (
-          <div className="divide-y divide-text/10">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div className="grid animate-pulse gap-4 px-5 py-5 sm:grid-cols-[4rem_1fr_auto] sm:items-center" key={i}>
-                <div className="h-8 w-10 rounded-lg bg-text/10" />
-                <div className="space-y-2">
-                  <div className="h-4 w-48 rounded bg-text/10" />
-                  <div className="h-3 w-32 rounded bg-text/10" />
-                </div>
-                <div className="h-6 w-24 rounded-full bg-text/10" />
-              </div>
-            ))}
-          </div>
-        ) : null}
-        {!loading && !error && leaderboard?.entries.length === 0 ? <div className="p-6 text-sm text-text/80">No repositories match this leaderboard yet.</div> : null}
-
-        {!loading && !error && leaderboard?.entries.length ? (
-          <div className="divide-y divide-text/10">
-            {leaderboard.entries.map((entry) => (
-              <LeaderboardRow entry={entry} category={category} key={`${entry.analysisId}-${entry.rank}`} />
-            ))}
-          </div>
-        ) : null}
-      </div>
-
-      <div className="mt-6 flex items-center justify-between text-sm text-text/60">
-        <button className="rounded-full border border-text/10 px-4 py-2 disabled:opacity-40" disabled={page === 0 || loading} onClick={() => setPage((value) => Math.max(0, value - 1))} type="button">Previous</button>
-        <span>Page {page + 1}{leaderboard?.totalPages ? ` of ${leaderboard.totalPages}` : ''}</span>
-        <button className="rounded-full border border-text/10 px-4 py-2 disabled:opacity-40" disabled={loading || !leaderboard || page + 1 >= leaderboard.totalPages} onClick={() => setPage((value) => value + 1)} type="button">Next</button>
-      </div>
-    </section>
-  )
-}
-
-function LeaderboardRow({ entry, category }: { entry: LeaderboardEntryResponse; category: string }) {
-  return (
-    <a className="grid gap-4 px-5 py-5 transition hover:bg-card/20 sm:grid-cols-[4rem_1fr_auto] sm:items-center" href={`/analysis/${entry.analysisId}`}>
-      <div className="text-3xl font-semibold text-primary/80">#{entry.rank}</div>
-      <div>
-        <div className="flex flex-wrap items-center gap-2">
-          <h3 className="text-lg font-semibold text-text">{entry.owner}/{entry.name}</h3>
-          {entry.mode ? <span className="rounded-full bg-text/10 px-2 py-1 text-xs text-text/80">{entry.mode}</span> : null}
-          {entry.provider ? <span className="rounded-full bg-text/10 px-2 py-1 text-xs text-text/80">{entry.provider}</span> : null}
-        </div>
-        <p className="mt-1 break-all text-sm text-text/60">{entry.repositoryUrl}</p>
-        <p className="mt-2 text-xs text-text/50">Analyzed {dateFormatter.format(new Date(entry.analyzedAt))} · {compactFormatter.format(entry.totalTokens)} tokens · {compactFormatter.format(entry.totalFiles)} files</p>
-        {entry.pricing ? (
-          <p className="mt-1 text-xs text-text/40">
-            Pricing: {entry.pricing.primarySource} · captured {dateFormatter.format(new Date(entry.pricing.capturedAt))}
+      <section className="mx-auto max-w-6xl px-6 py-10">
+        <div className="mb-8 rounded-[2rem] border border-text/10 bg-card/20 p-8 shadow-2xl shadow-bg/20">
+          <p className="mb-3 text-sm font-semibold uppercase tracking-[0.3em] text-primary">
+            Community benchmarks
           </p>
-        ) : null}
-      </div>
-      <div className="text-left sm:text-right">
-        <div className="text-xl font-semibold text-text">{mainMetric(entry, category)}</div>
-        <div className="mt-1 text-xs text-text/60">{entry.model ?? secondaryMetric(entry)}</div>
-      </div>
-    </a>
+          <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
+            <div>
+              <h1 className="text-4xl font-semibold tracking-tight text-text sm:text-5xl">
+                Public repository leaderboards
+              </h1>
+              <p className="mt-4 max-w-2xl text-base leading-7 text-text/80">
+                Browse the repositories TokenMeter has analyzed by AI generation cost, token footprint, size and popularity.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-primary/20 bg-primary/10 p-5 text-sm text-primary">
+              Rankings update from persisted analyses automatically. Open any entry to inspect the full public cost report.
+            </div>
+          </div>
+        </div>
+
+        {/* Overview metrics section */}
+        <OverviewMetricsSection
+          status={overviewStatus}
+          data={overviewData}
+          error={overviewError}
+        />
+
+        {/* Language insights section */}
+        <LanguageInsightsSection
+          status={languagesStatus}
+          data={languagesData}
+          error={languagesError}
+        />
+
+        {/* Rankings section — has its own category/sort control */}
+        <LeaderboardRankingsSection
+          status={rankingsStatus}
+          data={rankingsData}
+          error={rankingsError}
+          category={category}
+          page={page}
+          onCategoryChange={handleCategoryChange}
+          onPageChange={setPage}
+        />
+      </section>
+    </div>
   )
-}
-
-function mainMetric(entry: LeaderboardEntryResponse, category: string) {
-  if (category === 'largest') return formatBytes(entry.totalBytes)
-  if (category === 'most-analyzed') return `${numberFormatter.format(entry.analysisCount)} runs`
-  if (category === 'highest-token-count') return `${compactFormatter.format(entry.totalTokens)} tokens`
-  if (category === 'best-cost-efficiency') return currencyFormatter.format(entry.costPerMillionTokens ?? 0)
-  return currencyFormatter.format(entry.totalCost ?? 0)
-}
-
-function secondaryMetric(entry: LeaderboardEntryResponse) {
-  return `${formatBytes(entry.totalBytes)} · ${compactFormatter.format(entry.totalLines)} lines`
-}
-
-function formatBytes(bytes: number) {
-  if (bytes === 0) return '0 B'
-  const units = ['B', 'KB', 'MB', 'GB']
-  const exponent = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
-  return `${(bytes / 1024 ** exponent).toFixed(exponent === 0 ? 0 : 1)} ${units[exponent]}`
-}
-
-function getInitialCategory() {
-  const category = new URLSearchParams(window.location.search).get('category')
-  return categories.some((candidate) => candidate.id === category) ? category! : 'most-expensive'
-}
-
-function toUserMessage(reason: unknown) {
-  if (reason instanceof ApiError) return reason.message
-  if (reason instanceof Error) return reason.message
-  return 'TokenMeter could not load the public leaderboards.'
 }

@@ -199,6 +199,35 @@ export interface LeaderboardEntryResponse {
   totalCost?: number | null
   costPerMillionTokens?: number | null
   pricing?: PricingMetadataResponse
+  dominantLanguage?: string | null
+}
+
+export interface CostByModeEntry {
+  mode: 'raw' | 'assisted' | 'agentic'
+  totalCost: string
+  analysisCount: number
+}
+
+export interface LeaderboardOverviewResponse {
+  totalRepos: number
+  totalAnalyses: number
+  totalTokens: number
+  totalBytes: number
+  costsByMode: CostByModeEntry[]
+  filters?: Record<string, string>
+}
+
+export interface LanguageInsightEntry {
+  language: string
+  totalTokens: number
+  repoCount: number
+  sharePercent: string
+}
+
+export interface LeaderboardLanguagesResponse {
+  languages: LanguageInsightEntry[]
+  totalTokensAllLanguages: number
+  filters?: Record<string, string>
 }
 
 export interface PricingResponse {
