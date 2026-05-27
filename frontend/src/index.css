@@ -1,5 +1,7 @@
 @import 'tailwindcss';
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --tm-bg: #f5efdf;
   --tm-text: #233a4d;
