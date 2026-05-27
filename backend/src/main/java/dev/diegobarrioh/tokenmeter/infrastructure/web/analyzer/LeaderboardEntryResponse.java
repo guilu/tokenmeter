@@ -23,4 +23,5 @@ public record LeaderboardEntryResponse(
     String mode,
     BigDecimal totalCost,
     BigDecimal costPerMillionTokens,
-    PricingMetadata pricing) {}
+    PricingMetadata pricing,
+    String dominantLanguage) {}

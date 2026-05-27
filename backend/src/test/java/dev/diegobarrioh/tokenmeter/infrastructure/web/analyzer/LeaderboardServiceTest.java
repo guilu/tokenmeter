@@ -91,6 +91,34 @@ class LeaderboardServiceTest {
   }
 
   @Test
+  void dominantLanguagePropagatesFromRowToResponse() {
+    LeaderboardService service = new LeaderboardService(leaderboardRepository);
+    when(leaderboardRepository.countCostFiltered(any(), any(), any())).thenReturn(1L);
+    when(leaderboardRepository.findMostExpensive(any(), any(), any(), anyInt(), anyLong()))
+        .thenReturn(
+            List.of(rowWithDominantLanguage("repo", new BigDecimal("1.00"), 10_000, "Java")));
+
+    LeaderboardPageResponse response =
+        service.getLeaderboard(LeaderboardCategory.MOST_EXPENSIVE, 0, 10, "raw", "openai", null);
+
+    assertThat(response.entries().getFirst().dominantLanguage()).isEqualTo("Java");
+  }
+
+  @Test
+  void dominantLanguageIsNullWhenRowReturnsNull() {
+    LeaderboardService service = new LeaderboardService(leaderboardRepository);
+    when(leaderboardRepository.countCostFiltered(any(), any(), any())).thenReturn(1L);
+    when(leaderboardRepository.findMostExpensive(any(), any(), any(), anyInt(), anyLong()))
+        .thenReturn(
+            List.of(rowWithDominantLanguage("legacy", new BigDecimal("1.00"), 10_000, null)));
+
+    LeaderboardPageResponse response =
+        service.getLeaderboard(LeaderboardCategory.MOST_EXPENSIVE, 0, 10, "raw", "openai", null);
+
+    assertThat(response.entries().getFirst().dominantLanguage()).isNull();
+  }
+
+  @Test
   void invalidModeFilterIsIgnored() {
     LeaderboardService service = new LeaderboardService(leaderboardRepository);
     when(leaderboardRepository.countDistinctRepositories()).thenReturn(1L);
@@ -104,11 +132,92 @@ class LeaderboardServiceTest {
   }
 
   private static LeaderboardRow row(String name, BigDecimal totalCost, long totalTokens) {
-    return rowWithCount(name, totalCost, totalTokens, 1);
+    return rowWithDominantLanguage(name, totalCost, totalTokens, "Java");
+  }
+
+  private static LeaderboardRow rowWithDominantLanguage(
+      String name,
+      BigDecimal totalCost,
+      long totalTokens,
+      @org.springframework.lang.Nullable String dominantLanguage) {
+    return new LeaderboardRow() {
+      public UUID getId() {
+        return UUID.randomUUID();
+      }
+
+      public String getRepositoryUrl() {
+        return "https://github.com/acme/" + name;
+      }
+
+      public String getOwnerName() {
+        return "acme";
+      }
+
+      public String getRepositoryName() {
+        return name;
+      }
+
+      public Instant getCreatedAt() {
+        return Instant.now();
+      }
+
+      public long getTotalFiles() {
+        return 10;
+      }
+
+      public long getTotalLines() {
+        return 100;
+      }
+
+      public long getTotalBytes() {
+        return totalTokens * 2;
+      }
+
+      public long getTotalTokens() {
+        return totalTokens;
+      }
+
+      public long getAnalysisCount() {
+        return 1;
+      }
+
+      public String getProvider() {
+        return "OPENAI";
+      }
+
+      public String getModel() {
+        return "gpt-4o";
+      }
+
+      public String getMode() {
+        return "RAW";
+      }
+
+      public BigDecimal getTotalCost() {
+        return totalCost;
+      }
+
+      public String getPricingSnapshotId() {
+        return SNAPSHOT_ID;
+      }
+
+      public String getPricingPrimarySource() {
+        return "REMOTE";
+      }
+
+      public Instant getPricingCapturedAt() {
+        return SNAPSHOT_CAPTURED_AT;
+      }
+
+      @org.springframework.lang.Nullable
+      public String getDominantLanguage() {
+        return dominantLanguage;
+      }
+    };
   }
 
   private static LeaderboardRow legacyRow(String name, BigDecimal totalCost, long totalTokens) {
-    LeaderboardRow delegate = rowWithCount(name, totalCost, totalTokens, 1);
+    LeaderboardRow delegate = rowWithDominantLanguage(name, totalCost, totalTokens, "Java");
     return new LeaderboardRow() {
       public UUID getId() {
         return delegate.getId();
@@ -175,6 +284,11 @@ class LeaderboardServiceTest {
       }
 
       public Instant getPricingCapturedAt() {
+        return null;
+      }
+
+      @org.springframework.lang.Nullable
+      public String getDominantLanguage() {
         return null;
       }
     };
@@ -252,6 +366,11 @@ class LeaderboardServiceTest {
 
       public Instant getPricingCapturedAt() {
         return SNAPSHOT_CAPTURED_AT;
+      }
+
+      @org.springframework.lang.Nullable
+      public String getDominantLanguage() {
+        return "Java";
       }
     };
   }
