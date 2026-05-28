@@ -131,6 +131,26 @@ class GitHubSearchAdapterTest {
   }
 
   @Test
+  void networkIoErrorThrowsGithubUnavailable() {
+    mockServer
+        .expect(requestTo(Matchers.containsString("search/repositories")))
+        .andRespond(
+            request -> {
+              throw new java.io.IOException("connection reset");
+            });
+
+    TrendingQuery query = TrendingQuery.fromParams("weekly", 12, null);
+
+    assertThatThrownBy(() -> adapter.fetch(query))
+        .isInstanceOf(RepositoryIntakeException.class)
+        .satisfies(
+            ex -> {
+              RepositoryIntakeException rie = (RepositoryIntakeException) ex;
+              assertThat(rie.errorCode()).isEqualTo(RepositoryIntakeErrorCode.GITHUB_UNAVAILABLE);
+            });
+  }
+
+  @Test
   void tokenPresentAddsAuthorizationHeader() {
     RestClient.Builder tokenBuilder = RestClient.builder();
     MockRestServiceServer tokenServer = MockRestServiceServer.bindTo(tokenBuilder).build();
