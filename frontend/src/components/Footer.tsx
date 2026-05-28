@@ -13,8 +13,10 @@ export function Footer() {
           </span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs uppercase tracking-widest text-text/45">Support</span>
+        <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+          <span className="w-full text-center text-xs uppercase tracking-widest text-text/45 sm:w-auto sm:text-left">
+            Support
+          </span>
 
           <a
             aria-label="Sponsor TokenMeter on GitHub"

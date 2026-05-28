@@ -527,7 +527,7 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
             onClick={() => void handleCopyPublicUrl()}
             type="button"
           >
-            {copyState === 'copied' ? 'Copied!' : copyState === 'failed' ? 'Copy failed' : 'Copy public URL'}
+            {copyState === 'copied' ? 'Copied!' : copyState === 'failed' ? 'Copy failed' : 'Copy URL'}
           </button>
           <a
             className="inline-flex items-center gap-2 rounded-2xl border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-medium text-primary transition hover:bg-primary/20"
@@ -536,7 +536,7 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
             target="_blank"
           >
             <ShareIcon />
-            Download badge
+            Badge
           </a>
           <a
             className="inline-flex items-center gap-2 rounded-2xl border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-medium text-primary transition hover:bg-primary/20"
@@ -545,7 +545,7 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
             target="_blank"
           >
             <ShareIcon />
-            Download mini badge
+            Mini badge
           </a>
         </div>
       </div>
