@@ -230,6 +230,25 @@ export interface LeaderboardLanguagesResponse {
   filters?: Record<string, string>
 }
 
+export interface TrendingRepositoryResponse {
+  fullName: string
+  repositoryUrl: string
+  description?: string | null
+  language?: string | null
+  stars: number
+  forks: number
+  sizeKb?: number | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface TrendingRepositoriesResponse {
+  fetchedAt: string
+  since: string
+  language?: string | null
+  items: TrendingRepositoryResponse[]
+}
+
 export interface PricingResponse {
   lastRefreshedAt: string | null
   primarySource: 'litellm' | 'fallback' | 'mixed'
