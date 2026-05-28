@@ -66,6 +66,9 @@ describe('DashboardPage trending integration', () => {
 
     render(<DashboardPage />)
 
+    // Trending section is collapsed by default — expand it first.
+    fireEvent.click(screen.getByRole('button', { name: /Popular this week/ }))
+
     const analyzeButton = await screen.findByRole('button', {
       name: /Analyze acme\/widget/,
     })

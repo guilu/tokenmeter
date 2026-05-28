@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { ApiError, getTrendingRepositories } from '../services/api'
 import type { TrendingRepositoryResponse } from '../types/api'
@@ -6,96 +6,120 @@ import type { TrendingRepositoryResponse } from '../types/api'
 const compactFormatter = new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 })
 
 export function TrendingSection({ onAnalyze }: { onAnalyze: (url: string) => void }) {
+  const [open, setOpen] = useState(false)
   const [items, setItems] = useState<TrendingRepositoryResponse[] | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
+  const requested = useRef(false)
 
+  // Lazy fetch: only hit GitHub the first time the section is expanded.
   useEffect(() => {
+    if (!open || requested.current) return
+    requested.current = true
     let active = true
     getTrendingRepositories()
       .then((data) => {
-        if (!active) return
-        setItems(data.items)
-        setError(null)
-        setLoading(false)
+        if (active) {
+          setItems(data.items)
+          setError(null)
+        }
       })
       .catch((reason: unknown) => {
-        if (!active) return
-        setError(toSuggestionMessage(reason))
-        setLoading(false)
+        if (active) setError(toSuggestionMessage(reason))
       })
 
     return () => {
       active = false
     }
-  }, [])
+  }, [open])
+
+  const loading = open && items === null && error === null
 
   return (
-    <section aria-labelledby="trending-heading" className="mx-auto mt-10 max-w-4xl px-6">
-      <div className="mb-4 flex items-baseline justify-between">
-        <h2 className="text-lg font-semibold text-text" id="trending-heading">
+    <div className="mx-auto max-w-4xl px-6 pb-6 md:pb-8">
+      <button
+        aria-controls="trending-panel"
+        aria-expanded={open}
+        className="mb-4 flex w-full items-center justify-between text-left"
+        onClick={() => setOpen((v) => !v)}
+        type="button"
+      >
+        <span className="flex items-center gap-2 text-sm font-medium text-text/80">
           Popular this week
-        </h2>
-        <span className="text-xs text-text/50">Suggested public repositories to analyze</span>
-      </div>
+          <svg
+            aria-hidden="true"
+            className={`h-4 w-4 text-text/50 transition-transform duration-300 ${open ? 'rotate-180' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            viewBox="0 0 24 24"
+          >
+            <path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </span>
+        <span className="text-xs text-text/40">Suggested public repositories to analyze</span>
+      </button>
 
-      {loading ? (
-        <div aria-live="polite" className="grid gap-3 sm:grid-cols-2" role="status">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div className="h-28 animate-pulse rounded-2xl border border-text/10 bg-card/30" key={i} />
-          ))}
+      {open ? (
+        <div id="trending-panel">
+          {loading ? (
+            <div aria-live="polite" className="grid gap-4 sm:grid-cols-3" role="status">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div className="h-36 animate-pulse rounded-2xl bg-card/60 shadow-xl shadow-bg/20" key={i} />
+              ))}
+            </div>
+          ) : null}
+
+          {!loading && error ? (
+            <p
+              aria-live="polite"
+              className="rounded-2xl bg-card/60 p-5 text-sm text-text/60 shadow-xl shadow-bg/20"
+              role="status"
+            >
+              {error}
+            </p>
+          ) : null}
+
+          {!loading && !error && items && items.length === 0 ? (
+            <p
+              className="rounded-2xl bg-card/60 p-5 text-sm text-text/60 shadow-xl shadow-bg/20"
+              role="status"
+            >
+              No suggestions available right now.
+            </p>
+          ) : null}
+
+          {!loading && !error && items && items.length > 0 ? (
+            <div className="grid gap-4 sm:grid-cols-3">
+              {items.map((item) => (
+                <TrendingRepoCard item={item} key={item.fullName} onAnalyze={onAnalyze} />
+              ))}
+            </div>
+          ) : null}
         </div>
       ) : null}
-
-      {!loading && error ? (
-        <p
-          aria-live="polite"
-          className="rounded-2xl border border-text/10 bg-card/20 px-4 py-3 text-sm text-text/60"
-          role="status"
-        >
-          {error}
-        </p>
-      ) : null}
-
-      {!loading && !error && items && items.length === 0 ? (
-        <p
-          className="rounded-2xl border border-text/10 bg-card/20 px-4 py-3 text-sm text-text/60"
-          role="status"
-        >
-          No suggestions available right now.
-        </p>
-      ) : null}
-
-      {!loading && !error && items && items.length > 0 ? (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {items.map((item) => (
-            <TrendingRepoCard item={item} key={item.fullName} onAnalyze={onAnalyze} />
-          ))}
-        </div>
-      ) : null}
-    </section>
+    </div>
   )
 }
 
 function TrendingRepoCard({ item, onAnalyze }: { item: TrendingRepositoryResponse; onAnalyze: (url: string) => void }) {
   return (
-    <div className="flex flex-col justify-between gap-3 rounded-2xl border border-text/10 bg-card/30 p-4">
-      <div>
-        <div className="flex items-center justify-between gap-2">
-          <h3 className="truncate text-sm font-semibold text-text">{item.fullName}</h3>
-          {item.language ? (
-            <span className="shrink-0 rounded-full bg-text/10 px-2 py-0.5 text-xs text-text/70">{item.language}</span>
-          ) : null}
-        </div>
-        {item.description ? (
-          <p className="mt-1 line-clamp-2 text-xs text-text/60">{item.description}</p>
+    <div className="flex flex-col rounded-2xl bg-card/60 p-5 shadow-xl shadow-bg/20">
+      <div className="flex items-start justify-between gap-2">
+        <p className="truncate font-semibold text-text">{item.fullName}</p>
+        {item.language ? (
+          <span className="shrink-0 rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-primary/80">
+            {item.language}
+          </span>
         ) : null}
-        <p className="mt-2 text-xs text-text/50">
-          ★ {compactFormatter.format(item.stars)} · ⑂ {compactFormatter.format(item.forks)}
-        </p>
       </div>
+      {item.description ? (
+        <p className="mt-2 line-clamp-2 text-sm leading-6 text-text/60">{item.description}</p>
+      ) : null}
+      <p className="mt-4 text-xs text-text/50">
+        ★ {compactFormatter.format(item.stars)} · ⑂ {compactFormatter.format(item.forks)}
+      </p>
       <button
-        className="min-h-9 rounded-xl bg-primary/90 px-4 text-xs font-semibold text-bg transition hover:bg-primary"
+        className="mt-4 min-h-10 rounded-2xl bg-primary px-4 text-sm font-semibold text-bg transition hover:bg-primary/90"
         onClick={() => onAnalyze(item.repositoryUrl)}
         type="button"
       >
