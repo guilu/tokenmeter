@@ -285,7 +285,7 @@ export function DashboardPage() {
 
       {!loading ? <TrendingSection onAnalyze={triggerAnalysis} /> : null}
 
-      <div className="mx-auto max-w-4xl px-6 pb-6 md:pb-8 lg:pb-20">
+      <div className={`mx-auto max-w-4xl px-6 ${showModes ? 'pb-6 md:pb-8 lg:pb-20' : 'pb-2'}`}>
         <button
           className="mb-4 flex w-full items-center justify-center gap-2"
           onClick={() => setShowModes((v) => !v)}

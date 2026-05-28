@@ -35,7 +35,7 @@ export function TrendingSection({ onAnalyze }: { onAnalyze: (url: string) => voi
   const loading = open && items === null && error === null
 
   return (
-    <div className="mx-auto max-w-4xl px-6 pb-6 md:pb-8">
+    <div className={`mx-auto max-w-4xl px-6 ${open ? 'pb-6 md:pb-8' : 'pb-2'}`}>
       <button
         aria-controls="trending-panel"
         aria-expanded={open}
