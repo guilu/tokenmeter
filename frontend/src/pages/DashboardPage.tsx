@@ -250,6 +250,18 @@ export function DashboardPage() {
                 type="url"
                 value={repositoryUrl}
               />
+              {repositoryUrl && !loading ? (
+                <button
+                  aria-label="Clear repository URL"
+                  className="shrink-0 text-text/40 transition hover:text-text/70"
+                  onClick={() => setRepositoryUrl('')}
+                  type="button"
+                >
+                  <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+              ) : null}
             </div>
             <button
               className="min-h-12 rounded-2xl bg-primary px-6 text-sm font-semibold text-bg transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-[15rem]"
@@ -307,15 +319,17 @@ export function DashboardPage() {
           <div className="grid gap-4 sm:grid-cols-3">
             {costModes.map((mode) => (
               <div
-                className="relative rounded-2xl bg-card/60 p-5 shadow-xl shadow-bg/20"
+                className="rounded-2xl bg-card/60 p-5 shadow-xl shadow-bg/20"
                 key={mode}
               >
-                {mode === 'assisted' ? (
-                  <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-full border border-primary/30 bg-primary/20 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-primary/80">
-                    Default
-                  </span>
-                ) : null}
-                <p className="font-semibold text-text capitalize">{mode}</p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-semibold text-text capitalize">{mode}</p>
+                  {mode === 'assisted' ? (
+                    <span className="shrink-0 rounded-full border border-primary/30 bg-primary/20 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-primary/80">
+                      Default
+                    </span>
+                  ) : null}
+                </div>
                 <p className="mt-2 text-sm leading-6 text-text/60">{modeCopy[mode]}</p>
                 <p className="mt-4 text-xs text-text/50">{modeMultiplierLabel[mode]}</p>
               </div>
