@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { ApiError, getTrendingRepositories } from '../services/api'
 import type { TrendingRepositoryResponse } from '../types/api'
@@ -110,13 +110,21 @@ function TrendingCarousel({
 }) {
   const trackRef = useRef<HTMLDivElement>(null)
   const [active, setActive] = useState(0)
+  const [atStart, setAtStart] = useState(true)
+  const [atEnd, setAtEnd] = useState(false)
 
-  const handleScroll = () => {
+  const sync = useCallback(() => {
     const track = trackRef.current
     if (!track || track.scrollWidth === 0) return
     const stride = track.scrollWidth / items.length
     setActive(Math.round(track.scrollLeft / stride))
-  }
+    setAtStart(track.scrollLeft <= 1)
+    setAtEnd(track.scrollLeft >= track.scrollWidth - track.clientWidth - 1)
+  }, [items.length])
+
+  useEffect(() => {
+    sync()
+  }, [sync])
 
   const scrollToIndex = (index: number) => {
     const track = trackRef.current
@@ -125,21 +133,35 @@ function TrendingCarousel({
     track.scrollTo?.({ left: index * stride, behavior: 'smooth' })
   }
 
+  const step = (direction: 1 | -1) => {
+    const track = trackRef.current
+    if (!track) return
+    const stride = track.scrollWidth / items.length
+    track.scrollBy?.({ left: direction * stride, behavior: 'smooth' })
+  }
+
   return (
     <div>
-      <div
-        className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-        onScroll={handleScroll}
-        ref={trackRef}
-      >
-        {items.map((item) => (
-          <div
-            className="shrink-0 basis-full snap-start sm:basis-[calc((100%-2rem)/3)]"
-            key={item.fullName}
-          >
-            <TrendingRepoCard item={item} onAnalyze={onAnalyze} />
-          </div>
-        ))}
+      <div className="relative">
+        <div
+          className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          onScroll={sync}
+          ref={trackRef}
+        >
+          {items.map((item) => (
+            <div
+              className="shrink-0 basis-full snap-start sm:basis-[calc((100%-2rem)/3)]"
+              key={item.fullName}
+            >
+              <TrendingRepoCard item={item} onAnalyze={onAnalyze} />
+            </div>
+          ))}
+        </div>
+
+        {!atStart ? (
+          <CarouselArrow direction="left" onClick={() => step(-1)} />
+        ) : null}
+        {!atEnd ? <CarouselArrow direction="right" onClick={() => step(1)} /> : null}
       </div>
 
       <div className="mt-4 flex items-center justify-center gap-1.5">
@@ -157,6 +179,24 @@ function TrendingCarousel({
         ))}
       </div>
     </div>
+  )
+}
+
+function CarouselArrow({ direction, onClick }: { direction: 'left' | 'right'; onClick: () => void }) {
+  const isLeft = direction === 'left'
+  return (
+    <button
+      aria-label={isLeft ? 'Previous repositories' : 'Next repositories'}
+      className={`absolute top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-text/10 bg-bg/80 text-text/70 shadow-lg shadow-bg/30 backdrop-blur transition hover:bg-bg hover:text-text ${
+        isLeft ? 'left-1' : 'right-1'
+      }`}
+      onClick={onClick}
+      type="button"
+    >
+      <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+        <path d={isLeft ? 'M15 19l-7-7 7-7' : 'M9 5l7 7-7 7'} strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </button>
   )
 }
 
@@ -179,7 +219,7 @@ function TrendingRepoCard({ item, onAnalyze }: { item: TrendingRepositoryRespons
       </div>
       <button
         aria-label={`Analyze ${item.fullName}`}
-        className="mt-4 min-h-10 w-full rounded-2xl bg-primary px-4 text-sm font-semibold text-bg transition hover:bg-primary/90"
+        className="mt-4 inline-flex min-h-9 items-center justify-center self-center rounded-2xl border border-primary/20 bg-primary/10 px-6 py-2 text-sm font-medium text-primary transition hover:bg-primary/20"
         onClick={() => onAnalyze(item.repositoryUrl)}
         type="button"
       >
