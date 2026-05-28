@@ -143,6 +143,8 @@ Gitmojis comunes: ✨ feat · 🐛 fix · ♻️ refactor · 🧪 test · 📝 d
 | `TOKENMETER_WORKDIR` | `${java.io.tmpdir}/tokenmeter-repositories` | Directorio temporal para clones |
 | `TOKENMETER_MAX_REPOSITORY_BYTES` | `314572800` (300 MiB) | Tamaño máximo del repo |
 | `TOKENMETER_CLONE_TIMEOUT` | `120s` | Timeout de clone |
+| `TOKENMETER_GITHUB_TOKEN` | — | Token GitHub opcional (solo backend) para `GET /api/repositories/trending`. Sin él se usa acceso no autenticado (rate limit más bajo). Nunca se loguea. |
+| `TOKENMETER_GITHUB_TRENDING_CACHE_TTL` | `PT30M` | TTL de la caché en memoria de repos trending. |
 | `DATABASE_URL` / `DATABASE_USERNAME` / `DATABASE_PASSWORD` | — | Sobrescritura explícita datasource |
 
 ## No-go zones para asistentes IA

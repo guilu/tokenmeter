@@ -604,6 +604,58 @@ Para uso normal, preferir `POST /api/analyze`.
 
 ---
 
+## `GET /api/repositories/trending`
+
+Sugiere repositorios públicos "populares esta semana" para analizar, como aproximación a GitHub Trending vía GitHub Search API. La respuesta se cachea en memoria (TTL `tokenmeter.github.trending.cache-ttl`, default `PT30M`) para proteger los rate limits de GitHub.
+
+**Query params** (todos opcionales):
+
+| Param | Valores | Default | Notas |
+|---|---|---|---|
+| `since` | `daily` \| `weekly` \| `monthly` | `weekly` | Ventana `pushed:>` (1/7/30 días). Valor inválido → `weekly`. |
+| `limit` | int | `12` | Clampado a `[1, 30]`. |
+| `language` | string | — | Filtra por lenguaje (lowercased). Vacío → sin filtro. |
+
+**200 OK**
+
+```json
+{
+  "fetchedAt": "2026-05-27T12:00:00Z",
+  "since": "weekly",
+  "language": null,
+  "items": [
+    {
+      "fullName": "owner/repo",
+      "repositoryUrl": "https://github.com/owner/repo",
+      "description": "…",
+      "language": "Java",
+      "stars": 1234,
+      "forks": 56,
+      "sizeKb": 789,
+      "createdAt": "2026-05-20T00:00:00Z",
+      "updatedAt": "2026-05-26T00:00:00Z"
+    }
+  ]
+}
+```
+
+`description`, `language` y `sizeKb` se omiten cuando GitHub no los expone (`@JsonInclude(NON_NULL)`). `language` (top-level) es `null`/ausente cuando no se aplicó filtro.
+
+Header `Cache-Control: public, max-age=900`.
+
+**Errores** (nunca 500 genérico):
+
+| Status | Code | Cuándo |
+|---|---|---|
+| 503 | `GITHUB_RATE_LIMITED` | GitHub devuelve 403 por rate limit. |
+| 503 | `GITHUB_UNAVAILABLE` | Otros 5xx upstream o error de red/timeout. |
+
+La query a GitHub usa `stars:>10 pushed:>{date} sort:stars order:desc`. Si `TOKENMETER_GITHUB_TOKEN` está configurado (solo backend), se envía como `Authorization: Bearer`; en caso contrario se usa acceso no autenticado (rate limit más restrictivo). El token nunca se loguea.
+
+Un fallo de este endpoint NO afecta a `POST /api/analyze` ni al análisis manual por URL.
+
+---
+
 ## Modos de coste
 
 Definidos en `domain/cost/CostEstimationMode`. Multiplicadores aplicados a `baseTokens` (los tokens del código fuente del repo):
