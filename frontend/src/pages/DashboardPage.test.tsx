@@ -1,10 +1,67 @@
 /** @vitest-environment jsdom */
 
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { DashboardPage } from './DashboardPage'
 import type { RepositoryAnalysisResponse } from '../types/api'
+
+describe('DashboardPage trending integration', () => {
+  afterEach(() => {
+    cleanup()
+    vi.restoreAllMocks()
+    window.history.pushState(null, '', '/')
+  })
+
+  it('launches analysis for a trending repository when its Analyze button is clicked', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString()
+      if (url.includes('/api/repositories/trending')) {
+        return jsonResponse({
+          fetchedAt: '2026-05-27T12:00:00Z',
+          since: 'weekly',
+          language: null,
+          items: [
+            {
+              fullName: 'acme/widget',
+              repositoryUrl: 'https://github.com/acme/widget',
+              description: 'A handy widget',
+              language: 'Java',
+              stars: 1234,
+              forks: 56,
+              sizeKb: 789,
+              createdAt: '2026-05-20T00:00:00Z',
+              updatedAt: '2026-05-26T00:00:00Z',
+            },
+          ],
+        })
+      }
+      if (url.includes('/api/analyze/jobs/')) {
+        return jsonResponse({ jobId: 'job-1', status: 'RUNNING', phase: 'CLONING_REPOSITORY', progressPercent: 20 })
+      }
+      if (url.includes('/api/analyze')) {
+        return jsonResponse({ jobId: 'job-1', status: 'QUEUED', statusUrl: '/api/analyze/jobs/job-1', analysisId: null })
+      }
+      return jsonResponse({})
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<DashboardPage />)
+
+    const analyzeButton = await screen.findByRole('button', { name: /Analyze acme\/widget/ })
+    fireEvent.click(analyzeButton)
+
+    await waitFor(() => {
+      const analyzePost = fetchMock.mock.calls.find(
+        (call) =>
+          (typeof call[0] === 'string' ? call[0] : String(call[0])).includes('/api/analyze') &&
+          call[1]?.method === 'POST',
+      )
+      expect(analyzePost).toBeDefined()
+      expect(String(analyzePost?.[1]?.body)).toContain('https://github.com/acme/widget')
+    })
+  })
+})
 
 describe('DashboardPage pricing footer', () => {
   afterEach(() => {

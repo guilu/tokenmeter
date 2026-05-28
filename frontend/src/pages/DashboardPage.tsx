@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 
+import { TrendingSection } from '../components/TrendingSection'
 import { useAnalysisJob } from '../hooks/useAnalysisJob'
 import { ApiError, DEFAULT_REPOSITORY_URL, getAnalysis, submitAnalysis } from '../services/api'
 import type {
@@ -142,15 +143,15 @@ export function DashboardPage() {
       .finally(() => setSharedLoading(false))
   }, [analysis?.id, routeAnalysisId])
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const trimmedUrl = repositoryUrl.trim() || DEFAULT_REPOSITORY_URL
+  async function triggerAnalysis(url: string) {
+    const trimmedUrl = url.trim() || DEFAULT_REPOSITORY_URL
 
     if (!isValidGitHubUrl(trimmedUrl)) {
       setError('Enter a valid public GitHub repository URL, e.g. https://github.com/guilu/tokenmeter')
       return
     }
 
+    setRepositoryUrl(trimmedUrl)
     setLoading(true)
     setError(null)
     setActiveJobId(null)
@@ -161,6 +162,11 @@ export function DashboardPage() {
       setError(toUserMessage(reason))
       setLoading(false)
     }
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    await triggerAnalysis(repositoryUrl)
   }
 
   function handleJobSuccess(analysisId: string) {
@@ -276,6 +282,8 @@ export function DashboardPage() {
           />
         ) : null}
       </div>
+
+      {!loading ? <TrendingSection onAnalyze={triggerAnalysis} /> : null}
 
       <div className="mx-auto max-w-4xl px-6 pb-6 md:pb-8 lg:pb-20">
         <button
