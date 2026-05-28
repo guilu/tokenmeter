@@ -39,32 +39,36 @@ export function TrendingSection({ onAnalyze }: { onAnalyze: (url: string) => voi
       <button
         aria-controls="trending-panel"
         aria-expanded={open}
-        className="mb-4 flex w-full items-center justify-between text-left"
+        className="mb-4 flex w-full items-center justify-center gap-2"
         onClick={() => setOpen((v) => !v)}
         type="button"
       >
-        <span className="flex items-center gap-2 text-sm font-medium text-text/80">
-          Popular this week
-          <svg
-            aria-hidden="true"
-            className={`h-4 w-4 text-text/50 transition-transform duration-300 ${open ? 'rotate-180' : ''}`}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            viewBox="0 0 24 24"
-          >
-            <path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </span>
-        <span className="text-xs text-text/40">Suggested public repositories to analyze</span>
+        <span className="text-sm font-medium text-text/80">Popular this week</span>
+        <svg
+          aria-hidden="true"
+          className={`h-4 w-4 text-text/50 transition-transform duration-300 ${open ? 'rotate-180' : ''}`}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          viewBox="0 0 24 24"
+        >
+          <path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
       </button>
 
       {open ? (
         <div id="trending-panel">
           {loading ? (
-            <div aria-live="polite" className="grid gap-4 sm:grid-cols-3" role="status">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div className="h-36 animate-pulse rounded-2xl bg-card/60 shadow-xl shadow-bg/20" key={i} />
+            <div
+              aria-live="polite"
+              className="flex gap-4 overflow-hidden"
+              role="status"
+            >
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div
+                  className="h-44 shrink-0 basis-full animate-pulse rounded-2xl bg-card/60 shadow-xl shadow-bg/20 sm:basis-[calc((100%-2rem)/3)]"
+                  key={i}
+                />
               ))}
             </div>
           ) : null}
@@ -89,11 +93,7 @@ export function TrendingSection({ onAnalyze }: { onAnalyze: (url: string) => voi
           ) : null}
 
           {!loading && !error && items && items.length > 0 ? (
-            <div className="grid gap-4 sm:grid-cols-3">
-              {items.map((item) => (
-                <TrendingRepoCard item={item} key={item.fullName} onAnalyze={onAnalyze} />
-              ))}
-            </div>
+            <TrendingCarousel items={items} onAnalyze={onAnalyze} />
           ) : null}
         </div>
       ) : null}
@@ -101,29 +101,89 @@ export function TrendingSection({ onAnalyze }: { onAnalyze: (url: string) => voi
   )
 }
 
+function TrendingCarousel({
+  items,
+  onAnalyze,
+}: {
+  items: TrendingRepositoryResponse[]
+  onAnalyze: (url: string) => void
+}) {
+  const trackRef = useRef<HTMLDivElement>(null)
+  const [active, setActive] = useState(0)
+
+  const handleScroll = () => {
+    const track = trackRef.current
+    if (!track || track.scrollWidth === 0) return
+    const stride = track.scrollWidth / items.length
+    setActive(Math.round(track.scrollLeft / stride))
+  }
+
+  const scrollToIndex = (index: number) => {
+    const track = trackRef.current
+    if (!track) return
+    const stride = track.scrollWidth / items.length
+    track.scrollTo?.({ left: index * stride, behavior: 'smooth' })
+  }
+
+  return (
+    <div>
+      <div
+        className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        onScroll={handleScroll}
+        ref={trackRef}
+      >
+        {items.map((item) => (
+          <div
+            className="shrink-0 basis-full snap-start sm:basis-[calc((100%-2rem)/3)]"
+            key={item.fullName}
+          >
+            <TrendingRepoCard item={item} onAnalyze={onAnalyze} />
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-4 flex items-center justify-center gap-1.5">
+        {items.map((item, i) => (
+          <button
+            aria-current={active === i}
+            aria-label={`Go to repository ${i + 1}`}
+            className={`h-1.5 rounded-full transition-all duration-300 ${
+              active === i ? 'w-6 bg-primary' : 'w-1.5 bg-text/25 hover:bg-text/40'
+            }`}
+            key={item.fullName}
+            onClick={() => scrollToIndex(i)}
+            type="button"
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function TrendingRepoCard({ item, onAnalyze }: { item: TrendingRepositoryResponse; onAnalyze: (url: string) => void }) {
   return (
-    <div className="flex flex-col rounded-2xl bg-card/60 p-5 shadow-xl shadow-bg/20">
-      <div className="flex items-start justify-between gap-2">
-        <p className="truncate font-semibold text-text">{item.fullName}</p>
+    <div className="flex h-full flex-col rounded-2xl bg-card/60 p-5 shadow-xl shadow-bg/20">
+      <p className="truncate font-semibold text-text">{item.fullName}</p>
+      {item.description ? (
+        <p className="mt-2 line-clamp-2 text-sm leading-6 text-text/60">{item.description}</p>
+      ) : null}
+      <div className="mt-auto flex items-center justify-between gap-2 pt-4">
+        <p className="text-xs text-text/50">
+          ★ {compactFormatter.format(item.stars)} · ⑂ {compactFormatter.format(item.forks)}
+        </p>
         {item.language ? (
           <span className="shrink-0 rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-primary/80">
             {item.language}
           </span>
         ) : null}
       </div>
-      {item.description ? (
-        <p className="mt-2 line-clamp-2 text-sm leading-6 text-text/60">{item.description}</p>
-      ) : null}
-      <p className="mt-4 text-xs text-text/50">
-        ★ {compactFormatter.format(item.stars)} · ⑂ {compactFormatter.format(item.forks)}
-      </p>
       <button
-        className="mt-4 min-h-10 rounded-2xl bg-primary px-4 text-sm font-semibold text-bg transition hover:bg-primary/90"
+        aria-label={`Analyze ${item.fullName}`}
+        className="mt-4 min-h-10 w-full rounded-2xl bg-primary px-4 text-sm font-semibold text-bg transition hover:bg-primary/90"
         onClick={() => onAnalyze(item.repositoryUrl)}
         type="button"
       >
-        Analyze {item.fullName}
+        Analyze
       </button>
     </div>
   )
