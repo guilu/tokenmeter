@@ -53,5 +53,6 @@ public class TrendingRepositoriesService {
     return fresh;
   }
 
-  private record CachedResult(TrendingQuery key, TrendingRepositoriesResult value, Instant expiresAt) {}
+  private record CachedResult(
+      TrendingQuery key, TrendingRepositoriesResult value, Instant expiresAt) {}
 }

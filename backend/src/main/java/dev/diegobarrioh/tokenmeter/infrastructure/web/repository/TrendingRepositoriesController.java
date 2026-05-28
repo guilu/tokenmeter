@@ -32,7 +32,8 @@ public class TrendingRepositoriesController {
       @RequestParam(defaultValue = "weekly") String since,
       @RequestParam(defaultValue = "12") int limit,
       @RequestParam(required = false) String language) {
-    TrendingRepositoriesResult result = service.get(TrendingQuery.fromParams(since, limit, language));
+    TrendingRepositoriesResult result =
+        service.get(TrendingQuery.fromParams(since, limit, language));
     return ResponseEntity.ok()
         .cacheControl(CacheControl.maxAge(CACHE_MAX_AGE).cachePublic())
         .body(TrendingRepositoriesResponse.from(result));
