@@ -140,9 +140,11 @@ class TrendingRepositoriesServiceTest {
     executor.shutdown();
 
     // Port called at least once, at most threads times
-    int callCount = (int) org.mockito.Mockito.mockingDetails(port).getInvocations().stream()
-        .filter(inv -> inv.getMethod().getName().equals("fetch"))
-        .count();
+    int callCount =
+        (int)
+            org.mockito.Mockito.mockingDetails(port).getInvocations().stream()
+                .filter(inv -> inv.getMethod().getName().equals("fetch"))
+                .count();
     assertThat(callCount).isGreaterThanOrEqualTo(1);
   }
 
@@ -167,6 +169,7 @@ class TrendingRepositoriesServiceTest {
   }
 
   private static TrendingRepositoriesResult sampleResult() {
-    return new TrendingRepositoriesResult(List.of(), Instant.parse("2026-05-27T12:00:00Z"), "weekly", null);
+    return new TrendingRepositoriesResult(
+        List.of(), Instant.parse("2026-05-27T12:00:00Z"), "weekly", null);
   }
 }
