@@ -12,7 +12,7 @@ export default function App() {
   const isModelsPage = path === '/models'
 
   useEffect(() => {
-    if (search.has('leaderboards')) {
+    if (new URLSearchParams(window.location.search).has('leaderboards')) {
       window.history.replaceState(null, '', '/leaderboards')
     }
   }, [])
