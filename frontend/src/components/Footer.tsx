@@ -4,7 +4,7 @@ export function Footer() {
   return (
     <footer className="mt-6 border-t border-secondary/20 bg-bg/60 md:mt-8 lg:mt-16">
       <div className="mx-auto flex max-w-7xl flex-col gap-4 px-5 py-5 text-sm text-text/65 md:py-6 lg:py-8 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col items-center gap-1 text-center sm:items-start sm:text-left">
           <span>
             &copy; {year} <span className="font-medium text-text">TokenMeter</span> · MIT License
           </span>
@@ -13,8 +13,10 @@ export function Footer() {
           </span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs uppercase tracking-widest text-text/45">Support</span>
+        <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+          <span className="w-full text-center text-xs uppercase tracking-widest text-text/45 sm:w-auto sm:text-left">
+            Support
+          </span>
 
           <a
             aria-label="Sponsor TokenMeter on GitHub"

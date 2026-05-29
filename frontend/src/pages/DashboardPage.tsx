@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 
+import { TrendingSection } from '../components/TrendingSection'
 import { useAnalysisJob } from '../hooks/useAnalysisJob'
 import { ApiError, DEFAULT_REPOSITORY_URL, getAnalysis, submitAnalysis } from '../services/api'
 import type {
@@ -142,15 +143,15 @@ export function DashboardPage() {
       .finally(() => setSharedLoading(false))
   }, [analysis?.id, routeAnalysisId])
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const trimmedUrl = repositoryUrl.trim() || DEFAULT_REPOSITORY_URL
+  async function triggerAnalysis(url: string) {
+    const trimmedUrl = url.trim() || DEFAULT_REPOSITORY_URL
 
     if (!isValidGitHubUrl(trimmedUrl)) {
       setError('Enter a valid public GitHub repository URL, e.g. https://github.com/guilu/tokenmeter')
       return
     }
 
+    setRepositoryUrl(trimmedUrl)
     setLoading(true)
     setError(null)
     setActiveJobId(null)
@@ -161,6 +162,11 @@ export function DashboardPage() {
       setError(toUserMessage(reason))
       setLoading(false)
     }
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    await triggerAnalysis(repositoryUrl)
   }
 
   function handleJobSuccess(analysisId: string) {
@@ -244,6 +250,18 @@ export function DashboardPage() {
                 type="url"
                 value={repositoryUrl}
               />
+              {repositoryUrl && !loading ? (
+                <button
+                  aria-label="Clear repository URL"
+                  className="shrink-0 text-text/40 transition hover:text-text/70"
+                  onClick={() => setRepositoryUrl('')}
+                  type="button"
+                >
+                  <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+              ) : null}
             </div>
             <button
               className="min-h-12 rounded-2xl bg-primary px-6 text-sm font-semibold text-bg transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-[15rem]"
@@ -277,39 +295,41 @@ export function DashboardPage() {
         ) : null}
       </div>
 
-      <div className="mx-auto max-w-4xl px-6 pb-6 md:pb-8 lg:pb-20">
+      {!loading ? <TrendingSection onAnalyze={triggerAnalysis} /> : null}
+
+      <div className={`mx-auto max-w-4xl px-6 ${showModes ? 'pb-6 md:pb-8 lg:pb-20' : 'pb-2'}`}>
         <button
-          className="mb-4 flex w-full items-center justify-between text-left"
+          className="mb-4 flex w-full items-center justify-center gap-2"
           onClick={() => setShowModes((v) => !v)}
           type="button"
         >
-          <span className="flex items-center gap-2 text-sm font-medium text-text/80">
-            Generation Economics Model
-            <svg
-              aria-hidden="true"
-              className={`h-4 w-4 text-text/50 transition-transform duration-300 ${showModes ? 'rotate-180' : ''}`}
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              viewBox="0 0 24 24"
-            >
-              <path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </span>
+          <span className="text-sm font-medium text-text/80">Generation Economics Model</span>
+          <svg
+            aria-hidden="true"
+            className={`h-4 w-4 text-text/50 transition-transform duration-300 ${showModes ? 'rotate-180' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            viewBox="0 0 24 24"
+          >
+            <path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </button>
         {showModes ? (
           <div className="grid gap-4 sm:grid-cols-3">
             {costModes.map((mode) => (
               <div
-                className="relative rounded-2xl bg-card/60 p-5 shadow-xl shadow-bg/20"
+                className="rounded-2xl bg-card/60 p-5 shadow-xl shadow-bg/20"
                 key={mode}
               >
-                {mode === 'assisted' ? (
-                  <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-full border border-primary/30 bg-primary/20 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-primary/80">
-                    Default
-                  </span>
-                ) : null}
-                <p className="font-semibold text-text capitalize">{mode}</p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-semibold text-text capitalize">{mode}</p>
+                  {mode === 'assisted' ? (
+                    <span className="shrink-0 rounded-full border border-primary/30 bg-primary/20 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-primary/80">
+                      Default
+                    </span>
+                  ) : null}
+                </div>
                 <p className="mt-2 text-sm leading-6 text-text/60">{modeCopy[mode]}</p>
                 <p className="mt-4 text-xs text-text/50">{modeMultiplierLabel[mode]}</p>
               </div>
@@ -521,7 +541,7 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
             onClick={() => void handleCopyPublicUrl()}
             type="button"
           >
-            {copyState === 'copied' ? 'Copied!' : copyState === 'failed' ? 'Copy failed' : 'Copy public URL'}
+            {copyState === 'copied' ? 'Copied!' : copyState === 'failed' ? 'Copy failed' : 'Copy URL'}
           </button>
           <a
             className="inline-flex items-center gap-2 rounded-2xl border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-medium text-primary transition hover:bg-primary/20"
@@ -530,7 +550,7 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
             target="_blank"
           >
             <ShareIcon />
-            Download badge
+            Badge
           </a>
           <a
             className="inline-flex items-center gap-2 rounded-2xl border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-medium text-primary transition hover:bg-primary/20"
@@ -539,7 +559,7 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
             target="_blank"
           >
             <ShareIcon />
-            Download mini badge
+            Mini badge
           </a>
         </div>
       </div>

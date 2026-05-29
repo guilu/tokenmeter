@@ -121,6 +121,7 @@ public class RepositoryIntakeExceptionHandler {
       case CLONE_TIMEOUT -> HttpStatus.GATEWAY_TIMEOUT;
       case CLONE_FAILED -> HttpStatus.BAD_GATEWAY;
       case RATE_LIMITED -> HttpStatus.TOO_MANY_REQUESTS;
+      case GITHUB_RATE_LIMITED, GITHUB_UNAVAILABLE -> HttpStatus.SERVICE_UNAVAILABLE;
     };
   }
 }

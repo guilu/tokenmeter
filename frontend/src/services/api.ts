@@ -8,6 +8,7 @@ import type {
   LeaderboardPageResponse,
   PricingResponse,
   RepositoryAnalysisResponse,
+  TrendingRepositoriesResponse,
 } from '../types/api'
 
 export const DEFAULT_REPOSITORY_URL = 'https://github.com/guilu/tokenmeter'
@@ -148,6 +149,26 @@ export async function getLeaderboardLanguages(params: {
   }
 
   return response.json() as Promise<LeaderboardLanguagesResponse>
+}
+
+export async function getTrendingRepositories(params?: {
+  since?: string
+  limit?: number
+  language?: string
+}): Promise<TrendingRepositoriesResponse> {
+  const searchParams = new URLSearchParams()
+  if (params?.since) searchParams.set('since', params.since)
+  if (params?.limit != null) searchParams.set('limit', String(params.limit))
+  if (params?.language) searchParams.set('language', params.language)
+
+  const query = searchParams.toString()
+  const response = await fetch(`/api/repositories/trending${query ? `?${query}` : ''}`)
+
+  if (!response.ok) {
+    throw await toApiError(response, 'Trending repositories request failed')
+  }
+
+  return response.json() as Promise<TrendingRepositoriesResponse>
 }
 
 async function toApiError(response: Response, fallbackMessage: string) {
