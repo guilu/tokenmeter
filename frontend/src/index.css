@@ -59,3 +59,20 @@ button, a {
 .stage-enter {
   animation: stage-in 0.35s ease-out both;
 }
+
+@media print {
+  @page {
+    margin: 1cm;
+  }
+
+  body {
+    background: #fff;
+    color: #000;
+    print-color-adjust: exact;
+  }
+
+  #results {
+    width: 100% !important;
+    max-width: none !important;
+  }
+}
