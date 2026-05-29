@@ -127,6 +127,65 @@ describe('DashboardPage pricing footer', () => {
   })
 })
 
+describe('DashboardPage export controls', () => {
+  afterEach(() => {
+    cleanup()
+    vi.restoreAllMocks()
+    window.history.pushState(null, '', '/')
+  })
+
+  it('shows Markdown download link with correct href', async () => {
+    const analysisId = 'analysis-with-pricing'
+    window.history.pushState(null, '', `/analysis/${analysisId}`)
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse(sampleAnalysis({ withPricing: true }))),
+    )
+
+    render(<DashboardPage />)
+
+    await screen.findByText(/Analysis id:/)
+
+    const link = screen.getByRole('link', { name: /Markdown/i })
+    expect(link).toHaveAttribute('href', `/api/analyze/${analysisId}/export.md`)
+    expect(link).toHaveAttribute('download')
+  })
+
+  it('Export PDF button calls window.print once', async () => {
+    window.history.pushState(null, '', '/analysis/analysis-with-pricing')
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse(sampleAnalysis({ withPricing: true }))),
+    )
+    const printSpy = vi.spyOn(window, 'print').mockImplementation(() => {})
+
+    render(<DashboardPage />)
+
+    await screen.findByText(/Analysis id:/)
+
+    const pdfButton = screen.getByRole('button', { name: /Export PDF/i })
+    fireEvent.click(pdfButton)
+
+    expect(printSpy).toHaveBeenCalledOnce()
+  })
+
+  it('action row buttons container carries print:hidden class', async () => {
+    window.history.pushState(null, '', '/analysis/analysis-with-pricing')
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse(sampleAnalysis({ withPricing: true }))),
+    )
+
+    render(<DashboardPage />)
+
+    await screen.findByText(/Analysis id:/)
+
+    const pdfButton = screen.getByRole('button', { name: /Export PDF/i })
+    // The action-buttons wrapper must carry print:hidden
+    expect(pdfButton.closest('div')).toHaveClass('print:hidden')
+  })
+})
+
 function jsonResponse(body: unknown): Response {
   return new Response(JSON.stringify(body), {
     status: 200,

@@ -175,6 +175,7 @@ docker compose up --build -d  # smoke test si tocas wiring
 - `GET  /api/analyze/jobs/{jobId}` (polling del job; exento del rate limiter)
 - `GET  /api/analyze/{id}`
 - `GET  /api/analyze/{id}/cost-breakdown`
+- `GET  /api/analyze/{id}/export.md` (descarga el análisis como Markdown; 404 si no existe)
 - `GET  /api/pricing`
 - `POST /api/admin/pricing/refresh` (feature-flag `tokenmeter.pricing.admin.enabled`; 503 si deshabilitado o si falla upstream)
 - `POST /api/repositories/intake` (legacy intake — usado solo para clonar/validar URL sin análisis completo)

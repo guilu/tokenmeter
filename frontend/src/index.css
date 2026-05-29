@@ -59,3 +59,75 @@ button, a {
 .stage-enter {
   animation: stage-in 0.35s ease-out both;
 }
+
+@media print {
+  @page {
+    margin: 1.2cm;
+  }
+
+  /* Force the light palette so themed cards print like the web's light mode
+     instead of rendering the dark-theme tokens as black ink blocks. */
+  :root,
+  .dark {
+    --tm-bg: #f5efdf;
+    --tm-text: #233a4d;
+    --tm-primary: #c43638;
+    --tm-secondary: #748b8b;
+    --tm-accent: #f1c24b;
+    --tm-card: #cdd2c3;
+    --tm-input: #ffffff;
+    color-scheme: light;
+  }
+
+  /* Make browsers actually print background colors and accents. */
+  *,
+  *::before,
+  *::after {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  html,
+  body {
+    background: #ffffff;
+  }
+
+  #results {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Keep each report block whole on a single page. */
+  #results > * {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Shadows, entry animations and decorative gradients muddy the printed
+     output and bleed the dark background into the page. */
+  #results * {
+    box-shadow: none !important;
+    animation: none !important;
+    background-image: none !important;
+  }
+
+  /* Tables: repeat the header on each page and never split a row. */
+  #results thead {
+    display: table-header-group;
+  }
+
+  #results tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Avoid orphaning a section heading at the bottom of a page. */
+  #results h1,
+  #results h2,
+  #results h3,
+  #results header {
+    break-after: avoid;
+  }
+}

@@ -396,6 +396,30 @@ El bloque `pricing` tiene la misma semántica que en `GET /api/analyze/{id}` y s
 
 ---
 
+## `GET /api/analyze/{id}/export.md`
+
+Descarga el análisis como un fichero Markdown. El servidor genera el documento a partir del modelo público `RepositoryAnalysisResult` — no contiene rutas de sistema, identificadores de job, estado de cola ni ningún dato interno.
+
+**Path params**: `id` (UUID).
+
+**200 OK**
+
+- `Content-Type: text/markdown; charset=UTF-8`
+- `Content-Disposition: attachment; filename="tokenmeter-{owner}-{name}.md"`
+
+El cuerpo incluye en orden:
+1. Cabecera con URL del repositorio.
+2. Tabla de metadatos (id del análisis, fecha de creación UTC, encoding de tokens).
+3. Totales (archivos, líneas, bytes, tokens totales).
+4. Tabla de desglose por lenguaje.
+5. Tablas de coste agrupadas por modo (RAW / ASSISTED / AGENTIC).
+6. Sección de pricing snapshot (id, primary source, captured-at), o `Pricing snapshot: not available` si el snapshot es nulo.
+7. Aviso de estimación como suelo.
+
+**404 ANALYSIS_NOT_FOUND** si `id` no existe. No se emite `Content-Disposition` en la respuesta de error.
+
+---
+
 ## `GET /api/pricing`
 
 Devuelve los precios vigentes, fusionando overrides → snapshot persistido (REMOTE) → fallback YAML. Precios en USD por millón de tokens.
