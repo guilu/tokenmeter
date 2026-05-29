@@ -1,5 +1,6 @@
 package dev.diegobarrioh.tokenmeter.infrastructure.web.analyzer;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -55,6 +56,7 @@ import org.springframework.test.web.servlet.MockMvc;
   EngineeringEffortEstimator.class,
   OpenGraphImageRenderer.class,
   BadgeRenderer.class,
+  MarkdownExportRenderer.class,
   RepositoryIntakeExceptionHandler.class,
   AnalyzeRateLimitInterceptor.class,
   WebMvcConfiguration.class,
@@ -321,6 +323,77 @@ class RepositoryAnalysisControllerTest {
                 org.assertj.core.api.Assertions.assertThat(
                         result.getResponse().getContentAsString())
                     .contains("<svg>"));
+  }
+
+  // ---------------------------------------------------------------------------
+  // export.md endpoint tests
+  // ---------------------------------------------------------------------------
+
+  @Test
+  void exportMarkdown_returns200WithContentTypeAndDisposition() throws Exception {
+    UUID id = UUID.randomUUID();
+    when(analysisService.findById(id))
+        .thenReturn(sampleAnalysis(id, sampleCostEstimates(), samplePricingHandle()));
+
+    mockMvc
+        .perform(get("/api/analyze/{id}/export.md", id))
+        .andExpect(status().isOk())
+        .andExpect(
+            result -> assertThat(result.getResponse().getContentType()).contains("text/markdown"))
+        .andExpect(
+            header()
+                .string(
+                    "Content-Disposition",
+                    "attachment; filename=\"tokenmeter-guilu-tokenmeter.md\""))
+        .andExpect(
+            result ->
+                assertThat(result.getResponse().getContentAsString())
+                    .contains("https://github.com/guilu/tokenmeter"));
+  }
+
+  @Test
+  void exportMarkdown_bodyContainsRequiredSections() throws Exception {
+    UUID id = UUID.randomUUID();
+    when(analysisService.findById(id))
+        .thenReturn(sampleAnalysis(id, sampleCostEstimates(), samplePricingHandle()));
+
+    mockMvc
+        .perform(get("/api/analyze/{id}/export.md", id))
+        .andExpect(status().isOk())
+        .andExpect(
+            result -> {
+              String body = result.getResponse().getContentAsString();
+              assertThat(body).contains("25");
+              assertThat(body).contains("Java");
+              assertThat(body).contains("gpt-4o");
+              assertThat(body).contains("v1:" + "0".repeat(64));
+            });
+  }
+
+  @Test
+  void exportMarkdown_withNullPricing_returns200WithNotAvailableLine() throws Exception {
+    UUID id = UUID.randomUUID();
+    when(analysisService.findById(id)).thenReturn(sampleAnalysis(id, sampleCostEstimates(), null));
+
+    mockMvc
+        .perform(get("/api/analyze/{id}/export.md", id))
+        .andExpect(status().isOk())
+        .andExpect(
+            result ->
+                assertThat(result.getResponse().getContentAsString())
+                    .contains("Pricing snapshot: not available"));
+  }
+
+  @Test
+  void exportMarkdown_unknownId_returns404() throws Exception {
+    UUID id = UUID.randomUUID();
+    when(analysisService.findById(id)).thenThrow(new AnalysisNotFoundException(id));
+
+    mockMvc
+        .perform(get("/api/analyze/{id}/export.md", id))
+        .andExpect(status().isNotFound())
+        .andExpect(
+            result -> assertThat(result.getResponse().getHeader("Content-Disposition")).isNull());
   }
 
   private static RepositoryAnalysisResult sampleAnalysis(
