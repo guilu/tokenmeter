@@ -955,10 +955,10 @@ function CostHero({
   return (
     <section className="relative mt-8 overflow-hidden rounded-[2rem] border border-primary/20 bg-bg/80 p-6 shadow-2xl shadow-bg sm:p-8">
       <div
-        className="absolute inset-0"
+        className="absolute inset-0 print:hidden"
         style={{ background: 'radial-gradient(circle at top left, color-mix(in srgb, var(--tm-primary) 18%, transparent), transparent 38%), radial-gradient(circle at bottom right, color-mix(in srgb, var(--tm-secondary) 14%, transparent), transparent 36%)' }}
       />
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/80 to-transparent" />
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/80 to-transparent print:hidden" />
 
       <div className="relative">
         <p className="inline-flex rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-sm text-primary">

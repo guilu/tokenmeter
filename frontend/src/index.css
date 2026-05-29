@@ -105,10 +105,12 @@ button, a {
     page-break-inside: avoid;
   }
 
-  /* Shadows and entry animations muddy the printed output. */
+  /* Shadows, entry animations and decorative gradients muddy the printed
+     output and bleed the dark background into the page. */
   #results * {
     box-shadow: none !important;
     animation: none !important;
+    background-image: none !important;
   }
 
   /* Tables: repeat the header on each page and never split a row. */
