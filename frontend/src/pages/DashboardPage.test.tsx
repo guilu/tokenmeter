@@ -182,7 +182,6 @@ describe('DashboardPage export controls', () => {
 
     const pdfButton = screen.getByRole('button', { name: /Export PDF/i })
     // The action-buttons wrapper must carry print:hidden
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     expect(pdfButton.closest('div')).toHaveClass('print:hidden')
   })
 })

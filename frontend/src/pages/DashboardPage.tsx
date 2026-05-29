@@ -535,7 +535,7 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
         <button className="text-sm text-primary/80 transition hover:text-primary" onClick={onNewAnalysis} type="button">
           ← Analyze another repository
         </button>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 print:hidden">
           <button
             className="rounded-2xl border border-text/10 bg-card/20 px-4 py-2 text-sm text-text/80 transition hover:bg-card/40"
             onClick={() => void handleCopyPublicUrl()}
@@ -561,6 +561,20 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
             <ShareIcon />
             Mini badge
           </a>
+          <a
+            className="inline-flex items-center gap-2 rounded-2xl border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-medium text-primary transition hover:bg-primary/20"
+            download
+            href={`/api/analyze/${analysis.id}/export.md`}
+          >
+            Markdown
+          </a>
+          <button
+            className="inline-flex items-center gap-2 rounded-2xl border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-medium text-primary transition hover:bg-primary/20"
+            onClick={() => window.print()}
+            type="button"
+          >
+            Export PDF
+          </button>
         </div>
       </div>
 
