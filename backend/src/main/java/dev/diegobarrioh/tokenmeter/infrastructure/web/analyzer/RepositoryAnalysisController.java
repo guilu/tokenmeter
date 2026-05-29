@@ -33,6 +33,7 @@ public class RepositoryAnalysisController {
   private final LeaderboardService leaderboardService;
   private final PublicOriginProperties publicOriginProperties;
   private final BadgeRenderer badgeRenderer;
+  private final MarkdownExportRenderer markdownExportRenderer;
 
   public RepositoryAnalysisController(
       RepositoryAnalysisService analysisService,
@@ -41,7 +42,8 @@ public class RepositoryAnalysisController {
       OpenGraphImageRenderer openGraphImageRenderer,
       LeaderboardService leaderboardService,
       PublicOriginProperties publicOriginProperties,
-      BadgeRenderer badgeRenderer) {
+      BadgeRenderer badgeRenderer,
+      MarkdownExportRenderer markdownExportRenderer) {
     this.analysisService = analysisService;
     this.mapper = mapper;
     this.costBreakdownMapper = costBreakdownMapper;
@@ -49,6 +51,7 @@ public class RepositoryAnalysisController {
     this.leaderboardService = leaderboardService;
     this.publicOriginProperties = publicOriginProperties;
     this.badgeRenderer = badgeRenderer;
+    this.markdownExportRenderer = markdownExportRenderer;
   }
 
   @GetMapping("/api/analyze/{id}")
@@ -206,6 +209,17 @@ public class RepositoryAnalysisController {
         .cacheControl(CacheControl.maxAge(Duration.ofHours(1)).cachePublic())
         .header("Content-Disposition", "inline")
         .body(badgeRenderer.render(analysis));
+  }
+
+  @GetMapping(value = "/api/analyze/{id}/export.md", produces = "text/markdown;charset=UTF-8")
+  public ResponseEntity<String> exportMarkdown(@PathVariable UUID id) {
+    RepositoryAnalysisResult analysis = analysisService.findById(id);
+    String body = markdownExportRenderer.render(analysis);
+    String filename = markdownExportRenderer.filename(analysis);
+    return ResponseEntity.ok()
+        .contentType(MediaType.parseMediaType("text/markdown;charset=UTF-8"))
+        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+        .body(body);
   }
 
   private static String openGraphDescription(RepositoryAnalysisResult analysis) {
