@@ -155,11 +155,7 @@ class MarkdownExportRendererTest {
 
   private static RepositoryScanResult sampleScanResult() {
     return new RepositoryScanResult(
-        3,
-        150,
-        8192,
-        List.of(),
-        Map.of("Java", new LanguageStatistics("Java", 3, 150, 8192)));
+        3, 150, 8192, List.of(), Map.of("Java", new LanguageStatistics("Java", 3, 150, 8192)));
   }
 
   private static RepositoryTokenizationResult sampleTokenizationResult() {
