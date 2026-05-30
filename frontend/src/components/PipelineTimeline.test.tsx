@@ -47,13 +47,14 @@ describe('PipelineTimeline', () => {
     expect(screen.getByText(/2\/4/)).toBeInTheDocument()
   })
 
-  it('COUNTING_TOKENS partial: marks earlier stages complete, active, later pending', () => {
+  it('COUNTING_TOKENS partial: marks earlier stages complete, active, later pending; shows job.message in active stage', () => {
     render(
       <PipelineTimeline
         job={snapshot({
           status: 'RUNNING',
           phase: 'COUNTING_TOKENS',
-          message: 'Counting tokens...',
+          phaseLabel: 'Counting tokens',
+          message: 'Counting tokens · 120 / 230 files',
         })}
       />,
     )
@@ -66,6 +67,9 @@ describe('PipelineTimeline', () => {
     expect(completedMarkers.length).toBeGreaterThanOrEqual(3)
     expect(activeMarker).toBeInTheDocument()
     expect(pendingMarkers.length).toBeGreaterThanOrEqual(1)
+
+    // W1: dynamic job.message must be shown in active stage (not just phaseLabel)
+    expect(screen.getByText(/Counting tokens · 120 \/ 230 files/)).toBeInTheDocument()
   })
 
   it('CALCULATING_COSTS: stage index 6 is active with correct label', () => {
@@ -103,7 +107,7 @@ describe('PipelineTimeline', () => {
     expect(activeMarkers).toHaveLength(0)
   })
 
-  it('FAILED at SAVING_REPORT: active stage shows failed indicator, later stages pending', () => {
+  it('FAILED at SAVING_REPORT: 7 completed, 1 failed, 0 pending (exact distribution)', () => {
     render(
       <PipelineTimeline
         job={snapshot({
@@ -114,7 +118,14 @@ describe('PipelineTimeline', () => {
       />,
     )
 
+    // SAVING_REPORT is stage index 7 (last stage) → 7 stages before it are completed,
+    // it is failed, and 0 stages come after it.
+    const completedMarkers = document.querySelectorAll('[data-stage-state="completed"]')
     const failedMarkers = document.querySelectorAll('[data-stage-state="failed"]')
-    expect(failedMarkers.length).toBeGreaterThanOrEqual(1)
+    const pendingMarkers = document.querySelectorAll('[data-stage-state="pending"]')
+
+    expect(completedMarkers).toHaveLength(7)
+    expect(failedMarkers).toHaveLength(1)
+    expect(pendingMarkers).toHaveLength(0)
   })
 })

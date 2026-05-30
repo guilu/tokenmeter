@@ -93,7 +93,7 @@ export function PipelineTimeline({ job }: { job: AnalysisJobStatusResponse | nul
           }
         }
 
-        const label = i === activeIndex && !isSuccess ? (job?.phaseLabel ?? stage.label) : stage.label
+        const label = i === activeIndex && !isSuccess ? (job?.message ?? job?.phaseLabel ?? stage.label) : stage.label
 
         return (
           <li
