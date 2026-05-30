@@ -9,7 +9,7 @@ import type {
   RepositoryAnalysisCostEstimateResponse,
   RepositoryAnalysisResponse,
 } from '../types/api'
-import { progressFromJob, stageIndexFromJob } from '../utils/analysisJobProgress'
+import { analysisStages, progressFromJob, stageIndexFromJob } from '../utils/analysisJobProgress'
 
 const numberFormatter = new Intl.NumberFormat('en-US')
 const compactNumberFormatter = new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 })
@@ -78,17 +78,6 @@ const workflowAssumptions: Record<CostMode, { title: string; summary: string; mu
     ],
   },
 }
-
-const analysisStages = [
-  { label: 'Cloning repository', detail: 'Opening a clean workspace and fetching the public Git history.' },
-  { label: 'Detecting languages', detail: 'Classifying source files, frameworks and generated artifacts.' },
-  { label: 'Parsing files', detail: 'Filtering noise and preparing a normalized code corpus.' },
-  { label: 'Counting tokens', detail: 'Measuring the repository footprint with model-compatible encoding.' },
-  { label: 'Building context windows', detail: 'Estimating prompt chunks and context required to recreate the project.' },
-  { label: 'Simulating AI workflows', detail: 'Comparing raw, assisted and agentic generation strategies.' },
-  { label: 'Calculating pricing models', detail: 'Applying input, output and workflow overhead across model families.' },
-  { label: 'Generating estimates', detail: 'Compiling the cost intelligence report and shareable analysis.' },
-] as const
 
 function ShareIcon() {
   return (

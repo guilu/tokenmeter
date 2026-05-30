@@ -1,5 +1,21 @@
 import type { AnalysisJobStatusResponse, JobPhase } from '../types/api'
 
+export interface AnalysisStage {
+  label: string
+  detail: string
+}
+
+export const analysisStages: readonly AnalysisStage[] = [
+  { label: 'Cloning repository', detail: 'Opening a clean workspace and fetching the public Git history.' },
+  { label: 'Detecting languages', detail: 'Classifying source files, frameworks and generated artifacts.' },
+  { label: 'Parsing files', detail: 'Filtering noise and preparing a normalized code corpus.' },
+  { label: 'Counting tokens', detail: 'Measuring the repository footprint with model-compatible encoding.' },
+  { label: 'Building context windows', detail: 'Estimating prompt chunks and context required to recreate the project.' },
+  { label: 'Simulating AI workflows', detail: 'Comparing raw, assisted and agentic generation strategies.' },
+  { label: 'Calculating pricing models', detail: 'Applying input, output and workflow overhead across model families.' },
+  { label: 'Generating estimates', detail: 'Compiling the cost intelligence report and shareable analysis.' },
+] as const
+
 /**
  * Maps a backend {@link JobPhase} to the index of the 8 frontend pipeline stages rendered in
  * `LoadingState`. Sub-phases inside `COUNTING_TOKENS` are derived dynamically from
