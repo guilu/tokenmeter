@@ -66,7 +66,7 @@ export function TrendingSection({ onAnalyze }: { onAnalyze: (url: string) => voi
             >
               {Array.from({ length: 3 }).map((_, i) => (
                 <div
-                  className="h-44 shrink-0 basis-full animate-pulse rounded-2xl bg-card/60 shadow-xl shadow-bg/20 sm:basis-[calc((100%-2rem)/3)]"
+                  className="h-44 shrink-0 basis-full animate-pulse rounded-2xl border border-text/10 bg-card/20 shadow-xl shadow-bg/20 sm:basis-[calc((100%-2rem)/3)]"
                   key={i}
                 />
               ))}
@@ -76,7 +76,7 @@ export function TrendingSection({ onAnalyze }: { onAnalyze: (url: string) => voi
           {!loading && error ? (
             <p
               aria-live="polite"
-              className="rounded-2xl bg-card/60 p-5 text-sm text-text/60 shadow-xl shadow-bg/20"
+              className="rounded-2xl border border-text/10 bg-card/20 p-5 text-sm text-text/60 shadow-xl shadow-bg/20"
               role="status"
             >
               {error}
@@ -85,7 +85,7 @@ export function TrendingSection({ onAnalyze }: { onAnalyze: (url: string) => voi
 
           {!loading && !error && items && items.length === 0 ? (
             <p
-              className="rounded-2xl bg-card/60 p-5 text-sm text-text/60 shadow-xl shadow-bg/20"
+              className="rounded-2xl border border-text/10 bg-card/20 p-5 text-sm text-text/60 shadow-xl shadow-bg/20"
               role="status"
             >
               No suggestions available right now.
@@ -202,7 +202,7 @@ function CarouselArrow({ direction, onClick }: { direction: 'left' | 'right'; on
 
 function TrendingRepoCard({ item, onAnalyze }: { item: TrendingRepositoryResponse; onAnalyze: (url: string) => void }) {
   return (
-    <div className="flex h-full flex-col rounded-2xl bg-card/60 p-5 shadow-xl shadow-bg/20">
+    <div className="flex h-full flex-col rounded-2xl border border-text/10 bg-card/20 p-5 shadow-xl shadow-bg/20">
       <p className="truncate font-semibold text-text">{item.fullName}</p>
       {item.description ? (
         <p className="mt-2 line-clamp-2 text-sm leading-6 text-text/60">{item.description}</p>

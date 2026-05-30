@@ -310,7 +310,7 @@ export function DashboardPage() {
           <div className="grid gap-4 sm:grid-cols-3">
             {costModes.map((mode) => (
               <div
-                className="rounded-2xl bg-card/60 p-5 shadow-xl shadow-bg/20"
+                className="rounded-2xl border border-text/10 bg-card/20 p-5 shadow-xl shadow-bg/20"
                 key={mode}
               >
                 <div className="flex items-center justify-between gap-2">
