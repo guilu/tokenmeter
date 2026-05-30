@@ -11,6 +11,7 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,9 +27,19 @@ public class RepositoryTokenizationService {
     this.tokenCounter = tokenCounter;
   }
 
-  public RepositoryTokenizationResult tokenize(Path repositoryRoot, RepositoryScanResult scan) {
-    List<FileTokenMetrics> files =
-        scan.files().stream().map(file -> tokenizeFile(repositoryRoot, file)).toList();
+  public RepositoryTokenizationResult tokenize(
+      Path repositoryRoot, RepositoryScanResult scan, TokenizationProgressListener listener) {
+    List<FileTokenMetrics> files = new ArrayList<>(scan.files().size());
+    long total = scan.files().size();
+    long tokensSoFar = 0L;
+    long processed = 0L;
+    for (var file : scan.files()) {
+      FileTokenMetrics metric = tokenizeFile(repositoryRoot, file);
+      files.add(metric);
+      processed++;
+      tokensSoFar += metric.tokens();
+      listener.onProgress(processed, total, tokensSoFar);
+    }
     return summarize(files);
   }
 
