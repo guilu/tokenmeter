@@ -43,7 +43,7 @@ describe('PipelineTimeline', () => {
       />,
     )
 
-    expect(screen.getByText(/3/)).toBeInTheDocument()
+    expect(screen.getByText(/Position 3/)).toBeInTheDocument()
     expect(screen.getByText(/2\/4/)).toBeInTheDocument()
   })
 
