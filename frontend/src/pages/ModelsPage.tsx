@@ -33,6 +33,7 @@ const modes = [
 export function ModelsPage() {
   const [response, setResponse] = useState<PricingResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [showEconomics, setShowEconomics] = useState(true)
 
   useEffect(() => {
     getPricing()
@@ -71,18 +72,39 @@ export function ModelsPage() {
       </div>
 
       {/* Generation Economics modes */}
-      <h2 className="mb-4 text-lg font-semibold text-text">Generation Economics modes</h2>
-      <div className="mb-8 grid gap-3 sm:grid-cols-3">
-        {modes.map(m => (
-          <div className="rounded-2xl border border-text/10 bg-card/20 p-5" key={m.key}>
-            <span className="inline-block rounded-full border border-primary/20 bg-primary/10 px-3 py-0.5 text-xs font-semibold uppercase tracking-widest text-primary">
-              {m.label}
-            </span>
-            <p className="mt-3 text-sm leading-6 text-text/70">{m.description}</p>
-            <p className="mt-3 font-mono text-xs text-text/50">output ×{m.outputMult} · input ×{m.inputMult}</p>
-          </div>
-        ))}
-      </div>
+      <button
+        aria-expanded={showEconomics}
+        className="mb-4 flex items-center gap-2 text-lg font-semibold text-text"
+        onClick={() => setShowEconomics((v) => !v)}
+        type="button"
+      >
+        Generation Economics modes
+        <svg
+          aria-hidden="true"
+          className={`h-4 w-4 text-text/50 transition-transform duration-300 ${showEconomics ? 'rotate-180' : ''}`}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          viewBox="0 0 24 24"
+        >
+          <path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      {showEconomics ? (
+        <div className="mb-8 grid gap-3 sm:grid-cols-3">
+          {modes.map(m => (
+            <div className="rounded-2xl border border-text/10 bg-card/20 p-5" key={m.key}>
+              <span className="inline-block rounded-full border border-primary/20 bg-primary/10 px-3 py-0.5 text-xs font-semibold uppercase tracking-widest text-primary">
+                {m.label}
+              </span>
+              <p className="mt-3 text-sm leading-6 text-text/70">{m.description}</p>
+              <p className="mt-3 font-mono text-xs text-text/50">output ×{m.outputMult} · input ×{m.inputMult}</p>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="mb-8" />
+      )}
 
       {/* Pricing table */}
       <h2 className="mb-4 text-lg font-semibold text-text">Base prices</h2>
@@ -109,9 +131,9 @@ export function ModelsPage() {
         )}
       </div>
 
-      <div className="overflow-hidden rounded-3xl border border-text/10 bg-card/70">
+      <div className="overflow-hidden rounded-3xl border border-text/10 bg-card/20">
         <table className="min-w-full text-sm">
-          <thead className="border-b border-text/10 bg-card/20 text-left">
+          <thead className="border-b border-text/10 bg-card/70 text-left">
             <tr>
               <th className="px-5 py-4 text-xs font-semibold uppercase tracking-[0.2em] text-text/60">Provider</th>
               <th className="px-5 py-4 text-xs font-semibold uppercase tracking-[0.2em] text-text/60">Model</th>
@@ -134,7 +156,7 @@ export function ModelsPage() {
                 </tr>
               ))
             ) : models.map(m => (
-              <tr className="transition hover:bg-card/20" key={`${m.provider}-${m.model}`}>
+              <tr className="transition hover:bg-card/40" key={`${m.provider}-${m.model}`}>
                 <td className="px-5 py-4">
                   <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-0.5 text-xs font-semibold capitalize ${providerBadgeCls[m.provider] ?? 'border-text/20 bg-text/10 text-text/70'}`}>
                     <ProviderIcon provider={m.provider} />

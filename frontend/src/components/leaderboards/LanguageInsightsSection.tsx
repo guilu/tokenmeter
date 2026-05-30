@@ -26,8 +26,8 @@ interface LanguageInsightsSectionProps {
 export function LanguageInsightsSection({ status, data, error }: LanguageInsightsSectionProps) {
   if (status === 'loading') {
     return (
-      <div className="mt-6 overflow-hidden rounded-3xl border border-text/10 bg-card/70">
-        <div className="border-b border-text/10 px-5 py-4">
+      <div className="mt-6 overflow-hidden rounded-3xl border border-text/10 bg-card/20">
+        <div className="border-b border-text/10 bg-card/70 px-5 py-4">
           <div className="h-5 w-48 rounded bg-text/10 animate-pulse" />
         </div>
         <div className="divide-y divide-text/10">
@@ -55,8 +55,8 @@ export function LanguageInsightsSection({ status, data, error }: LanguageInsight
   if (!data) return null
 
   return (
-    <div className="mt-6 overflow-hidden rounded-3xl border border-text/10 bg-card/70">
-      <div className="flex items-center justify-between border-b border-text/10 px-5 py-4">
+    <div className="mt-6 overflow-hidden rounded-3xl border border-text/10 bg-card/20">
+      <div className="flex items-center justify-between border-b border-text/10 bg-card/70 px-5 py-4">
         <div>
           <h2 className="text-lg font-semibold text-text">Top languages by token volume</h2>
           <p className="text-sm text-text/60">
@@ -70,7 +70,7 @@ export function LanguageInsightsSection({ status, data, error }: LanguageInsight
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-text/10 text-sm">
-            <thead className="bg-card/20 text-left text-text/60">
+            <thead className="bg-card/70 text-left text-text/60">
               <tr>
                 <th className="px-5 py-3 font-medium">Language</th>
                 <th className="px-5 py-3 font-medium text-right">Tokens</th>
@@ -80,7 +80,7 @@ export function LanguageInsightsSection({ status, data, error }: LanguageInsight
             </thead>
             <tbody className="divide-y divide-text/10 text-text/80">
               {data.languages.map((entry) => (
-                <tr className="transition hover:bg-card/20" key={entry.language}>
+                <tr className="transition hover:bg-card/40" key={entry.language}>
                   <td className="px-5 py-3 font-medium text-text">{entry.language}</td>
                   <td className="px-5 py-3 text-right tabular-nums">
                     {compactFormatter.format(entry.totalTokens)}

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { AnalysisJobStatusResponse } from '../types/api'
-import { progressFromJob, stageIndexFromJob } from './analysisJobProgress'
+import { analysisStages, progressFromJob, stageIndexFromJob } from './analysisJobProgress'
 
 function snapshot(overrides: Partial<AnalysisJobStatusResponse> = {}): AnalysisJobStatusResponse {
   return {
@@ -23,6 +23,18 @@ function snapshot(overrides: Partial<AnalysisJobStatusResponse> = {}): AnalysisJ
     ...overrides,
   }
 }
+
+describe('analysisStages', () => {
+  it('exports 8 analysisStages with label and detail fields', () => {
+    expect(analysisStages).toHaveLength(8)
+    for (const stage of analysisStages) {
+      expect(typeof stage.label).toBe('string')
+      expect(stage.label.length).toBeGreaterThan(0)
+      expect(typeof stage.detail).toBe('string')
+      expect(stage.detail.length).toBeGreaterThan(0)
+    }
+  })
+})
 
 describe('progressFromJob', () => {
   it('returns 0 when the job is null', () => {

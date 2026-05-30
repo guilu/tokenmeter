@@ -1,15 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 
+import { PipelineTimeline } from '../components/PipelineTimeline'
 import { TrendingSection } from '../components/TrendingSection'
 import { useAnalysisJob } from '../hooks/useAnalysisJob'
+import { useStalledProgress } from '../hooks/useStalledProgress'
 import { ApiError, DEFAULT_REPOSITORY_URL, getAnalysis, submitAnalysis } from '../services/api'
 import type {
   AnalysisJobStatusResponse,
   RepositoryAnalysisCostEstimateResponse,
   RepositoryAnalysisResponse,
 } from '../types/api'
-import { progressFromJob, stageIndexFromJob } from '../utils/analysisJobProgress'
+import { analysisStages, progressFromJob, stageIndexFromJob } from '../utils/analysisJobProgress'
 
 const numberFormatter = new Intl.NumberFormat('en-US')
 const compactNumberFormatter = new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 })
@@ -78,17 +80,6 @@ const workflowAssumptions: Record<CostMode, { title: string; summary: string; mu
     ],
   },
 }
-
-const analysisStages = [
-  { label: 'Cloning repository', detail: 'Opening a clean workspace and fetching the public Git history.' },
-  { label: 'Detecting languages', detail: 'Classifying source files, frameworks and generated artifacts.' },
-  { label: 'Parsing files', detail: 'Filtering noise and preparing a normalized code corpus.' },
-  { label: 'Counting tokens', detail: 'Measuring the repository footprint with model-compatible encoding.' },
-  { label: 'Building context windows', detail: 'Estimating prompt chunks and context required to recreate the project.' },
-  { label: 'Simulating AI workflows', detail: 'Comparing raw, assisted and agentic generation strategies.' },
-  { label: 'Calculating pricing models', detail: 'Applying input, output and workflow overhead across model families.' },
-  { label: 'Generating estimates', detail: 'Compiling the cost intelligence report and shareable analysis.' },
-] as const
 
 function ShareIcon() {
   return (
@@ -319,7 +310,7 @@ export function DashboardPage() {
           <div className="grid gap-4 sm:grid-cols-3">
             {costModes.map((mode) => (
               <div
-                className="rounded-2xl bg-card/60 p-5 shadow-xl shadow-bg/20"
+                className="rounded-2xl border border-text/10 bg-card/20 p-5 shadow-xl shadow-bg/20"
                 key={mode}
               >
                 <div className="flex items-center justify-between gap-2">
@@ -358,6 +349,7 @@ function LoadingState({
 
   const activeStage = useMemo(() => stageIndexFromJob(job), [job])
   const progress = useMemo(() => progressFromJob(job), [job])
+  const isStalled = useStalledProgress(progress)
   const liveStats = useMemo(() => liveStatsFromMetrics(job?.metrics ?? null), [job?.metrics])
 
   useEffect(() => {
@@ -405,7 +397,7 @@ function LoadingState({
 
         <div className="h-2 overflow-hidden rounded-full bg-text/10">
           <div
-            className="h-full rounded-full bg-gradient-to-r from-primary via-secondary to-accent transition-all duration-700 ease-out"
+            className={`h-full rounded-full bg-gradient-to-r from-primary via-secondary to-accent transition-all duration-[1200ms] ease-out${isStalled ? ' animate-shimmer' : ''}`}
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -419,23 +411,7 @@ function LoadingState({
           ))}
         </div>
 
-        <div className="stage-enter rounded-2xl border border-primary/40 bg-primary/10 p-4 shadow-lg shadow-bg" key={activeStage}>
-          <div className="flex items-center gap-3">
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full animate-pulse bg-primary text-[10px] font-bold text-bg">
-              {activeStage + 1}
-            </span>
-            <div>
-              <p className="text-sm font-semibold text-text">{phaseLabel}</p>
-              <p className="mt-0.5 text-xs leading-5 text-text/60">{stage.detail}</p>
-              {job?.status === 'QUEUED' && job.queueState && job.queueState.queuePosition != null ? (
-                <p className="mt-1 text-xs text-text/60 tabular-nums">
-                  Position {job.queueState.queuePosition} · {job.queueState.runningCount}/{job.queueState.maxConcurrency} running
-                </p>
-              ) : null}
-            </div>
-            <p className="ml-auto text-xs text-text/50 tabular-nums">{activeStage + 1} / {analysisStages.length}</p>
-          </div>
-        </div>
+        <PipelineTimeline job={job} />
 
         <div className="rounded-2xl border border-text/10 bg-bg/20 p-4 font-mono text-xs text-primary/80">
           <p>&gt; pipeline.run --repository {trimmedRepositoryUrl || repositoryLabel}</p>

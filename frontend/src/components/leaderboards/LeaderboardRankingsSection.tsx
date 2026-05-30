@@ -41,7 +41,7 @@ interface RankingRowProps {
 function RankingRow({ entry, category }: RankingRowProps) {
   return (
     <a
-      className="grid gap-4 px-5 py-5 transition hover:bg-card/20 sm:grid-cols-[4rem_1fr_auto] sm:items-center"
+      className="grid gap-4 px-5 py-5 transition hover:bg-card/40 sm:grid-cols-[4rem_1fr_auto] sm:items-center"
       href={`/analysis/${entry.analysisId}`}
     >
       <div className="text-3xl font-semibold text-primary/80">#{entry.rank}</div>
@@ -93,8 +93,8 @@ export function LeaderboardRankingsSection({
   const activeCategory = categories.find((c) => c.id === category) ?? categories[0]
 
   return (
-    <div className="mt-6 overflow-hidden rounded-3xl border border-text/10 bg-card/70">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-text/10 px-5 py-4">
+    <div className="mt-6 overflow-hidden rounded-3xl border border-text/10 bg-card/20">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-text/10 bg-card/70 px-5 py-4">
         <div>
           <h2 className="text-lg font-semibold text-text">{activeCategory.label}</h2>
           <p className="text-sm text-text/60">
@@ -162,7 +162,7 @@ export function LeaderboardRankingsSection({
         </div>
       ) : null}
 
-      <div className="flex items-center justify-between border-t border-text/10 px-5 py-4 text-sm text-text/60">
+      <div className="flex items-center justify-between border-t border-text/10 bg-card/70 px-5 py-4 text-sm text-text/60">
         <button
           className="rounded-full border border-text/10 px-4 py-2 disabled:opacity-40"
           disabled={page === 0 || status === 'loading'}

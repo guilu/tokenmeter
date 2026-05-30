@@ -19,7 +19,7 @@ export function LeaderboardFilterBar({
   onModelChange,
 }: LeaderboardFilterBarProps) {
   return (
-    <div className="sticky top-0 z-10 backdrop-blur bg-card/80 border-b border-text/10 px-4 py-3">
+    <div className="sticky top-16 z-40 backdrop-blur bg-card/80 border-b border-text/10 px-4 py-3">
       <div className="mx-auto max-w-6xl grid gap-3 sm:grid-cols-3">
         <label className="text-xs font-semibold uppercase tracking-[0.2em] text-text/60">
           <span>Mode</span>

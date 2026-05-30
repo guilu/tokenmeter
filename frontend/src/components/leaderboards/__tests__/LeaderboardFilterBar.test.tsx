@@ -42,8 +42,10 @@ describe('LeaderboardFilterBar', () => {
 
     const root = container.firstElementChild as HTMLElement
     expect(root.className).toContain('sticky')
-    expect(root.className).toContain('top-0')
-    expect(root.className).toContain('z-10')
+    // Stops below the fixed h-16 navbar (top-16) instead of top-0, where the
+    // navbar (z-50) would otherwise cover it. z-40 keeps it above page content.
+    expect(root.className).toContain('top-16')
+    expect(root.className).toContain('z-40')
   })
 
   it('calls onModeChange when mode select changes', () => {
