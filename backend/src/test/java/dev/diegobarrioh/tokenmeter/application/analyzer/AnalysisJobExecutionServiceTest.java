@@ -317,6 +317,191 @@ class AnalysisJobExecutionServiceTest {
         });
   }
 
+  @Test
+  void throttleSuppressesEmitsWhenDeltaPercentIsLessThanOne() {
+    // 100 files → each file advances 19*1/100 = 0.19% → below the 1% threshold.
+    // Only the first file triggers a forced emit; subsequent files are suppressed
+    // until an integer percent boundary is crossed. The total COUNTING_TOKENS
+    // transition count must therefore be strictly less than 100 (the file count).
+    AnalysisJobRepository jobRepository = Mockito.mock(AnalysisJobRepository.class);
+    AnalysisJobProgressEmitter emitter = Mockito.mock(AnalysisJobProgressEmitter.class);
+    AnalysisJobId jobId = AnalysisJobId.random();
+    UUID analysisId = UUID.randomUUID();
+    when(jobRepository.findById(eq(jobId)))
+        .thenReturn(Optional.of(queuedSnapshot(jobId, "https://github.com/guilu/tokenmeter")));
+    int fileCount = 100;
+
+    AnalysisJobExecutionService service =
+        new AnalysisJobExecutionService(
+            (repositoryUrl, targetDirectory, timeout) -> {
+              for (int i = 0; i < fileCount; i++) {
+                writeFile(
+                    targetDirectory,
+                    "src/F%03d.java".formatted(i),
+                    "public class F%03d {}\n".formatted(i));
+              }
+            },
+            properties(1024 * 1024, Duration.ofSeconds(30)),
+            scanner(),
+            tokenizationService(),
+            persistenceServiceReturning(analysisId),
+            costEstimationService(),
+            jobRepository,
+            emitter,
+            identityService());
+
+    service.runJobInternal(jobId);
+
+    ArgumentCaptor<AnalysisJobPhase> phaseCaptor = ArgumentCaptor.forClass(AnalysisJobPhase.class);
+    verify(emitter, atLeastOnce())
+        .transition(eq(jobId), phaseCaptor.capture(), anyInt(), anyString());
+    long countingEmits =
+        phaseCaptor.getAllValues().stream()
+            .filter(p -> p == AnalysisJobPhase.COUNTING_TOKENS)
+            .count();
+
+    assertThat(countingEmits).isLessThan(fileCount);
+  }
+
+  @Test
+  void throttleBoundsEmitCountForLargeRepo() {
+    // 1000 files → Δ% per file = 19/1000 ≈ 0.019 → at most 19 distinct integer
+    // percent steps (60→79) plus the forced first-file emit. The total
+    // COUNTING_TOKENS transition count must not exceed 20.
+    AnalysisJobRepository jobRepository = Mockito.mock(AnalysisJobRepository.class);
+    AnalysisJobProgressEmitter emitter = Mockito.mock(AnalysisJobProgressEmitter.class);
+    AnalysisJobId jobId = AnalysisJobId.random();
+    UUID analysisId = UUID.randomUUID();
+    when(jobRepository.findById(eq(jobId)))
+        .thenReturn(Optional.of(queuedSnapshot(jobId, "https://github.com/guilu/tokenmeter")));
+    int fileCount = 1000;
+
+    AnalysisJobExecutionService service =
+        new AnalysisJobExecutionService(
+            (repositoryUrl, targetDirectory, timeout) -> {
+              for (int i = 0; i < fileCount; i++) {
+                writeFile(
+                    targetDirectory,
+                    "src/F%04d.java".formatted(i),
+                    "public class F%04d {}\n".formatted(i));
+              }
+            },
+            properties(10L * 1024 * 1024, Duration.ofSeconds(60)),
+            scanner(),
+            tokenizationService(),
+            persistenceServiceReturning(analysisId),
+            costEstimationService(),
+            jobRepository,
+            emitter,
+            identityService());
+
+    service.runJobInternal(jobId);
+
+    ArgumentCaptor<AnalysisJobPhase> phaseCaptor = ArgumentCaptor.forClass(AnalysisJobPhase.class);
+    verify(emitter, atLeastOnce())
+        .transition(eq(jobId), phaseCaptor.capture(), anyInt(), anyString());
+    long countingEmits =
+        phaseCaptor.getAllValues().stream()
+            .filter(p -> p == AnalysisJobPhase.COUNTING_TOKENS)
+            .count();
+
+    // Max theoretical bound: phase-entry at 60 (1) + forced first-file at 60 (1)
+    // + 19 distinct Δ%≥1 steps [61..79] = 21, plus a small allowance for the
+    // time-based fallback branch on slow machines. The key claim is that the
+    // throttle keeps the emit count orders-of-magnitude below the file count.
+    assertThat(countingEmits).isLessThanOrEqualTo(25);
+    assertThat(countingEmits).isLessThan(fileCount);
+  }
+
+  @Test
+  void intermediateMetricsHaveNullFilesSkipped() {
+    // Intermediate COUNTING_TOKENS updateMetrics emits must carry null for both
+    // filesDiscovered AND filesSkipped — only the final emit after tokenization
+    // carries the real totals.
+    AnalysisJobRepository jobRepository = Mockito.mock(AnalysisJobRepository.class);
+    AnalysisJobProgressEmitter emitter = Mockito.mock(AnalysisJobProgressEmitter.class);
+    AnalysisJobId jobId = AnalysisJobId.random();
+    UUID analysisId = UUID.randomUUID();
+    when(jobRepository.findById(eq(jobId)))
+        .thenReturn(Optional.of(queuedSnapshot(jobId, "https://github.com/guilu/tokenmeter")));
+
+    AnalysisJobExecutionService service =
+        new AnalysisJobExecutionService(
+            (repositoryUrl, targetDirectory, timeout) ->
+                writeFile(targetDirectory, "src/App.java", "class App {}\n"),
+            properties(1024, Duration.ofSeconds(2)),
+            scanner(),
+            tokenizationService(),
+            persistenceServiceReturning(analysisId),
+            costEstimationService(),
+            jobRepository,
+            emitter,
+            identityService());
+
+    service.runJobInternal(jobId);
+
+    ArgumentCaptor<AnalysisJobMetrics> metricsCaptor =
+        ArgumentCaptor.forClass(AnalysisJobMetrics.class);
+    verify(emitter, atLeastOnce()).updateMetrics(eq(jobId), metricsCaptor.capture());
+
+    List<AnalysisJobMetrics> intermediateCountingMetrics =
+        metricsCaptor.getAllValues().stream()
+            .filter(m -> m.filesProcessed() != null && m.filesDiscovered() == null)
+            .toList();
+
+    assertThat(intermediateCountingMetrics).isNotEmpty();
+    intermediateCountingMetrics.forEach(
+        m -> {
+          assertThat(m.filesDiscovered()).isNull();
+          assertThat(m.filesSkipped()).isNull();
+        });
+  }
+
+  @Test
+  void singleFileRepoEmitsCountingTokensAtPercent79() {
+    // single file: percent = min(79, 60 + (1 * 19 / 1)) = 60 + 19 = 79
+    AnalysisJobRepository jobRepository = Mockito.mock(AnalysisJobRepository.class);
+    AnalysisJobProgressEmitter emitter = Mockito.mock(AnalysisJobProgressEmitter.class);
+    AnalysisJobId jobId = AnalysisJobId.random();
+    UUID analysisId = UUID.randomUUID();
+    when(jobRepository.findById(eq(jobId)))
+        .thenReturn(Optional.of(queuedSnapshot(jobId, "https://github.com/guilu/tokenmeter")));
+
+    AnalysisJobExecutionService service =
+        new AnalysisJobExecutionService(
+            (repositoryUrl, targetDirectory, timeout) ->
+                writeFile(targetDirectory, "src/Only.java", "public class Only {}\n"),
+            properties(1024, Duration.ofSeconds(2)),
+            scanner(),
+            tokenizationService(),
+            persistenceServiceReturning(analysisId),
+            costEstimationService(),
+            jobRepository,
+            emitter,
+            identityService());
+
+    service.runJobInternal(jobId);
+
+    ArgumentCaptor<Integer> percentCaptor = ArgumentCaptor.forClass(Integer.class);
+    ArgumentCaptor<AnalysisJobPhase> phaseCaptor = ArgumentCaptor.forClass(AnalysisJobPhase.class);
+    verify(emitter, atLeastOnce())
+        .transition(eq(jobId), phaseCaptor.capture(), percentCaptor.capture(), anyString());
+
+    List<Integer> countingPercents = new ArrayList<>();
+    List<AnalysisJobPhase> phases = phaseCaptor.getAllValues();
+    List<Integer> percents = percentCaptor.getAllValues();
+    for (int i = 0; i < phases.size(); i++) {
+      if (phases.get(i) == AnalysisJobPhase.COUNTING_TOKENS) {
+        countingPercents.add(percents.get(i));
+      }
+    }
+
+    // The listener fires once for the only file; processed=1, total=1 → percent=79.
+    // The phase-entry emit (percent=60) comes from the pre-loop transition call;
+    // the listener emit comes right after for processed==1 → percent=79.
+    assertThat(countingPercents).contains(79);
+  }
+
   private RepositoryIntakeProperties properties(long maxBytes, Duration timeout) {
     return new RepositoryIntakeProperties(tempDir, maxBytes, timeout);
   }
