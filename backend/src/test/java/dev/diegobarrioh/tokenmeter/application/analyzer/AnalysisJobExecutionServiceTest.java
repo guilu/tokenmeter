@@ -33,11 +33,13 @@ import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
 class AnalysisJobExecutionServiceTest {
@@ -75,7 +77,7 @@ class AnalysisJobExecutionServiceTest {
         .transition(eq(jobId), eq(AnalysisJobPhase.SCANNING_FILES), anyInt(), anyString());
     verify(emitter)
         .transition(eq(jobId), eq(AnalysisJobPhase.FILTERING_FILES), anyInt(), anyString());
-    verify(emitter)
+    verify(emitter, atLeastOnce())
         .transition(eq(jobId), eq(AnalysisJobPhase.COUNTING_TOKENS), anyInt(), anyString());
     verify(emitter)
         .transition(eq(jobId), eq(AnalysisJobPhase.CALCULATING_COSTS), anyInt(), anyString());
@@ -215,6 +217,104 @@ class AnalysisJobExecutionServiceTest {
     verify(emitter, never()).transition(any(), any(), anyInt(), anyString());
     verify(emitter, never()).success(any(), any(), any());
     verify(emitter, never()).fail(any(), any(), any());
+  }
+
+  @Test
+  void countingTokensPercentsAreInRangeAndMonotonic() throws IOException {
+    AnalysisJobRepository jobRepository = Mockito.mock(AnalysisJobRepository.class);
+    AnalysisJobProgressEmitter emitter = Mockito.mock(AnalysisJobProgressEmitter.class);
+    AnalysisJobId jobId = AnalysisJobId.random();
+    UUID analysisId = UUID.randomUUID();
+    when(jobRepository.findById(eq(jobId)))
+        .thenReturn(Optional.of(queuedSnapshot(jobId, "https://github.com/guilu/tokenmeter")));
+
+    AnalysisJobExecutionService service =
+        new AnalysisJobExecutionService(
+            (repositoryUrl, targetDirectory, timeout) -> {
+              // write 19 files so each triggers a 1% step, ensuring all integer steps appear
+              for (int i = 0; i < 19; i++) {
+                writeFile(
+                    targetDirectory,
+                    "src/F%02d.java".formatted(i),
+                    "public class F%02d {}\n".formatted(i));
+              }
+            },
+            properties(1024 * 1024, Duration.ofSeconds(10)),
+            scanner(),
+            tokenizationService(),
+            persistenceServiceReturning(analysisId),
+            costEstimationService(),
+            jobRepository,
+            emitter,
+            identityService());
+
+    service.runJobInternal(jobId);
+
+    ArgumentCaptor<Integer> percentCaptor = ArgumentCaptor.forClass(Integer.class);
+    ArgumentCaptor<AnalysisJobPhase> phaseCaptor = ArgumentCaptor.forClass(AnalysisJobPhase.class);
+    verify(emitter, atLeastOnce())
+        .transition(eq(jobId), phaseCaptor.capture(), percentCaptor.capture(), anyString());
+
+    // Filter only COUNTING_TOKENS percents
+    List<Integer> countingPercents = new ArrayList<>();
+    List<AnalysisJobPhase> phases = phaseCaptor.getAllValues();
+    List<Integer> percents = percentCaptor.getAllValues();
+    for (int i = 0; i < phases.size(); i++) {
+      if (phases.get(i) == AnalysisJobPhase.COUNTING_TOKENS) {
+        countingPercents.add(percents.get(i));
+      }
+    }
+
+    assertThat(countingPercents).isNotEmpty();
+    assertThat(countingPercents).allSatisfy(p -> assertThat(p).isBetween(60, 79));
+    // monotonically non-decreasing
+    for (int i = 1; i < countingPercents.size(); i++) {
+      assertThat(countingPercents.get(i)).isGreaterThanOrEqualTo(countingPercents.get(i - 1));
+    }
+    // first file always emits: at minimum the phase-entry (60) must be present
+    assertThat(countingPercents.get(0)).isEqualTo(60);
+  }
+
+  @Test
+  void intermediateMetricsHaveNullFilesDiscovered() {
+    AnalysisJobRepository jobRepository = Mockito.mock(AnalysisJobRepository.class);
+    AnalysisJobProgressEmitter emitter = Mockito.mock(AnalysisJobProgressEmitter.class);
+    AnalysisJobId jobId = AnalysisJobId.random();
+    UUID analysisId = UUID.randomUUID();
+    when(jobRepository.findById(eq(jobId)))
+        .thenReturn(Optional.of(queuedSnapshot(jobId, "https://github.com/guilu/tokenmeter")));
+
+    AnalysisJobExecutionService service =
+        new AnalysisJobExecutionService(
+            (repositoryUrl, targetDirectory, timeout) ->
+                writeFile(targetDirectory, "src/App.java", "class App {}\n"),
+            properties(1024, Duration.ofSeconds(2)),
+            scanner(),
+            tokenizationService(),
+            persistenceServiceReturning(analysisId),
+            costEstimationService(),
+            jobRepository,
+            emitter,
+            identityService());
+
+    service.runJobInternal(jobId);
+
+    ArgumentCaptor<AnalysisJobMetrics> metricsCaptor =
+        ArgumentCaptor.forClass(AnalysisJobMetrics.class);
+    verify(emitter, atLeastOnce()).updateMetrics(eq(jobId), metricsCaptor.capture());
+
+    // Find intermediate COUNTING_TOKENS emits: filesProcessed != null but filesDiscovered == null
+    List<AnalysisJobMetrics> intermediateCountingMetrics =
+        metricsCaptor.getAllValues().stream()
+            .filter(m -> m.filesProcessed() != null && m.filesDiscovered() == null)
+            .toList();
+
+    assertThat(intermediateCountingMetrics).isNotEmpty();
+    intermediateCountingMetrics.forEach(
+        m -> {
+          assertThat(m.filesDiscovered()).isNull();
+          assertThat(m.filesProcessed()).isNotNull();
+        });
   }
 
   private RepositoryIntakeProperties properties(long maxBytes, Duration timeout) {

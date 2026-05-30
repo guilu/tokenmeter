@@ -6,6 +6,7 @@ import dev.diegobarrioh.tokenmeter.application.repository.GitRepositoryCloner;
 import dev.diegobarrioh.tokenmeter.application.repository.RepositoryIntakeProperties;
 import dev.diegobarrioh.tokenmeter.application.repository.RepositorySizeCalculator;
 import dev.diegobarrioh.tokenmeter.application.tokenizer.RepositoryTokenizationService;
+import dev.diegobarrioh.tokenmeter.application.tokenizer.TokenizationProgressListener;
 import dev.diegobarrioh.tokenmeter.domain.analyzer.RepositoryScanResult;
 import dev.diegobarrioh.tokenmeter.domain.cost.ModelCostEstimate;
 import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobErrorCode;
@@ -149,8 +150,25 @@ public class AnalysisJobExecutionService {
       emitter.transition(id, AnalysisJobPhase.FILTERING_FILES, 45, "Filtering binary files");
 
       emitter.transition(id, AnalysisJobPhase.COUNTING_TOKENS, 60, "Counting tokens");
+      final int[] lastEmittedPercent = {60};
+      final long[] lastEmitNanos = {System.nanoTime()};
+      TokenizationProgressListener listener =
+          (processed, total, tokensSoFar) -> {
+            int percent = (total <= 0) ? 60 : Math.min(79, 60 + (int) (processed * 19L / total));
+            long now = System.nanoTime();
+            boolean first = processed == 1;
+            boolean deltaPct = percent - lastEmittedPercent[0] >= 1;
+            boolean elapsed = now - lastEmitNanos[0] >= 1_000_000_000L;
+            if (first || deltaPct || elapsed) {
+              emitter.transition(id, AnalysisJobPhase.COUNTING_TOKENS, percent, "Counting tokens");
+              emitter.updateMetrics(
+                  id, new AnalysisJobMetrics(null, processed, null, tokensSoFar, null, null));
+              lastEmittedPercent[0] = percent;
+              lastEmitNanos[0] = now;
+            }
+          };
       RepositoryTokenizationResult tokenization =
-          tokenizationService.tokenize(cloneDirectory, scan);
+          tokenizationService.tokenize(cloneDirectory, scan, listener);
       emitter.updateMetrics(
           id,
           new AnalysisJobMetrics(
