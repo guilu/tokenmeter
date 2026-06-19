@@ -161,6 +161,50 @@ class LiteLlmPricingMapperTest {
   }
 
   @Test
+  void skipsNonCanonicalAutoDiscoveredVariants() {
+    Map<String, LiteLlmModelEntry> raw = new LinkedHashMap<>();
+    raw.put(
+        "gpt-4o-audio-preview",
+        new LiteLlmModelEntry(
+            new BigDecimal("0.0000025"), new BigDecimal("0.00001"), "openai", null));
+    raw.put(
+        "claude-opus-4-7-20260416",
+        new LiteLlmModelEntry(
+            new BigDecimal("0.000005"), new BigDecimal("0.000025"), "anthropic", null));
+    raw.put(
+        "ft:gpt-4o-2024-08-06",
+        new LiteLlmModelEntry(
+            new BigDecimal("0.00000375"), new BigDecimal("0.000015"), "openai", null));
+    LiteLlmPricingMapper mapper = mapperWith(Map.of());
+
+    MappingResult result = mapper.mapToSnapshots(raw, FETCHED_AT);
+
+    assertThat(result.snapshots()).isEmpty();
+    assertThat(result.skipped()).isEqualTo(3);
+  }
+
+  @Test
+  void importsNonCanonicalKeyWhenExplicitlyOverridden() {
+    Map<String, LiteLlmModelEntry> raw = new LinkedHashMap<>();
+    raw.put(
+        "claude-opus-4-7-20260416",
+        new LiteLlmModelEntry(
+            new BigDecimal("0.000005"), new BigDecimal("0.000025"), "anthropic", null));
+    Map<MappingKey, String> mappings = new LinkedHashMap<>();
+    mappings.put(
+        new MappingKey(AiProvider.ANTHROPIC, "claude-opus-4-7"), "claude-opus-4-7-20260416");
+    LiteLlmPricingMapper mapper = mapperWith(mappings);
+
+    MappingResult result = mapper.mapToSnapshots(raw, FETCHED_AT);
+
+    // Override bypasses the canonical filter and pins the canonical model name.
+    PricingSnapshot snapshot =
+        findSnapshot(result.snapshots(), AiProvider.ANTHROPIC, "claude-opus-4-7");
+    assertThat(snapshot.externalModelId()).isEqualTo("claude-opus-4-7-20260416");
+    assertThat(result.skipped()).isZero();
+  }
+
+  @Test
   void rejectsNullRawPayload() {
     LiteLlmPricingMapper mapper = mapperWith(Map.of());
 

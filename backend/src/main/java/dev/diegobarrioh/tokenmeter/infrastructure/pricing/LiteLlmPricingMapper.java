@@ -13,7 +13,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -28,7 +27,12 @@ import org.springframework.stereotype.Component;
  * appear automatically. {@code pricing-mapping.yaml} is now an override/alias mechanism — when an
  * upstream key is configured there, its canonical {@code (provider, model)} pair wins; otherwise
  * the provider is resolved from {@code litellm_provider} and the model name is derived from the
- * upstream key. Malformed or unsupported entries are skipped and counted.
+ * upstream key.
+ *
+ * <p>Auto-discovered (non-override) entries are additionally filtered by {@link LiteLlmModelFilter}
+ * (TKM-66) so only canonical/active text models are imported — dated snapshots, fine-tuned models,
+ * non-text modalities, {@code -latest} aliases and preview/beta builds are dropped. Overrides
+ * bypass the filter. Malformed, unsupported and non-canonical entries are skipped and counted.
  */
 @Component
 public class LiteLlmPricingMapper {
@@ -61,11 +65,14 @@ public class LiteLlmPricingMapper {
 
     Map<String, MappingKey> overrides = reverseOverrides();
     Map<MappingKey, PricingSnapshot> snapshots = new LinkedHashMap<>();
-    // Tracked separately for operator visibility: unsupported-provider drops are expected noise
-    // (the bulk of the upstream catalogue), malformed-price drops are an actionable data-quality
-    // signal. They are summed into the single MappingResult#skipped count exposed to callers.
-    int skippedUnsupported = 0;
+    // Tracked separately for operator visibility, summed into the single MappingResult#skipped
+    // count:
+    //  - malformed: null/non-positive price (actionable data-quality signal);
+    //  - unsupportedProvider: litellm_provider outside the allowlist (expected, large);
+    //  - nonCanonical: dated/fine-tuned/modality/preview variants filtered out (TKM-66, expected).
     int skippedMalformed = 0;
+    int skippedUnsupported = 0;
+    int skippedNonCanonical = 0;
 
     for (Map.Entry<String, LiteLlmModelEntry> upstream : raw.entrySet()) {
       String litellmKey = upstream.getKey();
@@ -79,15 +86,29 @@ public class LiteLlmPricingMapper {
         continue;
       }
 
-      MappingKey key = resolveKey(litellmKey, entry, overrides).orElse(null);
-      if (key == null) {
-        LOG.debug(
-            "Skipping litellm entry {} with unsupported provider {}",
-            litellmKey,
-            entry.litellmProvider());
-        skippedUnsupported++;
-        continue;
+      MappingKey key;
+      MappingKey override = overrides.get(litellmKey);
+      if (override != null) {
+        // Explicit override always wins — bypasses provider allowlist and canonical filter.
+        key = override;
+      } else {
+        AiProvider provider = AiProvider.fromLiteLlmProvider(entry.litellmProvider()).orElse(null);
+        if (provider == null) {
+          LOG.debug(
+              "Skipping litellm entry {} with unsupported provider {}",
+              litellmKey,
+              entry.litellmProvider());
+          skippedUnsupported++;
+          continue;
+        }
+        if (!LiteLlmModelFilter.isCanonical(litellmKey)) {
+          LOG.debug("Skipping non-canonical litellm entry {}", litellmKey);
+          skippedNonCanonical++;
+          continue;
+        }
+        key = new MappingKey(provider, deriveModel(litellmKey));
       }
+
       if (snapshots.containsKey(key)) {
         LOG.debug("Skipping duplicate litellm entry {} for {}", litellmKey, key);
         continue;
@@ -101,26 +122,17 @@ public class LiteLlmPricingMapper {
       snapshots.put(key, new PricingSnapshot(pricing, PricingSource.REMOTE, fetchedAt, litellmKey));
     }
 
-    int skipped = skippedUnsupported + skippedMalformed;
+    int skipped = skippedMalformed + skippedUnsupported + skippedNonCanonical;
     LOG.info(
-        "LiteLLM mapping: imported={} skipped={} (unsupportedProvider={} malformedPrice={}) "
-            + "of {} upstream entries",
+        "LiteLLM mapping: imported={} skipped={} (malformedPrice={} unsupportedProvider={} "
+            + "nonCanonical={}) of {} upstream entries",
         Integer.valueOf(snapshots.size()),
         Integer.valueOf(skipped),
-        Integer.valueOf(skippedUnsupported),
         Integer.valueOf(skippedMalformed),
+        Integer.valueOf(skippedUnsupported),
+        Integer.valueOf(skippedNonCanonical),
         Integer.valueOf(raw.size()));
     return new MappingResult(List.copyOf(snapshots.values()), skipped);
-  }
-
-  private static Optional<MappingKey> resolveKey(
-      String litellmKey, LiteLlmModelEntry entry, Map<String, MappingKey> overrides) {
-    MappingKey override = overrides.get(litellmKey);
-    if (override != null) {
-      return Optional.of(override);
-    }
-    return AiProvider.fromLiteLlmProvider(entry.litellmProvider())
-        .map(provider -> new MappingKey(provider, deriveModel(litellmKey)));
   }
 
   private Map<String, MappingKey> reverseOverrides() {
