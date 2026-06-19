@@ -167,3 +167,77 @@ describe('ModelsPage — on-demand pricing refresh (TKM-62)', () => {
     expect(refreshCalls).toBe(1)
   })
 })
+
+describe('ModelsPage — sortable price columns (TKM-67)', () => {
+  afterEach(() => {
+    cleanup()
+    vi.restoreAllMocks()
+  })
+
+  function pricingMulti(): PricingResponse {
+    return {
+      lastRefreshedAt: '2026-06-01T00:00:00Z',
+      primarySource: 'litellm',
+      models: [
+        row('zeta', 3, 1),
+        row('alpha', 1, 3),
+        row('mid', 2, 2),
+      ],
+    }
+  }
+
+  function row(name: string, input: number, output: number) {
+    return {
+      provider: 'openai',
+      model: name,
+      inputTokenPricePerMillion: input,
+      outputTokenPricePerMillion: output,
+      source: 'REMOTE' as const,
+      fetchedAt: '2026-06-01T00:00:00Z',
+    }
+  }
+
+  function renderedOrder(): string[] {
+    return screen.getAllByText(/^(zeta|alpha|mid)$/).map((el) => el.textContent ?? '')
+  }
+
+  function stubPricing() {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve(jsonResponse(200, pricingMulti()))),
+    )
+  }
+
+  it('sorts by input price ascending then descending on successive header clicks', async () => {
+    stubPricing()
+    render(<ModelsPage />)
+    expect(await screen.findByText('zeta')).toBeInTheDocument()
+    // Unsorted: original payload order.
+    expect(renderedOrder()).toEqual(['zeta', 'alpha', 'mid'])
+
+    const inputHeader = screen.getByRole('button', { name: /sort by input/i })
+    fireEvent.click(inputHeader)
+    expect(renderedOrder()).toEqual(['alpha', 'mid', 'zeta'])
+    expect(inputHeader).toHaveAttribute('aria-sort', 'ascending')
+
+    fireEvent.click(inputHeader)
+    expect(renderedOrder()).toEqual(['zeta', 'mid', 'alpha'])
+    expect(inputHeader).toHaveAttribute('aria-sort', 'descending')
+  })
+
+  it('sorts by output price independently of the input column', async () => {
+    stubPricing()
+    render(<ModelsPage />)
+    expect(await screen.findByText('zeta')).toBeInTheDocument()
+
+    const outputHeader = screen.getByRole('button', { name: /sort by output/i })
+    fireEvent.click(outputHeader)
+    // output asc: zeta(1), mid(2), alpha(3)
+    expect(renderedOrder()).toEqual(['zeta', 'mid', 'alpha'])
+    expect(outputHeader).toHaveAttribute('aria-sort', 'ascending')
+    expect(screen.getByRole('button', { name: /sort by input/i })).toHaveAttribute(
+      'aria-sort',
+      'none',
+    )
+  })
+})
