@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest'
 import type { AnalysisJobStatusResponse, JobMetrics } from '../types/api'
 import {
   COUNTING_TOKENS_MICROCOPY,
+  ETA_GENERIC_LABEL,
   analysisStages,
+  etaFromJob,
   liveStatsFromMetrics,
   loadingDetailFromJob,
   progressFromJob,
@@ -190,5 +192,68 @@ describe('loadingDetailFromJob', () => {
     )
     expect(loadingDetailFromJob(snapshot({ phase: 'CLONING_REPOSITORY' }), fallback).microcopy).toBeNull()
     expect(loadingDetailFromJob(null, fallback).microcopy).toBeNull()
+  })
+})
+
+describe('etaFromJob', () => {
+  function counting(processed: number | null, discovered: number | null): AnalysisJobStatusResponse {
+    return snapshot({
+      phase: 'COUNTING_TOKENS',
+      metrics: metrics({ filesProcessed: processed, filesDiscovered: discovered }),
+    })
+  }
+
+  it('hides the ETA when there is no job or elapsed time', () => {
+    expect(etaFromJob(null, 30)).toEqual({ kind: 'hidden' })
+    expect(etaFromJob(counting(20, 100), null)).toEqual({ kind: 'hidden' })
+  })
+
+  it('hides the ETA outside the COUNTING_TOKENS phase', () => {
+    expect(
+      etaFromJob(snapshot({ phase: 'CLONING_REPOSITORY' }), 30),
+    ).toEqual({ kind: 'hidden' })
+  })
+
+  it('hides a misleading ETA at the start of the job (too little elapsed time)', () => {
+    expect(etaFromJob(counting(20, 100), 3)).toEqual({ kind: 'hidden' })
+  })
+
+  it('hides the ETA until several files have been processed', () => {
+    expect(etaFromJob(counting(2, 100), 10)).toEqual({ kind: 'hidden' })
+  })
+
+  it('hides the ETA when file counts are missing', () => {
+    expect(etaFromJob(counting(null, 100), 10)).toEqual({ kind: 'hidden' })
+    expect(etaFromJob(counting(20, null), 10)).toEqual({ kind: 'hidden' })
+  })
+
+  it('hides the ETA once processing is effectively complete', () => {
+    expect(etaFromJob(counting(100, 100), 10)).toEqual({ kind: 'hidden' })
+  })
+
+  it('reports remaining seconds when there is enough sample', () => {
+    // 20/100 files in 10s → 2 files/s, 80 remaining → 40s
+    expect(etaFromJob(counting(20, 100), 10)).toEqual({
+      kind: 'eta',
+      seconds: 40,
+      label: 'About 40s remaining',
+    })
+  })
+
+  it('reports remaining minutes for longer estimates', () => {
+    // 10/130 in 10s → 1 file/s, 120 remaining → 120s
+    expect(etaFromJob(counting(10, 130), 10)).toEqual({
+      kind: 'eta',
+      seconds: 120,
+      label: 'About 2 min remaining',
+    })
+  })
+
+  it('falls back to a generic message when the rate implies an unrealistic wait', () => {
+    // 10/1000 in 10s → 1 file/s, 990 remaining → 990s (> cap)
+    expect(etaFromJob(counting(10, 1000), 10)).toEqual({
+      kind: 'generic',
+      label: ETA_GENERIC_LABEL,
+    })
   })
 })

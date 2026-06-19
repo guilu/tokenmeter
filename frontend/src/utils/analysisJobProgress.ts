@@ -107,6 +107,64 @@ export function liveStatsFromMetrics(metrics: JobMetrics | null): LiveStat[] {
   ]
 }
 
+export const ETA_GENERIC_LABEL = 'Large repository · still working'
+
+/** Don't estimate before the rate has stabilised: needs >= 5s elapsed and >= 5 files processed. */
+const ETA_MIN_ELAPSED_SECONDS = 5
+const ETA_MIN_FILES_PROCESSED = 5
+/** Above this the estimate is too coarse to promise — degrade to a generic message instead. */
+const ETA_MAX_SECONDS = 600
+
+export type EtaResult =
+  | { kind: 'hidden' }
+  | { kind: 'generic'; label: string }
+  | { kind: 'eta'; seconds: number; label: string }
+
+function formatEtaLabel(etaSeconds: number): string {
+  if (etaSeconds <= 90) {
+    const rounded = Math.max(5, Math.ceil(etaSeconds / 5) * 5)
+    return `About ${rounded}s remaining`
+  }
+  const minutes = Math.max(2, Math.round(etaSeconds / 60))
+  return `About ${minutes} min remaining`
+}
+
+/**
+ * Computes a prudent ETA for the `COUNTING_TOKENS` phase from the file-processing rate (TKM-57).
+ *
+ * `elapsedSeconds` is supplied by the caller (via `useElapsedSeconds`) to keep this pure. The ETA is
+ * intentionally suppressed early in the job and degraded to {@link ETA_GENERIC_LABEL} when the rate
+ * implies an unrealistic wait, so the UI never promises false precision. Files are the only rate
+ * source today; TKM-55 (byte-weighted progress) can later be preferred here with files as fallback.
+ */
+export function etaFromJob(
+  job: AnalysisJobStatusResponse | null,
+  elapsedSeconds: number | null,
+): EtaResult {
+  const hidden: EtaResult = { kind: 'hidden' }
+  if (!job || elapsedSeconds === null) return hidden
+  if (job.phase !== 'COUNTING_TOKENS') return hidden
+  if (elapsedSeconds < ETA_MIN_ELAPSED_SECONDS) return hidden
+
+  const processed = job.metrics?.filesProcessed ?? null
+  const discovered = job.metrics?.filesDiscovered ?? null
+  if (processed === null || discovered === null) return hidden
+  if (processed < ETA_MIN_FILES_PROCESSED || discovered <= 0) return hidden
+
+  const remaining = discovered - processed
+  if (remaining <= 0) return hidden
+
+  const rate = processed / elapsedSeconds
+  if (!Number.isFinite(rate) || rate <= 0) return hidden
+
+  const etaSeconds = remaining / rate
+  if (etaSeconds > ETA_MAX_SECONDS) {
+    return { kind: 'generic', label: ETA_GENERIC_LABEL }
+  }
+
+  return { kind: 'eta', seconds: Math.round(etaSeconds), label: formatEtaLabel(etaSeconds) }
+}
+
 export const COUNTING_TOKENS_MICROCOPY = 'Large repositories can spend most time here.'
 
 export interface LoadingDetail {

@@ -4,6 +4,7 @@ import type { FormEvent, ReactNode } from 'react'
 import { PipelineTimeline } from '../components/PipelineTimeline'
 import { TrendingSection } from '../components/TrendingSection'
 import { useAnalysisJob } from '../hooks/useAnalysisJob'
+import { useElapsedSeconds } from '../hooks/useElapsedSeconds'
 import { useStalledProgress } from '../hooks/useStalledProgress'
 import { ApiError, DEFAULT_REPOSITORY_URL, getAnalysis, submitAnalysis } from '../services/api'
 import type {
@@ -12,6 +13,7 @@ import type {
 } from '../types/api'
 import {
   analysisStages,
+  etaFromJob,
   liveStatsFromMetrics,
   loadingDetailFromJob,
   progressFromJob,
@@ -379,6 +381,8 @@ function LoadingState({
   const stage = analysisStages[activeStage]
   const phaseLabel = job?.phaseLabel ?? stage.label
   const detail = useMemo(() => loadingDetailFromJob(job, stage.detail), [job, stage.detail])
+  const elapsedSeconds = useElapsedSeconds(job?.timestamps.startedAt ?? null)
+  const eta = useMemo(() => etaFromJob(job, elapsedSeconds), [job, elapsedSeconds])
 
   return (
     <div className="relative mt-8 overflow-hidden rounded-3xl border border-primary/20 bg-bg/80 p-5 shadow-2xl shadow-bg">
@@ -398,6 +402,9 @@ function LoadingState({
           <div className="rounded-2xl border border-primary/20 bg-primary/10 px-4 py-2 text-right">
             <p className="text-2xl font-semibold text-primary">{progress}%</p>
             <p className="text-xs text-primary/70">pipeline progress</p>
+            {eta.kind !== 'hidden' ? (
+              <p className="mt-1 text-xs text-text/60">{eta.label}</p>
+            ) : null}
           </div>
         </div>
 
