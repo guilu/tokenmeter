@@ -205,6 +205,73 @@ class LiteLlmPricingMapperTest {
   }
 
   @Test
+  void skipsDeprecatedAutoDiscoveredModels() {
+    // FETCHED_AT is 2026-05-15; this model was deprecated in the past.
+    Map<String, LiteLlmModelEntry> raw = new LinkedHashMap<>();
+    raw.put(
+        "gpt-old",
+        new LiteLlmModelEntry(
+            new BigDecimal("0.000001"), new BigDecimal("0.000005"), "openai", "2025-01-01"));
+    LiteLlmPricingMapper mapper = mapperWith(Map.of());
+
+    MappingResult result = mapper.mapToSnapshots(raw, FETCHED_AT);
+
+    assertThat(result.snapshots()).isEmpty();
+    assertThat(result.skipped()).isEqualTo(1);
+  }
+
+  @Test
+  void importsModelsWithFutureOrAbsentDeprecationDate() {
+    Map<String, LiteLlmModelEntry> raw = new LinkedHashMap<>();
+    raw.put(
+        "gpt-future",
+        new LiteLlmModelEntry(
+            new BigDecimal("0.000001"), new BigDecimal("0.000005"), "openai", "2027-01-01"));
+    raw.put(
+        "gpt-active",
+        new LiteLlmModelEntry(
+            new BigDecimal("0.000002"), new BigDecimal("0.000006"), "openai", null));
+    LiteLlmPricingMapper mapper = mapperWith(Map.of());
+
+    MappingResult result = mapper.mapToSnapshots(raw, FETCHED_AT);
+
+    assertThat(result.snapshots()).hasSize(2);
+    assertThat(result.skipped()).isZero();
+  }
+
+  @Test
+  void doesNotDropModelsWithUnparseableDeprecationDate() {
+    Map<String, LiteLlmModelEntry> raw = new LinkedHashMap<>();
+    raw.put(
+        "gpt-weird",
+        new LiteLlmModelEntry(
+            new BigDecimal("0.000001"), new BigDecimal("0.000005"), "openai", "soon"));
+    LiteLlmPricingMapper mapper = mapperWith(Map.of());
+
+    MappingResult result = mapper.mapToSnapshots(raw, FETCHED_AT);
+
+    assertThat(result.snapshots()).hasSize(1);
+    assertThat(result.skipped()).isZero();
+  }
+
+  @Test
+  void importsDeprecatedModelWhenExplicitlyOverridden() {
+    Map<String, LiteLlmModelEntry> raw = new LinkedHashMap<>();
+    raw.put(
+        "gpt-old",
+        new LiteLlmModelEntry(
+            new BigDecimal("0.000001"), new BigDecimal("0.000005"), "openai", "2025-01-01"));
+    Map<MappingKey, String> mappings = new LinkedHashMap<>();
+    mappings.put(new MappingKey(AiProvider.OPENAI, "gpt-old"), "gpt-old");
+    LiteLlmPricingMapper mapper = mapperWith(mappings);
+
+    MappingResult result = mapper.mapToSnapshots(raw, FETCHED_AT);
+
+    assertThat(findSnapshot(result.snapshots(), AiProvider.OPENAI, "gpt-old")).isNotNull();
+    assertThat(result.skipped()).isZero();
+  }
+
+  @Test
   void rejectsNullRawPayload() {
     LiteLlmPricingMapper mapper = mapperWith(Map.of());
 
