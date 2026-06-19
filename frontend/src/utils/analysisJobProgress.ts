@@ -1,9 +1,15 @@
-import type { AnalysisJobStatusResponse, JobPhase } from '../types/api'
+import type { AnalysisJobStatusResponse, JobMetrics, JobPhase } from '../types/api'
 
 export interface AnalysisStage {
   label: string
   detail: string
 }
+
+const liveNumberFormatter = new Intl.NumberFormat('en-US')
+const liveCompactFormatter = new Intl.NumberFormat('en-US', {
+  notation: 'compact',
+  maximumFractionDigits: 1,
+})
 
 export const analysisStages: readonly AnalysisStage[] = [
   { label: 'Cloning repository', detail: 'Opening a clean workspace and fetching the public Git history.' },
@@ -59,4 +65,123 @@ export function progressFromJob(job: AnalysisJobStatusResponse | null): number {
   }
   const raw = Number.isFinite(job.progressPercent) ? job.progressPercent : 0
   return Math.max(0, Math.min(99, raw))
+}
+
+export interface LiveStat {
+  label: string
+  value: string
+}
+
+/**
+ * Derives the live metric cards rendered in `LoadingState` from the job's partial `metrics`.
+ *
+ * During `COUNTING_TOKENS` the backend streams `filesProcessed` / `filesDiscovered` /
+ * `tokensCounted`, so "Files inspected" is rendered as `processed / discovered` (TKM-54) when both
+ * counts are known, falling back to whichever single count is available.
+ */
+export function liveStatsFromMetrics(metrics: JobMetrics | null): LiveStat[] {
+  const processed = metrics?.filesProcessed ?? null
+  const discovered = metrics?.filesDiscovered ?? null
+  const tokens = metrics?.tokensCounted ?? null
+  const contextWindows = metrics?.contextWindows ?? null
+
+  let files: string
+  if (processed !== null && discovered !== null) {
+    files = `${liveCompactFormatter.format(processed)} / ${liveCompactFormatter.format(discovered)}`
+  } else if (processed !== null || discovered !== null) {
+    files = liveCompactFormatter.format((processed ?? discovered) as number)
+  } else {
+    files = '—'
+  }
+
+  return [
+    { label: 'Files inspected', value: files },
+    {
+      label: 'Tokens counted',
+      value: tokens !== null ? liveCompactFormatter.format(tokens) : '—',
+    },
+    {
+      label: 'Context windows',
+      value: contextWindows !== null ? liveNumberFormatter.format(contextWindows) : '—',
+    },
+  ]
+}
+
+export const ETA_GENERIC_LABEL = 'Large repository · still working'
+
+/** Don't estimate before the rate has stabilised: needs >= 5s elapsed and >= 5 files processed. */
+const ETA_MIN_ELAPSED_SECONDS = 5
+const ETA_MIN_FILES_PROCESSED = 5
+/** Above this the estimate is too coarse to promise — degrade to a generic message instead. */
+const ETA_MAX_SECONDS = 600
+
+export type EtaResult =
+  | { kind: 'hidden' }
+  | { kind: 'generic'; label: string }
+  | { kind: 'eta'; seconds: number; label: string }
+
+function formatEtaLabel(etaSeconds: number): string {
+  if (etaSeconds <= 90) {
+    const rounded = Math.max(5, Math.ceil(etaSeconds / 5) * 5)
+    return `About ${rounded}s remaining`
+  }
+  const minutes = Math.max(2, Math.round(etaSeconds / 60))
+  return `About ${minutes} min remaining`
+}
+
+/**
+ * Computes a prudent ETA for the `COUNTING_TOKENS` phase from the file-processing rate (TKM-57).
+ *
+ * `elapsedSeconds` is supplied by the caller (via `useElapsedSeconds`) to keep this pure. The ETA is
+ * intentionally suppressed early in the job and degraded to {@link ETA_GENERIC_LABEL} when the rate
+ * implies an unrealistic wait, so the UI never promises false precision. Files are the only rate
+ * source today; TKM-55 (byte-weighted progress) can later be preferred here with files as fallback.
+ */
+export function etaFromJob(
+  job: AnalysisJobStatusResponse | null,
+  elapsedSeconds: number | null,
+): EtaResult {
+  const hidden: EtaResult = { kind: 'hidden' }
+  if (!job || elapsedSeconds === null) return hidden
+  if (job.phase !== 'COUNTING_TOKENS') return hidden
+  if (elapsedSeconds < ETA_MIN_ELAPSED_SECONDS) return hidden
+
+  const processed = job.metrics?.filesProcessed ?? null
+  const discovered = job.metrics?.filesDiscovered ?? null
+  if (processed === null || discovered === null) return hidden
+  if (processed < ETA_MIN_FILES_PROCESSED || discovered <= 0) return hidden
+
+  const remaining = discovered - processed
+  if (remaining <= 0) return hidden
+
+  const rate = processed / elapsedSeconds
+  if (!Number.isFinite(rate) || rate <= 0) return hidden
+
+  const etaSeconds = remaining / rate
+  if (etaSeconds > ETA_MAX_SECONDS) {
+    return { kind: 'generic', label: ETA_GENERIC_LABEL }
+  }
+
+  return { kind: 'eta', seconds: Math.round(etaSeconds), label: formatEtaLabel(etaSeconds) }
+}
+
+export const COUNTING_TOKENS_MICROCOPY = 'Large repositories can spend most time here.'
+
+export interface LoadingDetail {
+  message: string
+  microcopy: string | null
+}
+
+/**
+ * Chooses the primary detail line shown in `LoadingState`. Prefers the live backend `message`
+ * (e.g. "Counting tokens in src/App.tsx") when present, otherwise falls back to the static stage
+ * detail. Adds phase-specific microcopy so `COUNTING_TOKENS` reads as concrete activity (TKM-54).
+ */
+export function loadingDetailFromJob(
+  job: AnalysisJobStatusResponse | null,
+  stageDetail: string,
+): LoadingDetail {
+  const message = job?.message?.trim() ? job.message.trim() : stageDetail
+  const microcopy = job?.phase === 'COUNTING_TOKENS' ? COUNTING_TOKENS_MICROCOPY : null
+  return { message, microcopy }
 }

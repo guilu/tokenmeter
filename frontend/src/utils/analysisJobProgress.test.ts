@@ -1,7 +1,28 @@
 import { describe, expect, it } from 'vitest'
 
-import type { AnalysisJobStatusResponse } from '../types/api'
-import { analysisStages, progressFromJob, stageIndexFromJob } from './analysisJobProgress'
+import type { AnalysisJobStatusResponse, JobMetrics } from '../types/api'
+import {
+  COUNTING_TOKENS_MICROCOPY,
+  ETA_GENERIC_LABEL,
+  analysisStages,
+  etaFromJob,
+  liveStatsFromMetrics,
+  loadingDetailFromJob,
+  progressFromJob,
+  stageIndexFromJob,
+} from './analysisJobProgress'
+
+function metrics(overrides: Partial<JobMetrics> = {}): JobMetrics {
+  return {
+    filesDiscovered: null,
+    filesProcessed: null,
+    filesSkipped: null,
+    tokensCounted: null,
+    contextWindows: null,
+    pricingModelsProcessed: null,
+    ...overrides,
+  }
+}
 
 function snapshot(overrides: Partial<AnalysisJobStatusResponse> = {}): AnalysisJobStatusResponse {
   return {
@@ -115,5 +136,124 @@ describe('stageIndexFromJob', () => {
         },
       }),
     ).toBe(5)
+  })
+})
+
+describe('liveStatsFromMetrics', () => {
+  it('renders dashes for every stat when metrics is null', () => {
+    const stats = liveStatsFromMetrics(null)
+    expect(stats).toHaveLength(3)
+    for (const stat of stats) {
+      expect(stat.value).toBe('—')
+    }
+  })
+
+  it('shows processed / discovered as "X / Y" when both are available', () => {
+    const stats = liveStatsFromMetrics(metrics({ filesProcessed: 42, filesDiscovered: 120 }))
+    expect(stats[0]).toEqual({ label: 'Files inspected', value: '42 / 120' })
+  })
+
+  it('falls back to the single available file count when only one is present', () => {
+    expect(liveStatsFromMetrics(metrics({ filesDiscovered: 120 }))[0].value).toBe('120')
+    expect(liveStatsFromMetrics(metrics({ filesProcessed: 42 }))[0].value).toBe('42')
+  })
+
+  it('formats accumulated tokens with compact notation', () => {
+    const stats = liveStatsFromMetrics(metrics({ tokensCounted: 1_500_000 }))
+    expect(stats[1].label).toBe('Tokens counted')
+    expect(stats[1].value).toBe('1.5M')
+  })
+
+  it('renders context windows with full notation', () => {
+    expect(liveStatsFromMetrics(metrics({ contextWindows: 12 }))[2]).toEqual({
+      label: 'Context windows',
+      value: '12',
+    })
+  })
+})
+
+describe('loadingDetailFromJob', () => {
+  const fallback = 'Counting tokens detail'
+
+  it('uses the stage detail fallback when the job has no message', () => {
+    expect(loadingDetailFromJob(snapshot({ message: null }), fallback).message).toBe(fallback)
+    expect(loadingDetailFromJob(snapshot({ message: '   ' }), fallback).message).toBe(fallback)
+    expect(loadingDetailFromJob(null, fallback).message).toBe(fallback)
+  })
+
+  it('uses the backend message as the main detail when present', () => {
+    const detail = loadingDetailFromJob(snapshot({ message: 'Counting tokens in src/App.tsx' }), fallback)
+    expect(detail.message).toBe('Counting tokens in src/App.tsx')
+  })
+
+  it('adds COUNTING_TOKENS microcopy only during the token-counting phase', () => {
+    expect(loadingDetailFromJob(snapshot({ phase: 'COUNTING_TOKENS' }), fallback).microcopy).toBe(
+      COUNTING_TOKENS_MICROCOPY,
+    )
+    expect(loadingDetailFromJob(snapshot({ phase: 'CLONING_REPOSITORY' }), fallback).microcopy).toBeNull()
+    expect(loadingDetailFromJob(null, fallback).microcopy).toBeNull()
+  })
+})
+
+describe('etaFromJob', () => {
+  function counting(processed: number | null, discovered: number | null): AnalysisJobStatusResponse {
+    return snapshot({
+      phase: 'COUNTING_TOKENS',
+      metrics: metrics({ filesProcessed: processed, filesDiscovered: discovered }),
+    })
+  }
+
+  it('hides the ETA when there is no job or elapsed time', () => {
+    expect(etaFromJob(null, 30)).toEqual({ kind: 'hidden' })
+    expect(etaFromJob(counting(20, 100), null)).toEqual({ kind: 'hidden' })
+  })
+
+  it('hides the ETA outside the COUNTING_TOKENS phase', () => {
+    expect(
+      etaFromJob(snapshot({ phase: 'CLONING_REPOSITORY' }), 30),
+    ).toEqual({ kind: 'hidden' })
+  })
+
+  it('hides a misleading ETA at the start of the job (too little elapsed time)', () => {
+    expect(etaFromJob(counting(20, 100), 3)).toEqual({ kind: 'hidden' })
+  })
+
+  it('hides the ETA until several files have been processed', () => {
+    expect(etaFromJob(counting(2, 100), 10)).toEqual({ kind: 'hidden' })
+  })
+
+  it('hides the ETA when file counts are missing', () => {
+    expect(etaFromJob(counting(null, 100), 10)).toEqual({ kind: 'hidden' })
+    expect(etaFromJob(counting(20, null), 10)).toEqual({ kind: 'hidden' })
+  })
+
+  it('hides the ETA once processing is effectively complete', () => {
+    expect(etaFromJob(counting(100, 100), 10)).toEqual({ kind: 'hidden' })
+  })
+
+  it('reports remaining seconds when there is enough sample', () => {
+    // 20/100 files in 10s → 2 files/s, 80 remaining → 40s
+    expect(etaFromJob(counting(20, 100), 10)).toEqual({
+      kind: 'eta',
+      seconds: 40,
+      label: 'About 40s remaining',
+    })
+  })
+
+  it('reports remaining minutes for longer estimates', () => {
+    // 10/130 in 10s → 1 file/s, 120 remaining → 120s
+    expect(etaFromJob(counting(10, 130), 10)).toEqual({
+      kind: 'eta',
+      seconds: 120,
+      label: 'About 2 min remaining',
+    })
+  })
+
+  it('falls back to a generic message when the rate implies an unrealistic wait', () => {
+    // 10/1000 in 10s → 1 file/s, 990 remaining → 990s (> cap)
+    expect(etaFromJob(counting(10, 1000), 10)).toEqual({
+      kind: 'generic',
+      label: ETA_GENERIC_LABEL,
+    })
   })
 })

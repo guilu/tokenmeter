@@ -4,14 +4,21 @@ import type { FormEvent, ReactNode } from 'react'
 import { PipelineTimeline } from '../components/PipelineTimeline'
 import { TrendingSection } from '../components/TrendingSection'
 import { useAnalysisJob } from '../hooks/useAnalysisJob'
+import { useElapsedSeconds } from '../hooks/useElapsedSeconds'
 import { useStalledProgress } from '../hooks/useStalledProgress'
 import { ApiError, DEFAULT_REPOSITORY_URL, getAnalysis, submitAnalysis } from '../services/api'
 import type {
-  AnalysisJobStatusResponse,
   RepositoryAnalysisCostEstimateResponse,
   RepositoryAnalysisResponse,
 } from '../types/api'
-import { analysisStages, progressFromJob, stageIndexFromJob } from '../utils/analysisJobProgress'
+import {
+  analysisStages,
+  etaFromJob,
+  liveStatsFromMetrics,
+  loadingDetailFromJob,
+  progressFromJob,
+  stageIndexFromJob,
+} from '../utils/analysisJobProgress'
 
 const numberFormatter = new Intl.NumberFormat('en-US')
 const compactNumberFormatter = new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 })
@@ -373,6 +380,9 @@ function LoadingState({
 
   const stage = analysisStages[activeStage]
   const phaseLabel = job?.phaseLabel ?? stage.label
+  const detail = useMemo(() => loadingDetailFromJob(job, stage.detail), [job, stage.detail])
+  const elapsedSeconds = useElapsedSeconds(job?.timestamps.startedAt ?? null)
+  const eta = useMemo(() => etaFromJob(job, elapsedSeconds), [job, elapsedSeconds])
 
   return (
     <div className="relative mt-8 overflow-hidden rounded-3xl border border-primary/20 bg-bg/80 p-5 shadow-2xl shadow-bg">
@@ -392,6 +402,9 @@ function LoadingState({
           <div className="rounded-2xl border border-primary/20 bg-primary/10 px-4 py-2 text-right">
             <p className="text-2xl font-semibold text-primary">{progress}%</p>
             <p className="text-xs text-primary/70">pipeline progress</p>
+            {eta.kind !== 'hidden' ? (
+              <p className="mt-1 text-xs text-text/60">{eta.label}</p>
+            ) : null}
           </div>
         </div>
 
@@ -416,33 +429,14 @@ function LoadingState({
         <div className="rounded-2xl border border-text/10 bg-bg/20 p-4 font-mono text-xs text-primary/80">
           <p>&gt; pipeline.run --repository {trimmedRepositoryUrl || repositoryLabel}</p>
           <p className="mt-1 text-text/60">&gt; stage.{activeStage + 1}: {phaseLabel.toLowerCase()}...</p>
+          <p className="mt-1 text-text/80">&gt; {detail.message}</p>
+          {detail.microcopy ? (
+            <p className="mt-1 text-text/50">&gt; {detail.microcopy}</p>
+          ) : null}
         </div>
       </div>
     </div>
   )
-}
-
-function liveStatsFromMetrics(
-  metrics: AnalysisJobStatusResponse['metrics'] | null,
-): Array<{ label: string; value: string }> {
-  const files = metrics?.filesProcessed ?? metrics?.filesDiscovered ?? null
-  const tokens = metrics?.tokensCounted ?? null
-  const contextWindows = metrics?.contextWindows ?? null
-
-  return [
-    {
-      label: 'Files inspected',
-      value: files !== null ? compactNumberFormatter.format(files) : '—',
-    },
-    {
-      label: 'Tokens sampled',
-      value: tokens !== null ? compactNumberFormatter.format(tokens) : '—',
-    },
-    {
-      label: 'Context windows',
-      value: contextWindows !== null ? numberFormatter.format(contextWindows) : '—',
-    },
-  ]
 }
 
 function SharedAnalysisState({ error, loading, onBack }: { error: string | null; loading: boolean; onBack: () => void }) {
