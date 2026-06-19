@@ -57,8 +57,8 @@ class PricingRefreshServiceTest {
         List.of(
             snapshot(AiProvider.OPENAI, "gpt-4o", "2.50", "10.00"),
             snapshot(AiProvider.ANTHROPIC, "claude-opus-4-7", "15.00", "75.00"));
-    when(fetcher.fetchAndMap(any(OffsetDateTime.class))).thenReturn(snapshots);
-    when(fetcher.configuredMappingCount()).thenReturn(3);
+    when(fetcher.fetchAndMap(any(OffsetDateTime.class)))
+        .thenReturn(new PricingFetchResult(snapshots, 1));
 
     PricingRefreshResult result = service.refresh();
 
@@ -83,15 +83,16 @@ class PricingRefreshServiceTest {
   }
 
   @Test
-  void skippedCountNeverGoesNegativeWhenMappingCountIsSmallerThanUpdated() {
+  void propagatesSkippedCountFromTheFetchResult() {
     List<PricingSnapshot> snapshots =
         List.of(snapshot(AiProvider.OPENAI, "gpt-4o", "2.50", "10.00"));
-    when(fetcher.fetchAndMap(any(OffsetDateTime.class))).thenReturn(snapshots);
-    when(fetcher.configuredMappingCount()).thenReturn(0);
+    when(fetcher.fetchAndMap(any(OffsetDateTime.class)))
+        .thenReturn(new PricingFetchResult(snapshots, 7));
 
     PricingRefreshResult result = service.refresh();
 
-    assertThat(result.skipped()).isZero();
+    assertThat(result.updated()).isEqualTo(1);
+    assertThat(result.skipped()).isEqualTo(7);
   }
 
   @Test
@@ -112,7 +113,8 @@ class PricingRefreshServiceTest {
   void persistenceFailurePropagatesAndIncrementsFailureCounter() {
     List<PricingSnapshot> snapshots =
         List.of(snapshot(AiProvider.OPENAI, "gpt-4o", "2.50", "10.00"));
-    when(fetcher.fetchAndMap(any(OffsetDateTime.class))).thenReturn(snapshots);
+    when(fetcher.fetchAndMap(any(OffsetDateTime.class)))
+        .thenReturn(new PricingFetchResult(snapshots, 0));
     DataAccessException dbError = new DataIntegrityViolationException("conflict");
     doThrow(dbError).when(store).replaceRemote(snapshots);
 

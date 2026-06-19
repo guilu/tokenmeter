@@ -1,5 +1,6 @@
 package dev.diegobarrioh.tokenmeter.infrastructure.pricing;
 
+import dev.diegobarrioh.tokenmeter.domain.pricing.AiProvider;
 import dev.diegobarrioh.tokenmeter.domain.pricing.ModelPricing;
 import dev.diegobarrioh.tokenmeter.domain.pricing.PricingSnapshot;
 import dev.diegobarrioh.tokenmeter.domain.pricing.PricingSource;
@@ -8,10 +9,11 @@ import dev.diegobarrioh.tokenmeter.infrastructure.pricing.litellm.LiteLlmModelEn
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -21,8 +23,12 @@ import org.springframework.stereotype.Component;
  * PricingSource#REMOTE}. Pure conversion logic — no HTTP, no JPA, no time travel beyond the
  * supplied {@code fetchedAt}.
  *
- * <p>Iteration walks the configured mapping (not the raw payload) so missing upstream keys are
- * explicitly logged instead of silently dropped.
+ * <p>Since TKM-65 iteration walks the full remote payload (not the configured whitelist): every
+ * upstream entry with a supported provider and valid pricing is imported, so newly published models
+ * appear automatically. {@code pricing-mapping.yaml} is now an override/alias mechanism — when an
+ * upstream key is configured there, its canonical {@code (provider, model)} pair wins; otherwise
+ * the provider is resolved from {@code litellm_provider} and the model name is derived from the
+ * upstream key. Malformed or unsupported entries are skipped and counted.
  */
 @Component
 public class LiteLlmPricingMapper {
@@ -38,12 +44,13 @@ public class LiteLlmPricingMapper {
   }
 
   /**
-   * Walks every configured mapping and produces a snapshot when the upstream entry has positive
-   * input + output prices. Mapping misses (key absent upstream or null/non-positive prices) are
-   * logged at WARN and skipped — pre-existing rows in {@code model_pricing} are preserved by the
-   * caller's choice of {@code replaceRemote} semantics.
+   * Iterates every upstream entry and produces a snapshot when it has positive input + output
+   * prices and a supported provider (resolved from a configured override or {@code
+   * litellm_provider}). Entries that are malformed (null/non-positive price) or belong to an
+   * unsupported provider are skipped and reflected in {@link MappingResult#skipped()}. Entries that
+   * normalize to an already-seen {@code (provider, model)} pair are de-duplicated, first wins.
    */
-  public List<PricingSnapshot> mapToSnapshots(
+  public MappingResult mapToSnapshots(
       Map<String, LiteLlmModelEntry> raw, OffsetDateTime fetchedAt) {
     if (raw == null) {
       throw new IllegalArgumentException("raw payload is required");
@@ -52,41 +59,83 @@ public class LiteLlmPricingMapper {
       throw new IllegalArgumentException("fetchedAt is required");
     }
 
-    Map<MappingKey, String> mappings = new LinkedHashMap<>(mappingLoader.mappings());
-    List<PricingSnapshot> snapshots = new ArrayList<>(mappings.size());
+    Map<String, MappingKey> overrides = reverseOverrides();
+    Map<MappingKey, PricingSnapshot> snapshots = new LinkedHashMap<>();
+    // Tracked separately for operator visibility: unsupported-provider drops are expected noise
+    // (the bulk of the upstream catalogue), malformed-price drops are an actionable data-quality
+    // signal. They are summed into the single MappingResult#skipped count exposed to callers.
+    int skippedUnsupported = 0;
+    int skippedMalformed = 0;
 
-    for (Map.Entry<MappingKey, String> mapping : mappings.entrySet()) {
-      MappingKey key = mapping.getKey();
-      String litellmKey = mapping.getValue();
+    for (Map.Entry<String, LiteLlmModelEntry> upstream : raw.entrySet()) {
+      String litellmKey = upstream.getKey();
+      LiteLlmModelEntry entry = upstream.getValue();
 
-      LiteLlmModelEntry entry = raw.get(litellmKey);
-      if (entry == null) {
-        LOG.warn(
-            "LiteLLM key not found: {} (internal {}:{})",
-            litellmKey,
-            key.provider().configKey(),
-            key.normalizedModel());
+      if (entry == null
+          || !isPositive(entry.inputCostPerToken())
+          || !isPositive(entry.outputCostPerToken())) {
+        LOG.debug("Skipping litellm entry {} with null/non-positive price", litellmKey);
+        skippedMalformed++;
         continue;
       }
-      if (!isPositive(entry.inputCostPerToken()) || !isPositive(entry.outputCostPerToken())) {
-        LOG.warn(
-            "litellm entry {} has null/non-positive price, skipping (input={} output={})",
+
+      MappingKey key = resolveKey(litellmKey, entry, overrides).orElse(null);
+      if (key == null) {
+        LOG.debug(
+            "Skipping litellm entry {} with unsupported provider {}",
             litellmKey,
-            entry.inputCostPerToken(),
-            entry.outputCostPerToken());
+            entry.litellmProvider());
+        skippedUnsupported++;
+        continue;
+      }
+      if (snapshots.containsKey(key)) {
+        LOG.debug("Skipping duplicate litellm entry {} for {}", litellmKey, key);
         continue;
       }
 
       BigDecimal inputPerMillion = pricePerMillion(entry.inputCostPerToken());
       BigDecimal outputPerMillion = pricePerMillion(entry.outputCostPerToken());
-
       ModelPricing pricing =
           new ModelPricing(
               key.provider(), key.normalizedModel(), inputPerMillion, outputPerMillion);
-      snapshots.add(new PricingSnapshot(pricing, PricingSource.REMOTE, fetchedAt, litellmKey));
+      snapshots.put(key, new PricingSnapshot(pricing, PricingSource.REMOTE, fetchedAt, litellmKey));
     }
 
-    return List.copyOf(snapshots);
+    int skipped = skippedUnsupported + skippedMalformed;
+    LOG.info(
+        "LiteLLM mapping: imported={} skipped={} (unsupportedProvider={} malformedPrice={}) "
+            + "of {} upstream entries",
+        Integer.valueOf(snapshots.size()),
+        Integer.valueOf(skipped),
+        Integer.valueOf(skippedUnsupported),
+        Integer.valueOf(skippedMalformed),
+        Integer.valueOf(raw.size()));
+    return new MappingResult(List.copyOf(snapshots.values()), skipped);
+  }
+
+  private static Optional<MappingKey> resolveKey(
+      String litellmKey, LiteLlmModelEntry entry, Map<String, MappingKey> overrides) {
+    MappingKey override = overrides.get(litellmKey);
+    if (override != null) {
+      return Optional.of(override);
+    }
+    return AiProvider.fromLiteLlmProvider(entry.litellmProvider())
+        .map(provider -> new MappingKey(provider, deriveModel(litellmKey)));
+  }
+
+  private Map<String, MappingKey> reverseOverrides() {
+    Map<String, MappingKey> reverse = new LinkedHashMap<>();
+    for (Map.Entry<MappingKey, String> entry : mappingLoader.mappings().entrySet()) {
+      reverse.putIfAbsent(entry.getValue(), entry.getKey());
+    }
+    return reverse;
+  }
+
+  /** Strips a {@code provider/} prefix (e.g. {@code gemini/gemini-2.5-pro}) and normalizes. */
+  private static String deriveModel(String litellmKey) {
+    int slash = litellmKey.lastIndexOf('/');
+    String name = slash >= 0 ? litellmKey.substring(slash + 1) : litellmKey;
+    return PricingMappingLoader.normalizeModel(name);
   }
 
   private static BigDecimal pricePerMillion(BigDecimal costPerToken) {
@@ -95,5 +144,18 @@ public class LiteLlmPricingMapper {
 
   private static boolean isPositive(BigDecimal value) {
     return value != null && value.signum() > 0;
+  }
+
+  /**
+   * Outcome of a mapping run: the imported snapshots plus the count of skipped upstream entries.
+   */
+  public record MappingResult(List<PricingSnapshot> snapshots, int skipped) {
+
+    public MappingResult {
+      Objects.requireNonNull(snapshots, "snapshots is required");
+      if (skipped < 0) {
+        throw new IllegalArgumentException("skipped must be >= 0");
+      }
+    }
   }
 }

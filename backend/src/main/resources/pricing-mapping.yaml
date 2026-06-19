@@ -1,3 +1,7 @@
+# Since TKM-65 this file is an OVERRIDE/ALIAS layer, not the import whitelist.
+# The refresh now imports every supported-provider model from the live LiteLLM payload
+# automatically. Entries here only pin a canonical (provider, model) name for an upstream
+# `litellm-key` — use them for aliases, prefixed keys, or ambiguous provider variants.
 mapping:
   # Anthropic — Claude 4 family.
   - provider: anthropic

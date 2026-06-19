@@ -10,13 +10,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.diegobarrioh.tokenmeter.domain.pricing.AiProvider;
 import dev.diegobarrioh.tokenmeter.domain.pricing.PricingSnapshot;
 import dev.diegobarrioh.tokenmeter.domain.pricing.PricingSource;
+import dev.diegobarrioh.tokenmeter.infrastructure.pricing.LiteLlmPricingMapper.MappingResult;
 import dev.diegobarrioh.tokenmeter.infrastructure.pricing.PricingMappingLoader.MappingKey;
 import dev.diegobarrioh.tokenmeter.infrastructure.pricing.litellm.LiteLlmModelEntry;
 import java.io.IOException;
 import java.io.InputStream;
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -26,19 +29,18 @@ class LiteLlmPricingMapperTest {
       OffsetDateTime.of(2026, 5, 15, 3, 0, 0, 0, ZoneOffset.UTC);
 
   @Test
-  void translatesUpstreamCatalogueIntoRemoteSnapshots() throws IOException {
+  void importsEverySupportedUpstreamEntryNotJustMappedOnes() throws IOException {
     Map<String, LiteLlmModelEntry> raw = loadFixture();
-    PricingMappingLoader mappingLoader = mock(PricingMappingLoader.class);
-    when(mappingLoader.mappings()).thenReturn(sampleMapping());
-    LiteLlmPricingMapper mapper = new LiteLlmPricingMapper(mappingLoader);
+    LiteLlmPricingMapper mapper = mapperWith(sampleMapping());
 
-    var snapshots = mapper.mapToSnapshots(raw, FETCHED_AT);
+    MappingResult result = mapper.mapToSnapshots(raw, FETCHED_AT);
+    List<PricingSnapshot> snapshots = result.snapshots();
 
-    // mystery-model-unmapped has no mapping entry => not surfaced.
-    // null-price-row has no mapping entry => not surfaced.
-    // sample_spec is never looked up because it is not in the mapping.
-    // claude-sonnet-4-6 IS in the mapping but absent upstream => skipped with WARN.
-    assertThat(snapshots).hasSize(4);
+    // Imported: gpt-4o, claude-opus-4-7, claude-haiku-4-5, deepseek-chat (override) and
+    // mystery-model-unmapped (auto-discovered via litellm_provider=openai, absent from mapping).
+    // Skipped: sample_spec (zero price) and null-price-row (null price).
+    assertThat(snapshots).hasSize(5);
+    assertThat(result.skipped()).isEqualTo(2);
     assertThat(snapshots)
         .allSatisfy(
             snapshot -> {
@@ -52,55 +54,115 @@ class LiteLlmPricingMapperTest {
     assertThat(gpt4o.pricing().outputTokenPricePerMillion()).isEqualByComparingTo("10.000000");
     assertThat(gpt4o.externalModelId()).isEqualTo("gpt-4o");
 
-    PricingSnapshot opus = findSnapshot(snapshots, AiProvider.ANTHROPIC, "claude-opus-4-7");
-    assertThat(opus.pricing().inputTokenPricePerMillion()).isEqualByComparingTo("15.000000");
-    assertThat(opus.pricing().outputTokenPricePerMillion()).isEqualByComparingTo("75.000000");
-
     PricingSnapshot haiku = findSnapshot(snapshots, AiProvider.ANTHROPIC, "claude-haiku-4-5");
     assertThat(haiku.pricing().inputTokenPricePerMillion()).isEqualByComparingTo("0.800000");
-    assertThat(haiku.pricing().outputTokenPricePerMillion()).isEqualByComparingTo("4.000000");
-
-    PricingSnapshot deepseek = findSnapshot(snapshots, AiProvider.DEEPSEEK, "deepseek-chat");
-    assertThat(deepseek.pricing().inputTokenPricePerMillion()).isEqualByComparingTo("0.270000");
-    assertThat(deepseek.pricing().outputTokenPricePerMillion()).isEqualByComparingTo("1.100000");
   }
 
   @Test
-  void skipsMappedEntriesWithNullPrices() {
+  void autoDiscoversNewSupportedModelAbsentFromMapping() {
     Map<String, LiteLlmModelEntry> raw = new LinkedHashMap<>();
-    raw.put("gpt-4o", new LiteLlmModelEntry(null, null, "openai", null));
-    PricingMappingLoader mappingLoader = mock(PricingMappingLoader.class);
-    Map<MappingKey, String> mappings = new LinkedHashMap<>();
-    mappings.put(new MappingKey(AiProvider.OPENAI, "gpt-4o"), "gpt-4o");
-    when(mappingLoader.mappings()).thenReturn(mappings);
-    LiteLlmPricingMapper mapper = new LiteLlmPricingMapper(mappingLoader);
+    raw.put(
+        "claude-opus-4-8",
+        new LiteLlmModelEntry(
+            new BigDecimal("0.000015"), new BigDecimal("0.000075"), "anthropic", null));
+    // Empty mapping: nothing is whitelisted, yet the model must still be imported.
+    LiteLlmPricingMapper mapper = mapperWith(Map.of());
 
-    var snapshots = mapper.mapToSnapshots(raw, FETCHED_AT);
+    MappingResult result = mapper.mapToSnapshots(raw, FETCHED_AT);
 
-    assertThat(snapshots).isEmpty();
+    PricingSnapshot opus =
+        findSnapshot(result.snapshots(), AiProvider.ANTHROPIC, "claude-opus-4-8");
+    assertThat(opus.pricing().inputTokenPricePerMillion()).isEqualByComparingTo("15.000000");
+    assertThat(opus.pricing().outputTokenPricePerMillion()).isEqualByComparingTo("75.000000");
+    assertThat(opus.externalModelId()).isEqualTo("claude-opus-4-8");
+    assertThat(result.skipped()).isZero();
   }
 
   @Test
-  void skipsMappedEntriesWithZeroPrices() {
+  void usesConfiguredMappingAsOverrideForCanonicalModelName() {
+    Map<String, LiteLlmModelEntry> raw = new LinkedHashMap<>();
+    raw.put(
+        "deepseek/deepseek-chat",
+        new LiteLlmModelEntry(
+            new BigDecimal("0.00000027"), new BigDecimal("0.0000011"), "deepseek", null));
+    Map<MappingKey, String> mappings = new LinkedHashMap<>();
+    mappings.put(new MappingKey(AiProvider.DEEPSEEK, "deepseek-chat"), "deepseek/deepseek-chat");
+    LiteLlmPricingMapper mapper = mapperWith(mappings);
+
+    MappingResult result = mapper.mapToSnapshots(raw, FETCHED_AT);
+
+    // Canonical model name comes from the override, not from the prefixed upstream key.
+    PricingSnapshot snapshot =
+        findSnapshot(result.snapshots(), AiProvider.DEEPSEEK, "deepseek-chat");
+    assertThat(snapshot.externalModelId()).isEqualTo("deepseek/deepseek-chat");
+  }
+
+  @Test
+  void derivesModelNameByStrippingProviderPrefixForUnmappedKeys() {
+    Map<String, LiteLlmModelEntry> raw = new LinkedHashMap<>();
+    raw.put(
+        "gemini/gemini-3-pro",
+        new LiteLlmModelEntry(
+            new BigDecimal("0.000001"), new BigDecimal("0.000005"), "gemini", null));
+    LiteLlmPricingMapper mapper = mapperWith(Map.of());
+
+    MappingResult result = mapper.mapToSnapshots(raw, FETCHED_AT);
+
+    assertThat(findSnapshot(result.snapshots(), AiProvider.GOOGLE, "gemini-3-pro")).isNotNull();
+  }
+
+  @Test
+  void skipsAndCountsUnsupportedProviderEntries() {
+    Map<String, LiteLlmModelEntry> raw = new LinkedHashMap<>();
+    raw.put(
+        "command-r-plus",
+        new LiteLlmModelEntry(
+            new BigDecimal("0.000003"), new BigDecimal("0.000015"), "cohere", null));
+    LiteLlmPricingMapper mapper = mapperWith(Map.of());
+
+    MappingResult result = mapper.mapToSnapshots(raw, FETCHED_AT);
+
+    assertThat(result.snapshots()).isEmpty();
+    assertThat(result.skipped()).isEqualTo(1);
+  }
+
+  @Test
+  void skipsAndCountsMalformedPriceEntries() {
+    Map<String, LiteLlmModelEntry> raw = new LinkedHashMap<>();
+    raw.put("null-row", new LiteLlmModelEntry(null, null, "openai", null));
+    raw.put("zero-row", new LiteLlmModelEntry(BigDecimal.ZERO, BigDecimal.ZERO, "openai", null));
+    LiteLlmPricingMapper mapper = mapperWith(Map.of());
+
+    MappingResult result = mapper.mapToSnapshots(raw, FETCHED_AT);
+
+    assertThat(result.snapshots()).isEmpty();
+    assertThat(result.skipped()).isEqualTo(2);
+  }
+
+  @Test
+  void dedupesEntriesThatNormalizeToTheSameProviderAndModel() {
     Map<String, LiteLlmModelEntry> raw = new LinkedHashMap<>();
     raw.put(
         "gpt-4o",
         new LiteLlmModelEntry(
-            java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO, "openai", null));
-    PricingMappingLoader mappingLoader = mock(PricingMappingLoader.class);
-    Map<MappingKey, String> mappings = new LinkedHashMap<>();
-    mappings.put(new MappingKey(AiProvider.OPENAI, "gpt-4o"), "gpt-4o");
-    when(mappingLoader.mappings()).thenReturn(mappings);
-    LiteLlmPricingMapper mapper = new LiteLlmPricingMapper(mappingLoader);
+            new BigDecimal("0.0000025"), new BigDecimal("0.00001"), "openai", null));
+    raw.put(
+        "GPT-4o",
+        new LiteLlmModelEntry(
+            new BigDecimal("0.0000099"), new BigDecimal("0.00009"), "openai", null));
+    LiteLlmPricingMapper mapper = mapperWith(Map.of());
 
-    assertThat(mapper.mapToSnapshots(raw, FETCHED_AT)).isEmpty();
+    MappingResult result = mapper.mapToSnapshots(raw, FETCHED_AT);
+
+    assertThat(result.snapshots()).hasSize(1);
+    // First occurrence wins.
+    assertThat(result.snapshots().get(0).pricing().inputTokenPricePerMillion())
+        .isEqualByComparingTo("2.500000");
   }
 
   @Test
   void rejectsNullRawPayload() {
-    PricingMappingLoader mappingLoader = mock(PricingMappingLoader.class);
-    when(mappingLoader.mappings()).thenReturn(Map.of());
-    LiteLlmPricingMapper mapper = new LiteLlmPricingMapper(mappingLoader);
+    LiteLlmPricingMapper mapper = mapperWith(Map.of());
 
     assertThatThrownBy(() -> mapper.mapToSnapshots(null, FETCHED_AT))
         .isInstanceOf(IllegalArgumentException.class)
@@ -109,17 +171,21 @@ class LiteLlmPricingMapperTest {
 
   @Test
   void rejectsNullFetchedAt() {
-    PricingMappingLoader mappingLoader = mock(PricingMappingLoader.class);
-    when(mappingLoader.mappings()).thenReturn(Map.of());
-    LiteLlmPricingMapper mapper = new LiteLlmPricingMapper(mappingLoader);
+    LiteLlmPricingMapper mapper = mapperWith(Map.of());
 
     assertThatThrownBy(() -> mapper.mapToSnapshots(Map.of(), null))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("fetchedAt is required");
   }
 
+  private static LiteLlmPricingMapper mapperWith(Map<MappingKey, String> mappings) {
+    PricingMappingLoader mappingLoader = mock(PricingMappingLoader.class);
+    when(mappingLoader.mappings()).thenReturn(mappings);
+    return new LiteLlmPricingMapper(mappingLoader);
+  }
+
   private static PricingSnapshot findSnapshot(
-      java.util.List<PricingSnapshot> snapshots, AiProvider provider, String model) {
+      List<PricingSnapshot> snapshots, AiProvider provider, String model) {
     return snapshots.stream()
         .filter(s -> s.provider() == provider && s.model().equals(model))
         .findFirst()
@@ -132,7 +198,7 @@ class LiteLlmPricingMapperTest {
     mappings.put(new MappingKey(AiProvider.ANTHROPIC, "claude-opus-4-7"), "claude-opus-4-7");
     mappings.put(new MappingKey(AiProvider.ANTHROPIC, "claude-haiku-4-5"), "claude-haiku-4-5");
     mappings.put(new MappingKey(AiProvider.DEEPSEEK, "deepseek-chat"), "deepseek/deepseek-chat");
-    // present in mapping but absent upstream => triggers the WARN-skip path.
+    // present in mapping but absent upstream => simply not imported (no longer counted as skipped).
     mappings.put(new MappingKey(AiProvider.ANTHROPIC, "claude-sonnet-4-6"), "claude-sonnet-4-6");
     return mappings;
   }

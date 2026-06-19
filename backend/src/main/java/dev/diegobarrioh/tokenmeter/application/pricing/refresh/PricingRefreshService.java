@@ -75,11 +75,12 @@ public class PricingRefreshService {
   public PricingRefreshResult refresh() {
     OffsetDateTime fetchedAt = OffsetDateTime.now(clock);
     try {
-      List<PricingSnapshot> snapshots = fetcher.fetchAndMap(fetchedAt);
+      PricingFetchResult fetched = fetcher.fetchAndMap(fetchedAt);
+      List<PricingSnapshot> snapshots = fetched.snapshots();
       store.replaceRemote(snapshots);
 
       int updated = snapshots.size();
-      int skipped = Math.max(0, fetcher.configuredMappingCount() - updated);
+      int skipped = fetched.skipped();
       events.publishEvent(new PricingRefreshedEvent(fetchedAt, updated, skipped));
       successCounter.increment();
       this.lastSuccessEpochSeconds = fetchedAt.toEpochSecond();
