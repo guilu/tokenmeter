@@ -6,6 +6,7 @@ import type {
   LeaderboardLanguagesResponse,
   LeaderboardOverviewResponse,
   LeaderboardPageResponse,
+  PricingRefreshResult,
   PricingResponse,
   RepositoryAnalysisResponse,
   TrendingRepositoriesResponse,
@@ -83,6 +84,16 @@ export async function getPricing(): Promise<PricingResponse> {
   }
 
   return response.json() as Promise<PricingResponse>
+}
+
+export async function refreshPricing(): Promise<PricingRefreshResult> {
+  const response = await fetch('/api/admin/pricing/refresh', { method: 'POST' })
+
+  if (!response.ok) {
+    throw await toApiError(response, 'Could not refresh prices')
+  }
+
+  return response.json() as Promise<PricingRefreshResult>
 }
 
 export async function getLeaderboard(params: {
