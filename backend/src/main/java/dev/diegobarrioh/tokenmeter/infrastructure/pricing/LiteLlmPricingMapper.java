@@ -61,7 +61,11 @@ public class LiteLlmPricingMapper {
 
     Map<String, MappingKey> overrides = reverseOverrides();
     Map<MappingKey, PricingSnapshot> snapshots = new LinkedHashMap<>();
-    int skipped = 0;
+    // Tracked separately for operator visibility: unsupported-provider drops are expected noise
+    // (the bulk of the upstream catalogue), malformed-price drops are an actionable data-quality
+    // signal. They are summed into the single MappingResult#skipped count exposed to callers.
+    int skippedUnsupported = 0;
+    int skippedMalformed = 0;
 
     for (Map.Entry<String, LiteLlmModelEntry> upstream : raw.entrySet()) {
       String litellmKey = upstream.getKey();
@@ -71,7 +75,7 @@ public class LiteLlmPricingMapper {
           || !isPositive(entry.inputCostPerToken())
           || !isPositive(entry.outputCostPerToken())) {
         LOG.debug("Skipping litellm entry {} with null/non-positive price", litellmKey);
-        skipped++;
+        skippedMalformed++;
         continue;
       }
 
@@ -81,7 +85,7 @@ public class LiteLlmPricingMapper {
             "Skipping litellm entry {} with unsupported provider {}",
             litellmKey,
             entry.litellmProvider());
-        skipped++;
+        skippedUnsupported++;
         continue;
       }
       if (snapshots.containsKey(key)) {
@@ -97,10 +101,14 @@ public class LiteLlmPricingMapper {
       snapshots.put(key, new PricingSnapshot(pricing, PricingSource.REMOTE, fetchedAt, litellmKey));
     }
 
+    int skipped = skippedUnsupported + skippedMalformed;
     LOG.info(
-        "LiteLLM mapping: imported={} skipped={} (of {} upstream entries)",
+        "LiteLLM mapping: imported={} skipped={} (unsupportedProvider={} malformedPrice={}) "
+            + "of {} upstream entries",
         Integer.valueOf(snapshots.size()),
         Integer.valueOf(skipped),
+        Integer.valueOf(skippedUnsupported),
+        Integer.valueOf(skippedMalformed),
         Integer.valueOf(raw.size()));
     return new MappingResult(List.copyOf(snapshots.values()), skipped);
   }

@@ -9,8 +9,10 @@ import java.util.Objects;
  *
  * @param fetchedAt the instant the refresh ran against the upstream source
  * @param updated number of REMOTE rows written to {@code model_pricing}
- * @param skipped number of configured mappings that could not be updated (missing upstream key,
- *     null cost, etc.)
+ * @param skipped number of upstream LiteLLM entries that could not be mapped — unsupported provider
+ *     (outside the curated allowlist) or null/non-positive price. Since TKM-65 the refresh iterates
+ *     the full upstream catalogue, so against the live payload this is expectedly large
+ *     (hundreds–thousands), dominated by unsupported providers; it is NOT a failure signal.
  */
 public record PricingRefreshedEvent(OffsetDateTime fetchedAt, int updated, int skipped) {
 
