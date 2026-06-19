@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import dev.diegobarrioh.tokenmeter.application.pricing.refresh.PricingFetchPort;
+import dev.diegobarrioh.tokenmeter.application.pricing.refresh.PricingFetchResult;
 import dev.diegobarrioh.tokenmeter.application.pricing.refresh.PricingRefreshException;
 import dev.diegobarrioh.tokenmeter.application.pricing.refresh.PricingRefreshService;
 import dev.diegobarrioh.tokenmeter.domain.pricing.AiProvider;
@@ -90,31 +91,28 @@ class PricingRefreshIntegrationTest {
     }
 
     @Override
-    public List<PricingSnapshot> fetchAndMap(OffsetDateTime fetchedAt) {
+    public PricingFetchResult fetchAndMap(OffsetDateTime fetchedAt) {
       if (failing.get()) {
         throw new PricingRefreshException("simulated upstream failure");
       }
-      return List.of(
-          new PricingSnapshot(
-              new ModelPricing(
-                  AiProvider.OPENAI, "gpt-4o", new BigDecimal("4.00"), new BigDecimal("16.00")),
-              PricingSource.REMOTE,
-              fetchedAt,
-              "gpt-4o"),
-          new PricingSnapshot(
-              new ModelPricing(
-                  AiProvider.ANTHROPIC,
-                  "claude-opus-4-7",
-                  new BigDecimal("20.00"),
-                  new BigDecimal("100.00")),
-              PricingSource.REMOTE,
-              fetchedAt,
-              "claude-opus-4-7"));
-    }
-
-    @Override
-    public int configuredMappingCount() {
-      return 17;
+      return new PricingFetchResult(
+          List.of(
+              new PricingSnapshot(
+                  new ModelPricing(
+                      AiProvider.OPENAI, "gpt-4o", new BigDecimal("4.00"), new BigDecimal("16.00")),
+                  PricingSource.REMOTE,
+                  fetchedAt,
+                  "gpt-4o"),
+              new PricingSnapshot(
+                  new ModelPricing(
+                      AiProvider.ANTHROPIC,
+                      "claude-opus-4-7",
+                      new BigDecimal("20.00"),
+                      new BigDecimal("100.00")),
+                  PricingSource.REMOTE,
+                  fetchedAt,
+                  "claude-opus-4-7")),
+          0);
     }
   }
 }

@@ -52,4 +52,32 @@ class AiProviderTest {
       assertThat(AiProvider.fromConfigKey(provider.configKey())).contains(provider);
     }
   }
+
+  @Test
+  void fromLiteLlmProviderResolvesSupportedTokens() {
+    assertThat(AiProvider.fromLiteLlmProvider("openai")).contains(AiProvider.OPENAI);
+    assertThat(AiProvider.fromLiteLlmProvider("anthropic")).contains(AiProvider.ANTHROPIC);
+    assertThat(AiProvider.fromLiteLlmProvider("gemini")).contains(AiProvider.GOOGLE);
+    assertThat(AiProvider.fromLiteLlmProvider("deepseek")).contains(AiProvider.DEEPSEEK);
+    assertThat(AiProvider.fromLiteLlmProvider("mistral")).contains(AiProvider.MISTRAL);
+    assertThat(AiProvider.fromLiteLlmProvider("xai")).contains(AiProvider.XAI);
+  }
+
+  @Test
+  void fromLiteLlmProviderIsTrimAndCaseInsensitive() {
+    assertThat(AiProvider.fromLiteLlmProvider("  Gemini ")).contains(AiProvider.GOOGLE);
+    assertThat(AiProvider.fromLiteLlmProvider("ANTHROPIC")).contains(AiProvider.ANTHROPIC);
+  }
+
+  @Test
+  void fromLiteLlmProviderReturnsEmptyForUnsupportedOrBlankInput() {
+    // Vertex / Qwen tokens are intentionally NOT auto-resolved (ambiguous variants); they only
+    // enter via explicit pricing-mapping.yaml overrides.
+    assertThat(AiProvider.fromLiteLlmProvider("vertex_ai-language-models")).isEmpty();
+    assertThat(AiProvider.fromLiteLlmProvider("qwen")).isEmpty();
+    assertThat(AiProvider.fromLiteLlmProvider("doc")).isEmpty();
+    assertThat(AiProvider.fromLiteLlmProvider("")).isEmpty();
+    assertThat(AiProvider.fromLiteLlmProvider("   ")).isEmpty();
+    assertThat(AiProvider.fromLiteLlmProvider(null)).isEmpty();
+  }
 }
