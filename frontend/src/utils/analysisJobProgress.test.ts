@@ -1,7 +1,26 @@
 import { describe, expect, it } from 'vitest'
 
-import type { AnalysisJobStatusResponse } from '../types/api'
-import { analysisStages, progressFromJob, stageIndexFromJob } from './analysisJobProgress'
+import type { AnalysisJobStatusResponse, JobMetrics } from '../types/api'
+import {
+  COUNTING_TOKENS_MICROCOPY,
+  analysisStages,
+  liveStatsFromMetrics,
+  loadingDetailFromJob,
+  progressFromJob,
+  stageIndexFromJob,
+} from './analysisJobProgress'
+
+function metrics(overrides: Partial<JobMetrics> = {}): JobMetrics {
+  return {
+    filesDiscovered: null,
+    filesProcessed: null,
+    filesSkipped: null,
+    tokensCounted: null,
+    contextWindows: null,
+    pricingModelsProcessed: null,
+    ...overrides,
+  }
+}
 
 function snapshot(overrides: Partial<AnalysisJobStatusResponse> = {}): AnalysisJobStatusResponse {
   return {
@@ -115,5 +134,61 @@ describe('stageIndexFromJob', () => {
         },
       }),
     ).toBe(5)
+  })
+})
+
+describe('liveStatsFromMetrics', () => {
+  it('renders dashes for every stat when metrics is null', () => {
+    const stats = liveStatsFromMetrics(null)
+    expect(stats).toHaveLength(3)
+    for (const stat of stats) {
+      expect(stat.value).toBe('—')
+    }
+  })
+
+  it('shows processed / discovered as "X / Y" when both are available', () => {
+    const stats = liveStatsFromMetrics(metrics({ filesProcessed: 42, filesDiscovered: 120 }))
+    expect(stats[0]).toEqual({ label: 'Files inspected', value: '42 / 120' })
+  })
+
+  it('falls back to the single available file count when only one is present', () => {
+    expect(liveStatsFromMetrics(metrics({ filesDiscovered: 120 }))[0].value).toBe('120')
+    expect(liveStatsFromMetrics(metrics({ filesProcessed: 42 }))[0].value).toBe('42')
+  })
+
+  it('formats accumulated tokens with compact notation', () => {
+    const stats = liveStatsFromMetrics(metrics({ tokensCounted: 1_500_000 }))
+    expect(stats[1].label).toBe('Tokens counted')
+    expect(stats[1].value).toBe('1.5M')
+  })
+
+  it('renders context windows with full notation', () => {
+    expect(liveStatsFromMetrics(metrics({ contextWindows: 12 }))[2]).toEqual({
+      label: 'Context windows',
+      value: '12',
+    })
+  })
+})
+
+describe('loadingDetailFromJob', () => {
+  const fallback = 'Counting tokens detail'
+
+  it('uses the stage detail fallback when the job has no message', () => {
+    expect(loadingDetailFromJob(snapshot({ message: null }), fallback).message).toBe(fallback)
+    expect(loadingDetailFromJob(snapshot({ message: '   ' }), fallback).message).toBe(fallback)
+    expect(loadingDetailFromJob(null, fallback).message).toBe(fallback)
+  })
+
+  it('uses the backend message as the main detail when present', () => {
+    const detail = loadingDetailFromJob(snapshot({ message: 'Counting tokens in src/App.tsx' }), fallback)
+    expect(detail.message).toBe('Counting tokens in src/App.tsx')
+  })
+
+  it('adds COUNTING_TOKENS microcopy only during the token-counting phase', () => {
+    expect(loadingDetailFromJob(snapshot({ phase: 'COUNTING_TOKENS' }), fallback).microcopy).toBe(
+      COUNTING_TOKENS_MICROCOPY,
+    )
+    expect(loadingDetailFromJob(snapshot({ phase: 'CLONING_REPOSITORY' }), fallback).microcopy).toBeNull()
+    expect(loadingDetailFromJob(null, fallback).microcopy).toBeNull()
   })
 })

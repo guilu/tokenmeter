@@ -1,9 +1,15 @@
-import type { AnalysisJobStatusResponse, JobPhase } from '../types/api'
+import type { AnalysisJobStatusResponse, JobMetrics, JobPhase } from '../types/api'
 
 export interface AnalysisStage {
   label: string
   detail: string
 }
+
+const liveNumberFormatter = new Intl.NumberFormat('en-US')
+const liveCompactFormatter = new Intl.NumberFormat('en-US', {
+  notation: 'compact',
+  maximumFractionDigits: 1,
+})
 
 export const analysisStages: readonly AnalysisStage[] = [
   { label: 'Cloning repository', detail: 'Opening a clean workspace and fetching the public Git history.' },
@@ -59,4 +65,65 @@ export function progressFromJob(job: AnalysisJobStatusResponse | null): number {
   }
   const raw = Number.isFinite(job.progressPercent) ? job.progressPercent : 0
   return Math.max(0, Math.min(99, raw))
+}
+
+export interface LiveStat {
+  label: string
+  value: string
+}
+
+/**
+ * Derives the live metric cards rendered in `LoadingState` from the job's partial `metrics`.
+ *
+ * During `COUNTING_TOKENS` the backend streams `filesProcessed` / `filesDiscovered` /
+ * `tokensCounted`, so "Files inspected" is rendered as `processed / discovered` (TKM-54) when both
+ * counts are known, falling back to whichever single count is available.
+ */
+export function liveStatsFromMetrics(metrics: JobMetrics | null): LiveStat[] {
+  const processed = metrics?.filesProcessed ?? null
+  const discovered = metrics?.filesDiscovered ?? null
+  const tokens = metrics?.tokensCounted ?? null
+  const contextWindows = metrics?.contextWindows ?? null
+
+  let files: string
+  if (processed !== null && discovered !== null) {
+    files = `${liveCompactFormatter.format(processed)} / ${liveCompactFormatter.format(discovered)}`
+  } else if (processed !== null || discovered !== null) {
+    files = liveCompactFormatter.format((processed ?? discovered) as number)
+  } else {
+    files = '—'
+  }
+
+  return [
+    { label: 'Files inspected', value: files },
+    {
+      label: 'Tokens counted',
+      value: tokens !== null ? liveCompactFormatter.format(tokens) : '—',
+    },
+    {
+      label: 'Context windows',
+      value: contextWindows !== null ? liveNumberFormatter.format(contextWindows) : '—',
+    },
+  ]
+}
+
+export const COUNTING_TOKENS_MICROCOPY = 'Large repositories can spend most time here.'
+
+export interface LoadingDetail {
+  message: string
+  microcopy: string | null
+}
+
+/**
+ * Chooses the primary detail line shown in `LoadingState`. Prefers the live backend `message`
+ * (e.g. "Counting tokens in src/App.tsx") when present, otherwise falls back to the static stage
+ * detail. Adds phase-specific microcopy so `COUNTING_TOKENS` reads as concrete activity (TKM-54).
+ */
+export function loadingDetailFromJob(
+  job: AnalysisJobStatusResponse | null,
+  stageDetail: string,
+): LoadingDetail {
+  const message = job?.message?.trim() ? job.message.trim() : stageDetail
+  const microcopy = job?.phase === 'COUNTING_TOKENS' ? COUNTING_TOKENS_MICROCOPY : null
+  return { message, microcopy }
 }
