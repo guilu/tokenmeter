@@ -43,6 +43,10 @@ class LiteLlmModelFilterTest {
         "claude-3-haiku-20240307",
         "gpt-4-0314",
         "gemini-2.0-flash-001",
+        // user-reported regression cases (TKM-66)
+        "o1-pro-2025-03-19",
+        "gpt-5.4-pro-2026-03-05",
+        "claude-opus-4-1-20250805",
         // fine-tuned
         "ft:gpt-4o-2024-08-06",
         "ft:gpt-3.5-turbo",
