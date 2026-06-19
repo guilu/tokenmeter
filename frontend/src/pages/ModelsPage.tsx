@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { ProviderIcon } from '../components/ProviderIcon'
 import { ApiError, getPricing, refreshPricing } from '../services/api'
 import type { PricingModelResponse, PricingResponse } from '../types/api'
 import { formatRelativeTime } from '../utils/relativeTime'
+import type { PriceSortColumn, SortDirection } from '../utils/modelSort'
+import { sortModels } from '../utils/modelSort'
 
 const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const absoluteDate = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' })
@@ -37,6 +39,17 @@ export function ModelsPage() {
   const [refreshing, setRefreshing] = useState(false)
   const [refreshError, setRefreshError] = useState<string | null>(null)
   const [refreshSummary, setRefreshSummary] = useState<string | null>(null)
+  const [sort, setSort] = useState<{ column: PriceSortColumn; direction: SortDirection } | null>(
+    null,
+  )
+
+  const toggleSort = useCallback((column: PriceSortColumn) => {
+    setSort((current) =>
+      current?.column === column
+        ? { column, direction: current.direction === 'asc' ? 'desc' : 'asc' }
+        : { column, direction: 'asc' },
+    )
+  }, [])
 
   const loadPricing = useCallback(
     () =>
@@ -71,6 +84,10 @@ export function ModelsPage() {
   }, [loadPricing, refreshing])
 
   const models = response?.models ?? null
+  const displayModels = useMemo(
+    () => (models && sort ? sortModels(models, sort.column, sort.direction) : models),
+    [models, sort],
+  )
 
   return (
     <section className="mx-auto max-w-6xl px-6 py-10 stage-enter">
@@ -195,8 +212,18 @@ export function ModelsPage() {
             <tr>
               <th className="px-5 py-4 text-xs font-semibold uppercase tracking-[0.2em] text-text/60">Provider</th>
               <th className="px-5 py-4 text-xs font-semibold uppercase tracking-[0.2em] text-text/60">Model</th>
-              <th className="px-5 py-4 text-right text-xs font-semibold uppercase tracking-[0.2em] text-text/60">Input / 1M tokens</th>
-              <th className="px-5 py-4 text-right text-xs font-semibold uppercase tracking-[0.2em] text-text/60">Output / 1M tokens</th>
+              <SortableHeader
+                label="Input / 1M tokens"
+                column="input"
+                sort={sort}
+                onSort={toggleSort}
+              />
+              <SortableHeader
+                label="Output / 1M tokens"
+                column="output"
+                sort={sort}
+                onSort={toggleSort}
+              />
               <th className="px-5 py-4 text-xs font-semibold uppercase tracking-[0.2em] text-text/60">Source</th>
             </tr>
           </thead>
@@ -213,7 +240,7 @@ export function ModelsPage() {
                   <td className="px-5 py-4"><div className="h-5 w-20 rounded bg-text/10" /></td>
                 </tr>
               ))
-            ) : models.map(m => (
+            ) : displayModels!.map(m => (
               <tr className="transition hover:bg-card/40" key={`${m.provider}-${m.model}`}>
                 <td className="px-5 py-4">
                   <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-0.5 text-xs font-semibold capitalize ${providerBadgeCls[m.provider] ?? 'border-text/20 bg-text/10 text-text/70'}`}>
@@ -236,5 +263,37 @@ export function ModelsPage() {
       </div>
 
     </section>
+  )
+}
+
+function SortableHeader({
+  label,
+  column,
+  sort,
+  onSort,
+}: {
+  label: string
+  column: PriceSortColumn
+  sort: { column: PriceSortColumn; direction: SortDirection } | null
+  onSort: (column: PriceSortColumn) => void
+}) {
+  const active = sort?.column === column
+  const direction = active ? sort.direction : null
+
+  return (
+    <th className="px-5 py-4 text-right text-xs font-semibold uppercase tracking-[0.2em] text-text/60">
+      <button
+        aria-label={`Sort by ${label}`}
+        aria-sort={active ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'}
+        className={`ml-auto flex items-center gap-1 uppercase tracking-[0.2em] transition hover:text-text ${active ? 'text-text' : ''}`}
+        onClick={() => onSort(column)}
+        type="button"
+      >
+        {label}
+        <span aria-hidden="true" className={`text-[0.65rem] ${active ? 'text-primary' : 'text-text/30'}`}>
+          {direction === 'asc' ? '▲' : direction === 'desc' ? '▼' : '↕'}
+        </span>
+      </button>
+    </th>
   )
 }
