@@ -574,5 +574,6 @@ MVP en desarrollo activo.
 
 - Refresh dinámico de precios desde LiteLLM con capas `OVERRIDE > REMOTE > FALLBACK` está implementado (cambio `dynamic-pricing-fetch`). Detalle en [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) y [`docs/RUNBOOK.md`](docs/RUNBOOK.md).
 - Jobs de análisis observables y asíncronos (`POST /api/analyze` devuelve `202` con `jobId`; progreso vía `GET /api/analyze/jobs/{jobId}`) está implementado (cambio `observable-analysis-jobs`). Detalle en [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) y [`docs/API.md`](docs/API.md).
+- Progreso vivo del análisis — barra honesta y transparente (epic TKM-60) está **completo**: emisión granular por archivo en `COUNTING_TOKENS`, tween de progreso, timeline de fases, detalles live (X/Y archivos, tokens acumulados, mensaje del backend) y ETA prudente en análisis largos. La barra nunca llega a 100% antes de `SUCCESS` con `analysisId`. Las extensiones descartadas por scope (progreso ponderado por bytes, log de actividad, streaming SSE) quedan reabribles si surge necesidad.
 
 Contribuciones, ideas y experimentos son bienvenidos.
