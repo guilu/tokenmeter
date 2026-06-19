@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 import { ProviderIcon } from '../components/ProviderIcon'
-import { getPricing } from '../services/api'
+import { ApiError, getPricing, refreshPricing } from '../services/api'
 import type { PricingModelResponse, PricingResponse } from '../types/api'
 import { formatRelativeTime } from '../utils/relativeTime'
 
@@ -34,12 +34,41 @@ export function ModelsPage() {
   const [response, setResponse] = useState<PricingResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [showEconomics, setShowEconomics] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [refreshError, setRefreshError] = useState<string | null>(null)
+  const [refreshSummary, setRefreshSummary] = useState<string | null>(null)
+
+  const loadPricing = useCallback(
+    () =>
+      getPricing()
+        .then(setResponse)
+        .catch(() => setError('Could not load pricing data.')),
+    [],
+  )
 
   useEffect(() => {
-    getPricing()
-      .then(setResponse)
-      .catch(() => setError('Could not load pricing data.'))
-  }, [])
+    void loadPricing()
+  }, [loadPricing])
+
+  const handleRefresh = useCallback(async () => {
+    if (refreshing) return
+    setRefreshing(true)
+    setRefreshError(null)
+    setRefreshSummary(null)
+    try {
+      const result = await refreshPricing()
+      await loadPricing()
+      setRefreshSummary(`Prices updated — ${result.updated} updated, ${result.skipped} skipped.`)
+    } catch (err) {
+      const message =
+        err instanceof ApiError && err.status === 503
+          ? 'Could not refresh prices — on-demand refresh is disabled or upstream is unavailable.'
+          : 'Could not refresh prices. Please try again.'
+      setRefreshError(message)
+    } finally {
+      setRefreshing(false)
+    }
+  }, [loadPricing, refreshing])
 
   const models = response?.models ?? null
 
@@ -129,6 +158,35 @@ export function ModelsPage() {
         ) : (
           <span>Showing fallback prices — remote refresh has not yet succeeded.</span>
         )}
+      </div>
+
+      {/* On-demand refresh */}
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="text-sm" role="status">
+          {refreshError ? (
+            <span className="text-rose-400">{refreshError}</span>
+          ) : refreshSummary ? (
+            <span className="text-emerald-400">{refreshSummary}</span>
+          ) : (
+            <span className="text-text/50">Prices refresh weekly. Need them now?</span>
+          )}
+        </div>
+        <button
+          aria-label="Refresh prices now"
+          className="inline-flex items-center justify-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary transition hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={refreshing}
+          onClick={handleRefresh}
+          type="button"
+        >
+          {refreshing ? (
+            <>
+              <span className="h-3 w-3 animate-spin rounded-full border-2 border-primary/40 border-t-primary" />
+              Refreshing prices…
+            </>
+          ) : (
+            'Refresh prices now'
+          )}
+        </button>
       </div>
 
       <div className="overflow-hidden rounded-3xl border border-text/10 bg-card/20">

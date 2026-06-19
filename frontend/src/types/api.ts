@@ -255,6 +255,13 @@ export interface PricingResponse {
   models: PricingModelResponse[]
 }
 
+export interface PricingRefreshResult {
+  fetchedAt: string
+  updated: number
+  skipped: number
+  failed: number
+}
+
 export interface PricingModelResponse {
   provider: string
   model: string
