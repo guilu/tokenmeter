@@ -8,7 +8,9 @@ import dev.diegobarrioh.tokenmeter.infrastructure.pricing.PricingMappingLoader.M
 import dev.diegobarrioh.tokenmeter.infrastructure.pricing.litellm.LiteLlmModelEntry;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,8 +33,9 @@ import org.springframework.stereotype.Component;
  *
  * <p>Auto-discovered (non-override) entries are additionally filtered by {@link LiteLlmModelFilter}
  * (TKM-66) so only canonical/active text models are imported — dated snapshots, fine-tuned models,
- * non-text modalities, {@code -latest} aliases and preview/beta builds are dropped. Overrides
- * bypass the filter. Malformed, unsupported and non-canonical entries are skipped and counted.
+ * non-text modalities, {@code -latest} aliases and preview/beta builds are dropped. Models whose
+ * {@code deprecation_date} has already passed are dropped too (TKM-68). Overrides bypass these
+ * filters. Malformed, unsupported, non-canonical and deprecated entries are skipped and counted.
  */
 @Component
 public class LiteLlmPricingMapper {
@@ -70,9 +73,11 @@ public class LiteLlmPricingMapper {
     //  - malformed: null/non-positive price (actionable data-quality signal);
     //  - unsupportedProvider: litellm_provider outside the allowlist (expected, large);
     //  - nonCanonical: dated/fine-tuned/modality/preview variants filtered out (TKM-66, expected).
+    //  - deprecated: deprecation_date already in the past as of fetchedAt (TKM-68).
     int skippedMalformed = 0;
     int skippedUnsupported = 0;
     int skippedNonCanonical = 0;
+    int skippedDeprecated = 0;
 
     for (Map.Entry<String, LiteLlmModelEntry> upstream : raw.entrySet()) {
       String litellmKey = upstream.getKey();
@@ -106,6 +111,14 @@ public class LiteLlmPricingMapper {
           skippedNonCanonical++;
           continue;
         }
+        if (isDeprecated(entry.deprecationDate(), fetchedAt)) {
+          LOG.debug(
+              "Skipping deprecated litellm entry {} (deprecation_date={})",
+              litellmKey,
+              entry.deprecationDate());
+          skippedDeprecated++;
+          continue;
+        }
         key = new MappingKey(provider, deriveModel(litellmKey));
       }
 
@@ -122,15 +135,16 @@ public class LiteLlmPricingMapper {
       snapshots.put(key, new PricingSnapshot(pricing, PricingSource.REMOTE, fetchedAt, litellmKey));
     }
 
-    int skipped = skippedMalformed + skippedUnsupported + skippedNonCanonical;
+    int skipped = skippedMalformed + skippedUnsupported + skippedNonCanonical + skippedDeprecated;
     LOG.info(
         "LiteLLM mapping: imported={} skipped={} (malformedPrice={} unsupportedProvider={} "
-            + "nonCanonical={}) of {} upstream entries",
+            + "nonCanonical={} deprecated={}) of {} upstream entries",
         Integer.valueOf(snapshots.size()),
         Integer.valueOf(skipped),
         Integer.valueOf(skippedMalformed),
         Integer.valueOf(skippedUnsupported),
         Integer.valueOf(skippedNonCanonical),
+        Integer.valueOf(skippedDeprecated),
         Integer.valueOf(raw.size()));
     return new MappingResult(List.copyOf(snapshots.values()), skipped);
   }
@@ -141,6 +155,24 @@ public class LiteLlmPricingMapper {
       reverse.putIfAbsent(entry.getValue(), entry.getKey());
     }
     return reverse;
+  }
+
+  /**
+   * Returns {@code true} when {@code deprecationDate} is an ISO date that is on or before the
+   * {@code fetchedAt} date (already deprecated). Blank, future or unparseable dates are treated as
+   * NOT deprecated so a malformed upstream field never silently drops an active model (TKM-68).
+   */
+  private static boolean isDeprecated(String deprecationDate, OffsetDateTime fetchedAt) {
+    if (deprecationDate == null || deprecationDate.isBlank()) {
+      return false;
+    }
+    try {
+      LocalDate deprecatedOn = LocalDate.parse(deprecationDate.trim());
+      return !deprecatedOn.isAfter(fetchedAt.toLocalDate());
+    } catch (DateTimeParseException ex) {
+      LOG.debug("Unparseable deprecation_date '{}', treating as active", deprecationDate);
+      return false;
+    }
   }
 
   /** Strips a {@code provider/} prefix (e.g. {@code gemini/gemini-2.5-pro}) and normalizes. */
