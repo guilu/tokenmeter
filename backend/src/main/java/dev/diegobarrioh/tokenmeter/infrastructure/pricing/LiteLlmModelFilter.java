@@ -1,5 +1,6 @@
 package dev.diegobarrioh.tokenmeter.infrastructure.pricing;
 
+import dev.diegobarrioh.tokenmeter.domain.pricing.AiProvider;
 import java.util.List;
 import java.util.Locale;
 import java.util.regex.Pattern;
@@ -52,11 +53,10 @@ final class LiteLlmModelFilter {
     if (litellmKey == null || litellmKey.isBlank()) {
       return false;
     }
-    String key = litellmKey.trim().toLowerCase(Locale.ROOT);
-    if (key.startsWith("ft:")) {
+    String model = modelPortion(litellmKey);
+    if (litellmKey.trim().toLowerCase(Locale.ROOT).startsWith("ft:")) {
       return false;
     }
-    String model = key.substring(key.lastIndexOf('/') + 1);
     if (DATED_SUFFIX.matcher(model).matches()) {
       return false;
     }
@@ -71,5 +71,28 @@ final class LiteLlmModelFilter {
       }
     }
     return true;
+  }
+
+  /**
+   * Provider-aware variant (TKM-69): in addition to the generic noise rules, drops
+   * provider-specific tiers that distort cost rankings — currently OpenAI {@code -pro} models
+   * (gpt-5-pro, o1-pro, …), whose extreme pricing does not reflect normal usage.
+   */
+  static boolean isCanonical(AiProvider provider, String litellmKey) {
+    return isCanonical(litellmKey) && !isProviderExcludedTier(provider, litellmKey);
+  }
+
+  private static boolean isProviderExcludedTier(AiProvider provider, String litellmKey) {
+    if (provider != AiProvider.OPENAI) {
+      return false;
+    }
+    String model = modelPortion(litellmKey);
+    return model.endsWith("-pro") || model.contains("-pro-");
+  }
+
+  /** The model identifier with any {@code provider/} prefix stripped, trimmed and lower-cased. */
+  private static String modelPortion(String litellmKey) {
+    String key = litellmKey.trim().toLowerCase(Locale.ROOT);
+    return key.substring(key.lastIndexOf('/') + 1);
   }
 }

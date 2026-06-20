@@ -127,6 +127,24 @@ class LiteLlmPricingMapperTest {
   }
 
   @Test
+  void skipsOpenAiProTierModels() {
+    Map<String, LiteLlmModelEntry> raw = new LinkedHashMap<>();
+    raw.put(
+        "gpt-5-pro",
+        new LiteLlmModelEntry(
+            new BigDecimal("0.000015"), new BigDecimal("0.00012"), "openai", null));
+    raw.put(
+        "o1-pro",
+        new LiteLlmModelEntry(new BigDecimal("0.00015"), new BigDecimal("0.0006"), "openai", null));
+    LiteLlmPricingMapper mapper = mapperWith(Map.of());
+
+    MappingResult result = mapper.mapToSnapshots(raw, FETCHED_AT);
+
+    assertThat(result.snapshots()).isEmpty();
+    assertThat(result.skipped()).isEqualTo(2);
+  }
+
+  @Test
   void skipsAndCountsMalformedPriceEntries() {
     Map<String, LiteLlmModelEntry> raw = new LinkedHashMap<>();
     raw.put("null-row", new LiteLlmModelEntry(null, null, "openai", null));
