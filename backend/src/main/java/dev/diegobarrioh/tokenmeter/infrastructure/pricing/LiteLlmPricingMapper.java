@@ -106,7 +106,7 @@ public class LiteLlmPricingMapper {
           skippedUnsupported++;
           continue;
         }
-        if (!LiteLlmModelFilter.isCanonical(litellmKey)) {
+        if (!LiteLlmModelFilter.isCanonical(provider, litellmKey)) {
           LOG.debug("Skipping non-canonical litellm entry {}", litellmKey);
           skippedNonCanonical++;
           continue;

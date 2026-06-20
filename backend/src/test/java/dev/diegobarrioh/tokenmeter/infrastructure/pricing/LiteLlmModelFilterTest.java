@@ -2,6 +2,7 @@ package dev.diegobarrioh.tokenmeter.infrastructure.pricing;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import dev.diegobarrioh.tokenmeter.domain.pricing.AiProvider;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -79,5 +80,24 @@ class LiteLlmModelFilterTest {
   void treatsBlankInputAsNonCanonical() {
     assertThat(LiteLlmModelFilter.isCanonical(null)).isFalse();
     assertThat(LiteLlmModelFilter.isCanonical("  ")).isFalse();
+  }
+
+  @ParameterizedTest
+  @ValueSource(
+      strings = {"gpt-5-pro", "gpt-5.2-pro", "gpt-5.4-pro", "gpt-5.5-pro", "o1-pro", "o3-pro"})
+  void dropsOpenAiProTierModels(String key) {
+    assertThat(LiteLlmModelFilter.isCanonical(AiProvider.OPENAI, key)).as(key).isFalse();
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"gpt-5.2", "gpt-4o", "o4-mini", "gpt-5-codex"})
+  void keepsNonProOpenAiModels(String key) {
+    assertThat(LiteLlmModelFilter.isCanonical(AiProvider.OPENAI, key)).as(key).isTrue();
+  }
+
+  @Test
+  void keepsProModelsOfOtherProviders() {
+    assertThat(LiteLlmModelFilter.isCanonical(AiProvider.GOOGLE, "gemini/gemini-2.5-pro")).isTrue();
+    assertThat(LiteLlmModelFilter.isCanonical(AiProvider.GOOGLE, "gemini-2.5-pro")).isTrue();
   }
 }
