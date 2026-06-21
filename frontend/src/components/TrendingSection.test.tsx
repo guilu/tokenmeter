@@ -89,6 +89,43 @@ describe('TrendingSection', () => {
     expect(await screen.findByText(/GitHub is temporarily unavailable/)).toBeInTheDocument()
   })
 
+  it('shows an Analyzed badge only on repositories already analyzed', async () => {
+    const payload: TrendingRepositoriesResponse = {
+      fetchedAt: '2026-05-27T12:00:00Z',
+      since: 'weekly',
+      language: null,
+      items: [
+        {
+          fullName: 'acme/analyzed',
+          repositoryUrl: 'https://github.com/acme/analyzed',
+          stars: 10,
+          forks: 2,
+          createdAt: '2026-05-20T00:00:00Z',
+          updatedAt: '2026-05-26T00:00:00Z',
+          analyzed: true,
+        },
+        {
+          fullName: 'acme/fresh',
+          repositoryUrl: 'https://github.com/acme/fresh',
+          stars: 5,
+          forks: 1,
+          createdAt: '2026-05-20T00:00:00Z',
+          updatedAt: '2026-05-26T00:00:00Z',
+          analyzed: false,
+        },
+      ],
+    }
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(payload)))
+    render(<TrendingSection onAnalyze={() => {}} />)
+
+    expand()
+    await screen.findByText('acme/analyzed')
+
+    // Exactly one badge, and it belongs to the analyzed card.
+    const badges = screen.getAllByText('Analyzed')
+    expect(badges).toHaveLength(1)
+  })
+
   it('invokes onAnalyze with the repository URL when Analyze is clicked', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(samplePayload())))
     const onAnalyze = vi.fn()

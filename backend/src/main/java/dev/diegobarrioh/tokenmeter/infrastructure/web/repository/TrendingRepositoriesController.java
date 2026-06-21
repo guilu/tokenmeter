@@ -1,8 +1,8 @@
 package dev.diegobarrioh.tokenmeter.infrastructure.web.repository;
 
 import dev.diegobarrioh.tokenmeter.application.repository.TrendingQuery;
-import dev.diegobarrioh.tokenmeter.application.repository.TrendingRepositoriesService;
-import dev.diegobarrioh.tokenmeter.domain.repository.TrendingRepositoriesResult;
+import dev.diegobarrioh.tokenmeter.application.repository.TrendingSuggestionsService;
+import dev.diegobarrioh.tokenmeter.application.repository.TrendingSuggestionsService.TrendingSuggestions;
 import java.time.Duration;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
@@ -21,9 +21,9 @@ public class TrendingRepositoriesController {
 
   private static final Duration CACHE_MAX_AGE = Duration.ofSeconds(900);
 
-  private final TrendingRepositoriesService service;
+  private final TrendingSuggestionsService service;
 
-  public TrendingRepositoriesController(TrendingRepositoriesService service) {
+  public TrendingRepositoriesController(TrendingSuggestionsService service) {
     this.service = service;
   }
 
@@ -32,10 +32,11 @@ public class TrendingRepositoriesController {
       @RequestParam(defaultValue = "weekly") String since,
       @RequestParam(defaultValue = "12") int limit,
       @RequestParam(required = false) String language) {
-    TrendingRepositoriesResult result =
-        service.get(TrendingQuery.fromParams(since, limit, language));
+    TrendingSuggestions suggestions = service.get(TrendingQuery.fromParams(since, limit, language));
     return ResponseEntity.ok()
         .cacheControl(CacheControl.maxAge(CACHE_MAX_AGE).cachePublic())
-        .body(TrendingRepositoriesResponse.from(result));
+        .body(
+            TrendingRepositoriesResponse.from(
+                suggestions.result(), suggestions.analyzedByRepositoryUrl()));
   }
 }

@@ -10,7 +10,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import dev.diegobarrioh.tokenmeter.application.analyzer.AnalyzeThrottleProperties;
 import dev.diegobarrioh.tokenmeter.application.repository.TrendingQuery;
-import dev.diegobarrioh.tokenmeter.application.repository.TrendingRepositoriesService;
+import dev.diegobarrioh.tokenmeter.application.repository.TrendingSuggestionsService;
+import dev.diegobarrioh.tokenmeter.application.repository.TrendingSuggestionsService.TrendingSuggestions;
 import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeErrorCode;
 import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeException;
 import dev.diegobarrioh.tokenmeter.domain.repository.TrendingRepositoriesResult;
@@ -18,6 +19,7 @@ import dev.diegobarrioh.tokenmeter.domain.repository.TrendingRepository;
 import dev.diegobarrioh.tokenmeter.infrastructure.web.WebMvcConfiguration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,11 +36,14 @@ class TrendingRepositoriesControllerTest {
 
   @Autowired private MockMvc mockMvc;
 
-  @MockitoBean private TrendingRepositoriesService service;
+  @MockitoBean private TrendingSuggestionsService service;
 
   @Test
   void returns200WithItemsAndCacheControlHeader() throws Exception {
-    when(service.get(any())).thenReturn(sampleResult());
+    when(service.get(any()))
+        .thenReturn(
+            new TrendingSuggestions(
+                sampleResult(), Map.of("https://github.com/acme/widget", true)));
 
     mockMvc
         .perform(get("/api/repositories/trending"))
@@ -49,7 +54,8 @@ class TrendingRepositoriesControllerTest {
         .andExpect(jsonPath("$.items[0].fullName").value("acme/widget"))
         .andExpect(jsonPath("$.items[0].repositoryUrl").value("https://github.com/acme/widget"))
         .andExpect(jsonPath("$.items[0].stars").value(1234))
-        .andExpect(jsonPath("$.items[0].language").value("Java"));
+        .andExpect(jsonPath("$.items[0].language").value("Java"))
+        .andExpect(jsonPath("$.items[0].analyzed").value(true));
   }
 
   @Test
@@ -67,12 +73,15 @@ class TrendingRepositoriesControllerTest {
             Instant.parse("2026-05-26T00:00:00Z"));
     when(service.get(any()))
         .thenReturn(
-            new TrendingRepositoriesResult(
-                List.of(minimal), Instant.parse("2026-05-27T12:00:00Z"), "weekly", null));
+            new TrendingSuggestions(
+                new TrendingRepositoriesResult(
+                    List.of(minimal), Instant.parse("2026-05-27T12:00:00Z"), "weekly", null),
+                Map.of()));
 
     mockMvc
         .perform(get("/api/repositories/trending"))
         .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items[0].analyzed").value(false))
         .andExpect(jsonPath("$.items[0].description").doesNotExist())
         .andExpect(jsonPath("$.items[0].language").doesNotExist())
         .andExpect(jsonPath("$.items[0].sizeKb").doesNotExist())
@@ -81,7 +90,7 @@ class TrendingRepositoriesControllerTest {
 
   @Test
   void normalizesParamsBeforeDelegating() throws Exception {
-    when(service.get(any())).thenReturn(sampleResult());
+    when(service.get(any())).thenReturn(new TrendingSuggestions(sampleResult(), Map.of()));
 
     mockMvc
         .perform(
