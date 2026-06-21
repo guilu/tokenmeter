@@ -3,6 +3,9 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
+# Public Google Analytics 4 Measurement ID, inlined by Vite at build time (TKM-64).
+ARG VITE_GA_MEASUREMENT_ID=""
+ENV VITE_GA_MEASUREMENT_ID=$VITE_GA_MEASUREMENT_ID
 RUN npm run build
 
 FROM nginx:1.29-alpine
