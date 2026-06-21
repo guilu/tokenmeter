@@ -393,7 +393,7 @@ Solo las variables `VITE_*` se exponen al navegador.
 
 | Variable | Default | Uso |
 |---|---|---|
-| `VITE_GA_MEASUREMENT_ID` | — | ID de Google Analytics 4 (`G-XXXXXXXXXX`). Opcional. Sin ella, GA **no** se carga y la app funciona igual. Es configuración pública de frontend, no un secreto. |
+| `VITE_GA_MEASUREMENT_ID` | — (Docker: ID del proyecto) | ID de Google Analytics 4 (`G-XXXXXXXXXX`). Opcional en local (`npm run dev`): sin ella GA **no** se carga. En `docker compose` trae como default el ID público de TokenMeter; se puede sobreescribir vía env del host. Es configuración pública de frontend, no un secreto. |
 
 ---
 
