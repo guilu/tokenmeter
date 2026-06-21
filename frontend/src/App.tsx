@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 
+import { usePageViews } from './analytics/usePageViews'
 import { AppShell } from './components/AppShell'
 import { DashboardPage } from './pages/DashboardPage'
 import { LeaderboardsPage } from './pages/LeaderboardsPage'
@@ -11,6 +12,8 @@ export default function App() {
   const hasLeaderboardsQuery = search.has('leaderboards')
   const isLeaderboardsPage = path === '/leaderboards' || hasLeaderboardsQuery
   const isModelsPage = path === '/models'
+
+  usePageViews()
 
   useEffect(() => {
     if (hasLeaderboardsQuery) {

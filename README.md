@@ -387,6 +387,14 @@ npm install
 npm run dev
 ```
 
+### Variables de entorno (Vite)
+
+Solo las variables `VITE_*` se exponen al navegador.
+
+| Variable | Default | Uso |
+|---|---|---|
+| `VITE_GA_MEASUREMENT_ID` | — | ID de Google Analytics 4 (`G-XXXXXXXXXX`). Opcional. Sin ella, GA **no** se carga y la app funciona igual. Es configuración pública de frontend, no un secreto. |
+
 ---
 
 ## Docker Compose
