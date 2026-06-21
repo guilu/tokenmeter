@@ -48,7 +48,7 @@ class TrendingRepositoriesControllerTest {
     mockMvc
         .perform(get("/api/repositories/trending"))
         .andExpect(status().isOk())
-        .andExpect(header().string("Cache-Control", "max-age=900, public"))
+        .andExpect(header().string("Cache-Control", "no-store"))
         .andExpect(jsonPath("$.since").value("weekly"))
         .andExpect(jsonPath("$.items").isArray())
         .andExpect(jsonPath("$.items[0].fullName").value("acme/widget"))
