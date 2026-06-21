@@ -240,6 +240,7 @@ export interface TrendingRepositoryResponse {
   sizeKb?: number | null
   createdAt: string
   updatedAt: string
+  analyzed?: boolean
 }
 
 export interface TrendingRepositoriesResponse {

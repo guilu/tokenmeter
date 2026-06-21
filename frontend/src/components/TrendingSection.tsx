@@ -204,6 +204,12 @@ function TrendingRepoCard({ item, onAnalyze }: { item: TrendingRepositoryRespons
   return (
     <div className="flex h-full flex-col rounded-2xl border border-text/10 bg-card/20 p-5 shadow-xl shadow-bg/20">
       <p className="truncate font-semibold text-text">{item.fullName}</p>
+      {item.analyzed ? (
+        <span className="mt-2 inline-flex w-fit items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-emerald-400">
+          <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+          Analyzed
+        </span>
+      ) : null}
       {item.description ? (
         <p className="mt-2 line-clamp-2 text-sm leading-6 text-text/60">{item.description}</p>
       ) : null}

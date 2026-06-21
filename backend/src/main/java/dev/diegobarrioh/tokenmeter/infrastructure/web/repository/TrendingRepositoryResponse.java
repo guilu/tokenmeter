@@ -18,4 +18,5 @@ public record TrendingRepositoryResponse(
     int forks,
     Integer sizeKb,
     Instant createdAt,
-    Instant updatedAt) {}
+    Instant updatedAt,
+    boolean analyzed) {}
