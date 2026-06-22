@@ -1,0 +1,83 @@
+# TKM-71 — Multi-provider tokenizer profiles.
+# Each entry maps a provider + model-pattern (Java regex) to a tokenizer profile.
+# Entries are evaluated in order; the first match wins.
+# The `default` block is returned when no entry matches.
+profiles:
+  - provider: openai
+    model-pattern: "o[0-9].*|gpt-4o.*|gpt-5.*"
+    tokenizer-id: "openai/o200k_base"
+    precision: EXACT_LOCAL
+    strategy: JTOKKIT
+    encoding: O200K_BASE
+
+  - provider: openai
+    model-pattern: "gpt-3\\.5.*|gpt-4(?!o).*|text-davinci.*"
+    tokenizer-id: "openai/cl100k_base"
+    precision: EXACT_LOCAL
+    strategy: JTOKKIT
+    encoding: CL100K_BASE
+
+  - provider: openai
+    model-pattern: "babbage.*|text-babbage.*|code-davinci.*"
+    tokenizer-id: "openai/p50k_base"
+    precision: EXACT_LOCAL
+    strategy: JTOKKIT
+    encoding: P50K_BASE
+
+  - provider: openai
+    model-pattern: "davinci.*|text-davinci-001|ada.*|curie.*"
+    tokenizer-id: "openai/r50k_base"
+    precision: EXACT_LOCAL
+    strategy: JTOKKIT
+    encoding: R50K_BASE
+
+  - provider: anthropic
+    model-pattern: ".*"
+    tokenizer-id: "anthropic/cl100k_heuristic"
+    precision: HEURISTIC
+    strategy: HEURISTIC
+    heuristic-factor: 0.95
+
+  - provider: google
+    model-pattern: "gemini.*"
+    tokenizer-id: "google/gemini_heuristic"
+    precision: HEURISTIC
+    strategy: HEURISTIC
+    heuristic-factor: 0.90
+
+  - provider: deepseek
+    model-pattern: ".*"
+    tokenizer-id: "deepseek/heuristic"
+    precision: HEURISTIC
+    strategy: HEURISTIC
+    heuristic-factor: 1.0
+
+  - provider: mistral
+    model-pattern: ".*"
+    tokenizer-id: "mistral/heuristic"
+    precision: HEURISTIC
+    strategy: HEURISTIC
+    heuristic-factor: 1.0
+
+  - provider: alibaba
+    model-pattern: "qwen.*"
+    tokenizer-id: "alibaba/qwen_heuristic"
+    precision: HEURISTIC
+    strategy: HEURISTIC
+    heuristic-factor: 1.0
+
+  - provider: xai
+    model-pattern: ".*"
+    tokenizer-id: "xai/grok_heuristic"
+    precision: HEURISTIC
+    strategy: HEURISTIC
+    heuristic-factor: 1.0
+
+# DEFAULT — returned when no profile matches.
+# Uses jtokkit cl100k_base as the tokenizer but labeled HEURISTIC because the model
+# is unknown and this is at best a rough estimate.
+default:
+  tokenizer-id: "openai/cl100k_base"
+  precision: HEURISTIC
+  strategy: JTOKKIT
+  encoding: CL100K_BASE
