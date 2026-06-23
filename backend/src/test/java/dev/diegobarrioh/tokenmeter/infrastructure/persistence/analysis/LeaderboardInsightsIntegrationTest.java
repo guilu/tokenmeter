@@ -217,7 +217,12 @@ class LeaderboardInsightsIntegrationTest {
         repoUrl.substring(repoUrl.lastIndexOf('/') + 1),
         new RepositoryScanResult(langs.size(), 10, totalBytes, List.of(), langs),
         new RepositoryTokenizationResult(
-            "o200k_base", langs.size(), totalTokens, List.of(), tokenLangs),
+            "o200k_base",
+            langs.size(),
+            totalTokens,
+            Map.of("openai/o200k_base", totalTokens),
+            List.of(),
+            tokenLangs),
         costs);
   }
 
@@ -226,6 +231,8 @@ class LeaderboardInsightsIntegrationTest {
         AiProvider.OPENAI,
         "gpt-4o",
         mode,
+        null,
+        null,
         1000,
         0,
         1000,

@@ -3,10 +3,13 @@ package dev.diegobarrioh.tokenmeter.application.cost;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.diegobarrioh.tokenmeter.application.pricing.PricingProvider;
+import dev.diegobarrioh.tokenmeter.application.tokenizer.ModelTokenizationProfileResolver;
 import dev.diegobarrioh.tokenmeter.domain.cost.CostEstimationMode;
 import dev.diegobarrioh.tokenmeter.domain.cost.ModelCostEstimate;
 import dev.diegobarrioh.tokenmeter.domain.pricing.AiProvider;
 import dev.diegobarrioh.tokenmeter.domain.pricing.ModelPricing;
+import dev.diegobarrioh.tokenmeter.infrastructure.tokenizer.TokenizerProfileLoader;
+import dev.diegobarrioh.tokenmeter.infrastructure.tokenizer.TokenizerProfileProperties;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
@@ -31,7 +34,7 @@ class RepositoryCostEstimationServiceRefreshTest {
             new ModelPricing(
                 AiProvider.OPENAI, "gpt-4o", new BigDecimal("5.00"), new BigDecimal("20.00")));
     SwappablePricingProvider provider = new SwappablePricingProvider(List.of(first, second));
-    var service = new RepositoryCostEstimationService(provider);
+    var service = new RepositoryCostEstimationService(provider, defaultResolver());
 
     List<ModelCostEstimate> beforeRefresh = service.estimate(1_000_000L);
     List<ModelCostEstimate> afterRefresh = service.estimate(1_000_000L);
@@ -61,11 +64,18 @@ class RepositoryCostEstimationServiceRefreshTest {
                 new BigDecimal("15.00"),
                 new BigDecimal("75.00")));
     CountingPricingProvider provider = new CountingPricingProvider(pricings);
-    var service = new RepositoryCostEstimationService(provider);
+    var service = new RepositoryCostEstimationService(provider, defaultResolver());
 
     service.estimate(1_000_000L);
 
     assertThat(provider.invocationCount()).isEqualTo(1);
+  }
+
+  private static ModelTokenizationProfileResolver defaultResolver() {
+    return new ModelTokenizationProfileResolver(
+        new TokenizerProfileLoader(
+            new org.springframework.core.io.DefaultResourceLoader(),
+            new TokenizerProfileProperties(null)));
   }
 
   private static ModelCostEstimate pick(

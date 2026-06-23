@@ -5,24 +5,121 @@ import static org.assertj.core.api.Assertions.assertThat;
 import dev.diegobarrioh.tokenmeter.application.analyzer.BinaryFileDetector;
 import dev.diegobarrioh.tokenmeter.application.analyzer.FileLanguageDetector;
 import dev.diegobarrioh.tokenmeter.application.analyzer.RepositoryFileScanner;
+import dev.diegobarrioh.tokenmeter.domain.tokenizer.ModelTokenizationProfile;
+import dev.diegobarrioh.tokenmeter.domain.tokenizer.TokenCounterStrategy;
+import dev.diegobarrioh.tokenmeter.domain.tokenizer.TokenizationPrecision;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class RepositoryTokenizationServiceTest {
   @TempDir Path repositoryRoot;
 
+  private static final String O200K_ID = "openai/o200k_base";
+  private static final String HEURISTIC_ID = "anthropic/cl100k_heuristic";
+
+  private static final ModelTokenizationProfile O200K_PROFILE =
+      new ModelTokenizationProfile(
+          O200K_ID,
+          TokenizationPrecision.EXACT_LOCAL,
+          TokenCounterStrategy.JTOKKIT,
+          "O200K_BASE",
+          null);
+
+  private static final ModelTokenizationProfile HEURISTIC_PROFILE =
+      new ModelTokenizationProfile(
+          HEURISTIC_ID,
+          TokenizationPrecision.HEURISTIC,
+          TokenCounterStrategy.HEURISTIC,
+          null,
+          new BigDecimal("0.95"));
+
+  private static final Map<String, ModelTokenizationProfile> DUAL_TOKENIZERS =
+      Map.of(O200K_ID, O200K_PROFILE, HEURISTIC_ID, HEURISTIC_PROFILE);
+
+  private static final Map<String, ModelTokenizationProfile> SINGLE_TOKENIZER =
+      Map.of(O200K_ID, O200K_PROFILE);
+
   private static final TokenizationProgressListener NO_OP = (p, t, tok) -> {};
 
   private final OpenAiTokenCounter tokenCounter = new OpenAiTokenCounter();
+  private final JtokkitTokenCounter jtokkitCounter = new JtokkitTokenCounter();
+  private final HeuristicTokenCounter heuristicCounter = new HeuristicTokenCounter(tokenCounter);
+  private final TokenCounterRegistry registry =
+      new TokenCounterRegistry(List.of(jtokkitCounter, heuristicCounter));
   private final RepositoryFileScanner scanner =
       new RepositoryFileScanner(new FileLanguageDetector(), new BinaryFileDetector());
   private final RepositoryTokenizationService tokenizationService =
-      new RepositoryTokenizationService(tokenCounter);
+      new RepositoryTokenizationService(tokenCounter, registry);
+
+  // --- New multi-tokenizer API tests ---
+
+  @Test
+  void twoTokenizersReturnMapWithTwoEntries() throws IOException {
+    write("src/App.java", "public class App {}\n");
+
+    var scan = scanner.scan(repositoryRoot);
+    var result = tokenizationService.tokenize(repositoryRoot, scan, DUAL_TOKENIZERS, NO_OP);
+
+    assertThat(result.tokensByTokenizerId()).containsKeys(O200K_ID, HEURISTIC_ID);
+    assertThat(result.tokensByTokenizerId()).hasSize(2);
+  }
+
+  @Test
+  void singleTokenizerReturnsSingleEntryMap() throws IOException {
+    write("src/App.java", "public class App {}\n");
+
+    var scan = scanner.scan(repositoryRoot);
+    var result = tokenizationService.tokenize(repositoryRoot, scan, SINGLE_TOKENIZER, NO_OP);
+
+    assertThat(result.tokensByTokenizerId()).containsKey(O200K_ID);
+    assertThat(result.tokensByTokenizerId()).hasSize(1);
+  }
+
+  @Test
+  void emptyRepositoryReturnsZeroCountsForAllRequestedTokenizers() throws IOException {
+    // no files written
+    var scan = scanner.scan(repositoryRoot);
+    var result = tokenizationService.tokenize(repositoryRoot, scan, DUAL_TOKENIZERS, NO_OP);
+
+    assertThat(result.tokensByTokenizerId())
+        .containsKeys(O200K_ID, HEURISTIC_ID)
+        .allSatisfy((id, count) -> assertThat(count).isZero());
+  }
+
+  @Test
+  void totalTokensInvariantEqualsO200kCount() throws IOException {
+    write("src/App.java", "public class App {}\n");
+    write("web/App.tsx", "export const App = () => null;\n");
+
+    var scan = scanner.scan(repositoryRoot);
+    var result = tokenizationService.tokenize(repositoryRoot, scan, DUAL_TOKENIZERS, NO_OP);
+
+    // INVARIANT: totalTokens() == tokensByTokenizerId.get(primary)
+    assertThat(result.totalTokens()).isEqualTo(result.tokensByTokenizerId().get(O200K_ID));
+  }
+
+  @Test
+  void heuristicCountIsBelowOrEqualO200kCountForFactor095() throws IOException {
+    write("src/App.java", "public class App { int x = 1; }\n");
+
+    var scan = scanner.scan(repositoryRoot);
+    var result = tokenizationService.tokenize(repositoryRoot, scan, DUAL_TOKENIZERS, NO_OP);
+
+    long o200k = result.tokensByTokenizerId().get(O200K_ID);
+    long heuristic = result.tokensByTokenizerId().get(HEURISTIC_ID);
+
+    // factor 0.95 → heuristic ≤ o200k for any positive count
+    assertThat(heuristic).isLessThanOrEqualTo(o200k);
+  }
+
+  // --- Backward-compatible single-tokenizer (old public API preserved) ---
 
   @Test
   void generatesTokenMetricsPerFileAndLanguage() throws IOException {
@@ -33,7 +130,7 @@ class RepositoryTokenizationServiceTest {
     write("package.json", "{\"name\":\"tokenmeter\"}\n");
 
     var scan = scanner.scan(repositoryRoot);
-    var result = tokenizationService.tokenize(repositoryRoot, scan, NO_OP);
+    var result = tokenizationService.tokenize(repositoryRoot, scan, SINGLE_TOKENIZER, NO_OP);
 
     assertThat(result.encoding()).isEqualTo("o200k_base");
     assertThat(result.totalFiles()).isEqualTo(5);
@@ -52,7 +149,9 @@ class RepositoryTokenizationServiceTest {
     write("src/Other.java", "public class Other {}\n");
     write("web/App.ts", "const answer = 42;\n");
 
-    var result = tokenizationService.tokenize(repositoryRoot, scanner.scan(repositoryRoot), NO_OP);
+    var result =
+        tokenizationService.tokenize(
+            repositoryRoot, scanner.scan(repositoryRoot), SINGLE_TOKENIZER, NO_OP);
 
     assertThat(result.totalTokens())
         .isEqualTo(result.files().stream().mapToLong(file -> file.tokens()).sum());
@@ -65,7 +164,9 @@ class RepositoryTokenizationServiceTest {
   void tokenizesEmptyFilesAsZeroTokens() throws IOException {
     write("empty.md", "");
 
-    var result = tokenizationService.tokenize(repositoryRoot, scanner.scan(repositoryRoot), NO_OP);
+    var result =
+        tokenizationService.tokenize(
+            repositoryRoot, scanner.scan(repositoryRoot), SINGLE_TOKENIZER, NO_OP);
 
     assertThat(result.totalTokens()).isZero();
     assertThat(result.files().getFirst().tokens()).isZero();
@@ -77,7 +178,9 @@ class RepositoryTokenizationServiceTest {
     String line = "public class Large { private String value = \"hello world\"; }\n";
     write("src/Large.java", line.repeat(5000));
 
-    var result = tokenizationService.tokenize(repositoryRoot, scanner.scan(repositoryRoot), NO_OP);
+    var result =
+        tokenizationService.tokenize(
+            repositoryRoot, scanner.scan(repositoryRoot), SINGLE_TOKENIZER, NO_OP);
 
     assertThat(result.totalFiles()).isEqualTo(1);
     assertThat(result.totalTokens()).isPositive();
@@ -91,7 +194,9 @@ class RepositoryTokenizationServiceTest {
     }
 
     long startedAt = System.nanoTime();
-    var result = tokenizationService.tokenize(repositoryRoot, scanner.scan(repositoryRoot), NO_OP);
+    var result =
+        tokenizationService.tokenize(
+            repositoryRoot, scanner.scan(repositoryRoot), SINGLE_TOKENIZER, NO_OP);
     long elapsedMillis = (System.nanoTime() - startedAt) / 1_000_000;
 
     assertThat(result.totalFiles()).isEqualTo(750);
@@ -112,7 +217,8 @@ class RepositoryTokenizationServiceTest {
             calls.add(new ProgressCall(filesProcessed, totalFiles, tokensSoFar));
 
     var scan = scanner.scan(repositoryRoot);
-    var result = tokenizationService.tokenize(repositoryRoot, scan, capturingListener);
+    var result =
+        tokenizationService.tokenize(repositoryRoot, scan, SINGLE_TOKENIZER, capturingListener);
 
     assertThat(calls).hasSize(3);
     assertThat(calls.get(0).filesProcessed()).isEqualTo(1L);
@@ -133,7 +239,7 @@ class RepositoryTokenizationServiceTest {
     boolean[] listenerCalled = {false};
     TokenizationProgressListener listener = (p, t, tok) -> listenerCalled[0] = true;
 
-    var result = tokenizationService.tokenize(repositoryRoot, scan, listener);
+    var result = tokenizationService.tokenize(repositoryRoot, scan, SINGLE_TOKENIZER, listener);
 
     assertThat(listenerCalled[0]).isFalse();
     assertThat(result.totalFiles()).isZero();

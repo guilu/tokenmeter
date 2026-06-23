@@ -14,8 +14,12 @@ import dev.diegobarrioh.tokenmeter.application.cost.RepositoryCostEstimationServ
 import dev.diegobarrioh.tokenmeter.application.pricing.PricingProvider;
 import dev.diegobarrioh.tokenmeter.application.pricing.PricingSnapshotIdentityService;
 import dev.diegobarrioh.tokenmeter.application.repository.RepositoryIntakeProperties;
+import dev.diegobarrioh.tokenmeter.application.tokenizer.HeuristicTokenCounter;
+import dev.diegobarrioh.tokenmeter.application.tokenizer.JtokkitTokenCounter;
+import dev.diegobarrioh.tokenmeter.application.tokenizer.ModelTokenizationProfileResolver;
 import dev.diegobarrioh.tokenmeter.application.tokenizer.OpenAiTokenCounter;
 import dev.diegobarrioh.tokenmeter.application.tokenizer.RepositoryTokenizationService;
+import dev.diegobarrioh.tokenmeter.application.tokenizer.TokenCounterRegistry;
 import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobErrorCode;
 import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobId;
 import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobMetrics;
@@ -24,8 +28,11 @@ import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobSnapshot;
 import dev.diegobarrioh.tokenmeter.domain.job.AnalysisJobStatus;
 import dev.diegobarrioh.tokenmeter.domain.pricing.AiProvider;
 import dev.diegobarrioh.tokenmeter.domain.pricing.ModelPricing;
+import dev.diegobarrioh.tokenmeter.domain.pricing.PricingSnapshotHandle;
 import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeErrorCode;
 import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeException;
+import dev.diegobarrioh.tokenmeter.infrastructure.tokenizer.TokenizerProfileLoader;
+import dev.diegobarrioh.tokenmeter.infrastructure.tokenizer.TokenizerProfileProperties;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
@@ -65,7 +72,8 @@ class AnalysisJobExecutionServiceTest {
             costEstimationService(),
             jobRepository,
             emitter,
-            identityService());
+            identityService(),
+            profileResolver());
 
     service.runJobInternal(jobId);
 
@@ -81,6 +89,8 @@ class AnalysisJobExecutionServiceTest {
         .transition(eq(jobId), eq(AnalysisJobPhase.COUNTING_TOKENS), anyInt(), anyString());
     verify(emitter)
         .transition(eq(jobId), eq(AnalysisJobPhase.CALCULATING_COSTS), anyInt(), anyString());
+    // capture() now runs before tokenize(); pricing must still be marked exactly once.
+    verify(emitter).markPricing(eq(jobId), any(PricingSnapshotHandle.class));
     verify(emitter)
         .transition(eq(jobId), eq(AnalysisJobPhase.SAVING_REPORT), anyInt(), anyString());
     verify(emitter, atLeastOnce()).updateMetrics(eq(jobId), any(AnalysisJobMetrics.class));
@@ -111,7 +121,8 @@ class AnalysisJobExecutionServiceTest {
             costEstimationService(),
             jobRepository,
             emitter,
-            identityService());
+            identityService(),
+            profileResolver());
 
     service.runJobInternal(jobId);
 
@@ -139,7 +150,8 @@ class AnalysisJobExecutionServiceTest {
             costEstimationService(),
             jobRepository,
             emitter,
-            identityService());
+            identityService(),
+            profileResolver());
 
     service.runJobInternal(jobId);
 
@@ -168,7 +180,8 @@ class AnalysisJobExecutionServiceTest {
             costEstimationService(),
             jobRepository,
             emitter,
-            identityService());
+            identityService(),
+            profileResolver());
 
     service.runJobInternal(jobId);
 
@@ -210,7 +223,8 @@ class AnalysisJobExecutionServiceTest {
             costEstimationService(),
             jobRepository,
             emitter,
-            identityService());
+            identityService(),
+            profileResolver());
 
     service.runJobInternal(jobId);
 
@@ -246,7 +260,8 @@ class AnalysisJobExecutionServiceTest {
             costEstimationService(),
             jobRepository,
             emitter,
-            identityService());
+            identityService(),
+            profileResolver());
 
     service.runJobInternal(jobId);
 
@@ -295,7 +310,8 @@ class AnalysisJobExecutionServiceTest {
             costEstimationService(),
             jobRepository,
             emitter,
-            identityService());
+            identityService(),
+            profileResolver());
 
     service.runJobInternal(jobId);
 
@@ -348,7 +364,8 @@ class AnalysisJobExecutionServiceTest {
             costEstimationService(),
             jobRepository,
             emitter,
-            identityService());
+            identityService(),
+            profileResolver());
 
     service.runJobInternal(jobId);
 
@@ -393,7 +410,8 @@ class AnalysisJobExecutionServiceTest {
             costEstimationService(),
             jobRepository,
             emitter,
-            identityService());
+            identityService(),
+            profileResolver());
 
     service.runJobInternal(jobId);
 
@@ -436,7 +454,8 @@ class AnalysisJobExecutionServiceTest {
             costEstimationService(),
             jobRepository,
             emitter,
-            identityService());
+            identityService(),
+            profileResolver());
 
     service.runJobInternal(jobId);
 
@@ -478,7 +497,8 @@ class AnalysisJobExecutionServiceTest {
             costEstimationService(),
             jobRepository,
             emitter,
-            identityService());
+            identityService(),
+            profileResolver());
 
     service.runJobInternal(jobId);
 
@@ -530,7 +550,11 @@ class AnalysisJobExecutionServiceTest {
   }
 
   private static RepositoryTokenizationService tokenizationService() {
-    return new RepositoryTokenizationService(new OpenAiTokenCounter());
+    OpenAiTokenCounter openAi = new OpenAiTokenCounter();
+    JtokkitTokenCounter jtokkit = new JtokkitTokenCounter();
+    HeuristicTokenCounter heuristic = new HeuristicTokenCounter(openAi);
+    TokenCounterRegistry registry = new TokenCounterRegistry(List.of(jtokkit, heuristic));
+    return new RepositoryTokenizationService(openAi, registry);
   }
 
   private static AnalysisPersistenceService persistenceServiceReturning(UUID assignedId) {
@@ -562,11 +586,19 @@ class AnalysisJobExecutionServiceTest {
   }
 
   private static RepositoryCostEstimationService costEstimationService() {
-    return new RepositoryCostEstimationService(testPricingProvider());
+    return new RepositoryCostEstimationService(testPricingProvider(), profileResolver());
   }
 
   private static PricingSnapshotIdentityService identityService() {
     return new PricingSnapshotIdentityService(testPricingProvider(), Clock.systemUTC());
+  }
+
+  private static ModelTokenizationProfileResolver profileResolver() {
+    org.springframework.core.io.DefaultResourceLoader resourceLoader =
+        new org.springframework.core.io.DefaultResourceLoader();
+    TokenizerProfileLoader loader =
+        new TokenizerProfileLoader(resourceLoader, new TokenizerProfileProperties(null));
+    return new ModelTokenizationProfileResolver(loader);
   }
 
   private static PricingProvider testPricingProvider() {

@@ -5,6 +5,7 @@ import dev.diegobarrioh.tokenmeter.application.pricing.PricingSnapshotIdentitySe
 import dev.diegobarrioh.tokenmeter.application.repository.GitRepositoryCloner;
 import dev.diegobarrioh.tokenmeter.application.repository.RepositoryIntakeProperties;
 import dev.diegobarrioh.tokenmeter.application.repository.RepositorySizeCalculator;
+import dev.diegobarrioh.tokenmeter.application.tokenizer.ModelTokenizationProfileResolver;
 import dev.diegobarrioh.tokenmeter.application.tokenizer.RepositoryTokenizationService;
 import dev.diegobarrioh.tokenmeter.application.tokenizer.TokenizationProgressListener;
 import dev.diegobarrioh.tokenmeter.domain.analyzer.RepositoryScanResult;
@@ -20,6 +21,7 @@ import dev.diegobarrioh.tokenmeter.domain.repository.GitHubRepositoryUrl;
 import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryCloneSummary;
 import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeErrorCode;
 import dev.diegobarrioh.tokenmeter.domain.repository.RepositoryIntakeException;
+import dev.diegobarrioh.tokenmeter.domain.tokenizer.ModelTokenizationProfile;
 import dev.diegobarrioh.tokenmeter.domain.tokenizer.RepositoryTokenizationResult;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -27,6 +29,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,6 +41,12 @@ import org.springframework.stereotype.Service;
  * transitions to the {@link AnalysisJobProgressEmitter}. Designed to be invoked through the {@code
  * analysisJobExecutor} bean wired in batch 2; can also be invoked synchronously by tests via {@link
  * #runJobInternal(AnalysisJobId)}.
+ *
+ * <p><b>Ordering note (Slice B)</b>: {@code pricingIdentityService.capture()} is now called
+ * <em>before</em> tokenization so that the resolver can derive the required tokenizer set from the
+ * active snapshot list. {@code emitter.markPricing} is still called at {@code CALCULATING_COSTS} so
+ * the emitted job-phase sequence is unchanged. {@code capture()} is read-only; calling it earlier
+ * does not change the pricing snapshot identity.
  */
 @Service
 public class AnalysisJobExecutionService {
@@ -54,6 +63,7 @@ public class AnalysisJobExecutionService {
   private final AnalysisJobRepository jobRepository;
   private final AnalysisJobProgressEmitter emitter;
   private final PricingSnapshotIdentityService pricingIdentityService;
+  private final ModelTokenizationProfileResolver profileResolver;
 
   @Autowired
   public AnalysisJobExecutionService(
@@ -65,7 +75,8 @@ public class AnalysisJobExecutionService {
       RepositoryCostEstimationService costEstimationService,
       AnalysisJobRepository jobRepository,
       AnalysisJobProgressEmitter emitter,
-      PricingSnapshotIdentityService pricingIdentityService) {
+      PricingSnapshotIdentityService pricingIdentityService,
+      ModelTokenizationProfileResolver profileResolver) {
     this(
         cloner,
         properties,
@@ -76,7 +87,8 @@ public class AnalysisJobExecutionService {
         new RepositorySizeCalculator(),
         jobRepository,
         emitter,
-        pricingIdentityService);
+        pricingIdentityService,
+        profileResolver);
   }
 
   AnalysisJobExecutionService(
@@ -89,7 +101,8 @@ public class AnalysisJobExecutionService {
       RepositorySizeCalculator sizeCalculator,
       AnalysisJobRepository jobRepository,
       AnalysisJobProgressEmitter emitter,
-      PricingSnapshotIdentityService pricingIdentityService) {
+      PricingSnapshotIdentityService pricingIdentityService,
+      ModelTokenizationProfileResolver profileResolver) {
     this.cloner = cloner;
     this.properties = properties;
     this.fileScanner = fileScanner;
@@ -100,6 +113,7 @@ public class AnalysisJobExecutionService {
     this.jobRepository = jobRepository;
     this.emitter = emitter;
     this.pricingIdentityService = pricingIdentityService;
+    this.profileResolver = profileResolver;
   }
 
   /** Async entry point: executes on the {@code analysisJobExecutor} thread pool. */
@@ -136,6 +150,15 @@ public class AnalysisJobExecutionService {
     try {
       emitter.transition(id, AnalysisJobPhase.CHECKING_CACHE, 5, "Preparing workspace");
 
+      // Capture the pricing handle BEFORE tokenization so the resolver can derive the required
+      // tokenizer set from the active snapshot list. capture() is read-only; the snapshot identity
+      // is unchanged by calling it here instead of at CALCULATING_COSTS.
+      PricingSnapshotHandle pricingHandle = pricingIdentityService.capture();
+
+      // Resolve the distinct tokenizer profiles needed for all active pricing models
+      Map<String, ModelTokenizationProfile> requiredTokenizers =
+          profileResolver.distinctTokenizers(pricingHandle.snapshots());
+
       cloneDirectory = createCloneDirectory(repositoryUrl);
       emitter.transition(id, AnalysisJobPhase.CLONING_REPOSITORY, 15, "Cloning repository");
       cloner.clone(repositoryUrl, cloneDirectory, properties.cloneTimeout());
@@ -168,7 +191,7 @@ public class AnalysisJobExecutionService {
             }
           };
       RepositoryTokenizationResult tokenization =
-          tokenizationService.tokenize(cloneDirectory, scan, listener);
+          tokenizationService.tokenize(cloneDirectory, scan, requiredTokenizers, listener);
       emitter.updateMetrics(
           id,
           new AnalysisJobMetrics(
@@ -180,10 +203,9 @@ public class AnalysisJobExecutionService {
               null));
 
       emitter.transition(id, AnalysisJobPhase.CALCULATING_COSTS, 80, "Estimating costs");
-      PricingSnapshotHandle pricingHandle = pricingIdentityService.capture();
       emitter.markPricing(id, pricingHandle);
       List<ModelCostEstimate> costEstimates =
-          costEstimationService.estimate(tokenization.totalTokens(), pricingHandle);
+          costEstimationService.estimate(tokenization.tokensByTokenizerId(), pricingHandle);
       emitter.updateMetrics(
           id,
           new AnalysisJobMetrics(

@@ -1,6 +1,7 @@
 package dev.diegobarrioh.tokenmeter.domain.cost;
 
 import dev.diegobarrioh.tokenmeter.domain.pricing.AiProvider;
+import dev.diegobarrioh.tokenmeter.domain.tokenizer.TokenizationPrecision;
 import java.math.BigDecimal;
 import java.util.Objects;
 
@@ -8,6 +9,8 @@ public record ModelCostEstimate(
     AiProvider provider,
     String model,
     CostEstimationMode mode,
+    String tokenizerId,
+    TokenizationPrecision precision,
     long baseTokens,
     long estimatedInputTokens,
     long estimatedOutputTokens,
@@ -32,5 +35,6 @@ public record ModelCostEstimate(
     }
     model = model.trim();
     formula = formula.trim();
+    // tokenizerId and precision are nullable for legacy back-compat (DB rows written before V10)
   }
 }

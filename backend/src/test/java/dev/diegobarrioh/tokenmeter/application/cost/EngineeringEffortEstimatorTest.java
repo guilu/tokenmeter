@@ -45,6 +45,8 @@ class EngineeringEffortEstimatorTest {
         AiProvider.OPENAI,
         "gpt-4o",
         mode,
+        null,
+        null,
         1_000,
         estimatedInputTokens,
         estimatedOutputTokens,

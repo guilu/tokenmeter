@@ -4,9 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import dev.diegobarrioh.tokenmeter.application.pricing.PricingProvider;
+import dev.diegobarrioh.tokenmeter.application.tokenizer.ModelTokenizationProfileResolver;
 import dev.diegobarrioh.tokenmeter.domain.cost.CostEstimationMode;
 import dev.diegobarrioh.tokenmeter.domain.pricing.AiProvider;
 import dev.diegobarrioh.tokenmeter.domain.pricing.ModelPricing;
+import dev.diegobarrioh.tokenmeter.infrastructure.tokenizer.TokenizerProfileLoader;
+import dev.diegobarrioh.tokenmeter.infrastructure.tokenizer.TokenizerProfileProperties;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
@@ -15,7 +18,7 @@ import org.junit.jupiter.api.Test;
 class RepositoryCostEstimationServiceTest {
   @Test
   void estimatesRawAssistedAndAgenticCostsPerModel() {
-    var service = new RepositoryCostEstimationService(pricingProvider());
+    var service = new RepositoryCostEstimationService(pricingProvider(), defaultResolver());
 
     var estimates = service.estimate(1_000_000);
 
@@ -38,9 +41,16 @@ class RepositoryCostEstimationServiceTest {
 
   @Test
   void rejectsNegativeBaseTokens() {
-    var service = new RepositoryCostEstimationService(pricingProvider());
+    var service = new RepositoryCostEstimationService(pricingProvider(), defaultResolver());
 
     assertThatThrownBy(() -> service.estimate(-1)).isInstanceOf(IllegalArgumentException.class);
+  }
+
+  private static ModelTokenizationProfileResolver defaultResolver() {
+    return new ModelTokenizationProfileResolver(
+        new TokenizerProfileLoader(
+            new org.springframework.core.io.DefaultResourceLoader(),
+            new TokenizerProfileProperties(null)));
   }
 
   private static PricingProvider pricingProvider() {

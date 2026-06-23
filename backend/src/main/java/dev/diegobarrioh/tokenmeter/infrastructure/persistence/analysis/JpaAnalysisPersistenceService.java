@@ -143,6 +143,9 @@ public class JpaAnalysisPersistenceService implements AnalysisPersistenceService
                         estimate.getProvider(),
                         estimate.getModel(),
                         estimate.getMode(),
+                        // tokenizerId and precision are nullable for legacy rows (pre-V10)
+                        null,
+                        null,
                         estimate.getBaseTokens(),
                         estimate.getEstimatedInputTokens(),
                         estimate.getEstimatedOutputTokens(),
@@ -169,6 +172,10 @@ public class JpaAnalysisPersistenceService implements AnalysisPersistenceService
             entity.getTokenEncoding(),
             entity.getTotalFiles(),
             entity.getTotalTokens(),
+            // tokensByTokenizerId is not persisted until V10/Slice C; reconstruct primary only
+            Map.of(
+                dev.diegobarrioh.tokenmeter.domain.tokenizer.FileTokenMetrics.PRIMARY_TOKENIZER_ID,
+                entity.getTotalTokens()),
             List.of(),
             tokenLanguages),
         costEstimates,
