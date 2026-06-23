@@ -63,6 +63,12 @@ sonar {
   }
 }
 
-tasks.withType<Test> { useJUnitPlatform() }
+tasks.withType<Test> {
+  useJUnitPlatform()
+  // The integration suite caches several distinct Spring contexts simultaneously; each loads
+  // jtokkit encoding registries. The default heap exhausts non-deterministically (OOM), so pin a
+  // generous max heap to keep the shared test JVM stable.
+  maxHeapSize = "2g"
+}
 
 tasks.check { dependsOn("spotlessCheck") }
