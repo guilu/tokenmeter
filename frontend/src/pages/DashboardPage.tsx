@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 
+import { HeuristicDisclaimer } from '../components/HeuristicDisclaimer'
 import { PipelineTimeline } from '../components/PipelineTimeline'
+import { PrecisionBadge } from '../components/PrecisionBadge'
 import { TrendingSection } from '../components/TrendingSection'
 import { useAnalysisJob } from '../hooks/useAnalysisJob'
 import { useElapsedSeconds } from '../hooks/useElapsedSeconds'
@@ -631,6 +633,12 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
 
       <EngineeringEffortPanel estimates={estimatesForMode} selectedMode={selectedMode} />
 
+      {estimatesForMode.length > 0 ? (
+        <div className="mt-8">
+          <HeuristicDisclaimer estimates={estimatesForMode} />
+        </div>
+      ) : null}
+
       <ModelComparison
         estimates={estimatesForMode}
         providerFilter={providerFilter}
@@ -834,7 +842,12 @@ function ModelComparison({
           <tbody className="divide-y divide-text/10 text-text/80">
             {comparisonRows.map((row) => (
               <tr className="transition hover:bg-card/20" key={`${row.estimate.provider}-${row.estimate.model}`}>
-                <td className="px-4 py-3 font-medium text-text">{row.estimate.model}</td>
+                <td className="px-4 py-3 font-medium text-text">
+                  <span className="flex items-center gap-2">
+                    {row.estimate.model}
+                    <PrecisionBadge precision={row.estimate.precision ?? undefined} />
+                  </span>
+                </td>
                 <td className="px-4 py-3 capitalize text-text/80">{row.estimate.provider}</td>
                 <td className="px-4 py-3 text-right font-medium text-text">{currencyFormatter.format(row.estimate.totalCost)}</td>
                 <td className="px-4 py-3">
@@ -865,7 +878,10 @@ function ModelComparisonCard({ row }: { row: ModelComparisonRow }) {
     <article className="rounded-2xl bg-bg/45 p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate font-medium text-text" title={row.estimate.model}>{row.estimate.model}</p>
+          <span className="flex items-center gap-2">
+            <p className="truncate font-medium text-text" title={row.estimate.model}>{row.estimate.model}</p>
+            <PrecisionBadge precision={row.estimate.precision ?? undefined} />
+          </span>
           <p className="mt-1 text-sm capitalize text-text/50">{row.estimate.provider}</p>
         </div>
         <p className="shrink-0 text-lg font-semibold text-text">{currencyFormatter.format(row.estimate.totalCost)}</p>

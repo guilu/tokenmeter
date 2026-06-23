@@ -67,6 +67,8 @@ public class RepositoryAnalysisMapper {
         estimate.outputCost(),
         estimate.totalCost(),
         estimate.formula(),
+        estimate.tokenizerId(),
+        estimate.precision() == null ? null : estimate.precision().name(),
         toEngineeringEffort(engineeringEffortEstimator.estimate(estimate)));
   }
 
