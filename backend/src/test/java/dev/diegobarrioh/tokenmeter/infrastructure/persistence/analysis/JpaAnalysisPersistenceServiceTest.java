@@ -144,6 +144,7 @@ class JpaAnalysisPersistenceServiceTest {
             "o200k_base",
             3,
             40,
+            Map.of("openai/o200k_base", 40L),
             List.of(),
             Map.of(
                 "Java", new LanguageTokenMetrics("Java", 2, 25),
@@ -153,6 +154,8 @@ class JpaAnalysisPersistenceServiceTest {
                 AiProvider.OPENAI,
                 "gpt-4o",
                 CostEstimationMode.RAW,
+                null,
+                null,
                 40,
                 0,
                 40,
