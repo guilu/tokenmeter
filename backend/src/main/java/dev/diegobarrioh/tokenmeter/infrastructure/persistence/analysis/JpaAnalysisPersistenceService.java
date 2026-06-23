@@ -105,7 +105,9 @@ public class JpaAnalysisPersistenceService implements AnalysisPersistenceService
                         estimate.inputCost(),
                         estimate.outputCost(),
                         estimate.totalCost(),
-                        estimate.formula())));
+                        estimate.formula(),
+                        estimate.tokenizerId(),
+                        estimate.precision())));
     return entity;
   }
 
@@ -143,9 +145,9 @@ public class JpaAnalysisPersistenceService implements AnalysisPersistenceService
                         estimate.getProvider(),
                         estimate.getModel(),
                         estimate.getMode(),
-                        // tokenizerId and precision are nullable for legacy rows (pre-V10)
-                        null,
-                        null,
+                        // nullable: legacy rows (pre-V10) have null columns → null domain fields
+                        estimate.getTokenizerId(),
+                        estimate.getTokenizationPrecision(),
                         estimate.getBaseTokens(),
                         estimate.getEstimatedInputTokens(),
                         estimate.getEstimatedOutputTokens(),

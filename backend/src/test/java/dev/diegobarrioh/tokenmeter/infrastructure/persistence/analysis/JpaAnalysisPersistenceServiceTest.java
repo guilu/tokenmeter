@@ -13,6 +13,7 @@ import dev.diegobarrioh.tokenmeter.domain.pricing.PricingSnapshotId;
 import dev.diegobarrioh.tokenmeter.domain.pricing.PricingSource;
 import dev.diegobarrioh.tokenmeter.domain.tokenizer.LanguageTokenMetrics;
 import dev.diegobarrioh.tokenmeter.domain.tokenizer.RepositoryTokenizationResult;
+import dev.diegobarrioh.tokenmeter.domain.tokenizer.TokenizationPrecision;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -111,6 +112,113 @@ class JpaAnalysisPersistenceServiceTest {
     repository.flush();
 
     assertThat(repository.findById(saved.id())).isEmpty();
+  }
+
+  // -----------------------------------------------------------------------
+  // Slice C — tokenizerId + precision persistence round-trip
+  // -----------------------------------------------------------------------
+
+  @Test
+  void persistsAndRetrievesTokenizerIdAndPrecision() {
+    // GIVEN a ModelCostEstimate with non-null tokenizerId and precision
+    RepositoryAnalysisResult input =
+        resultWithEstimate(
+            new ModelCostEstimate(
+                AiProvider.OPENAI,
+                "gpt-4o",
+                CostEstimationMode.RAW,
+                "openai/o200k_base",
+                TokenizationPrecision.EXACT_LOCAL,
+                100,
+                0,
+                100,
+                new BigDecimal("0.000000"),
+                new BigDecimal("0.001000"),
+                new BigDecimal("0.001000"),
+                "test formula"));
+
+    // WHEN saved and re-read
+    RepositoryAnalysisResult saved = persistenceService.save(input);
+    RepositoryAnalysisResult reloaded = persistenceService.findById(saved.id()).orElseThrow();
+
+    // THEN tokenizerId and precision are preserved
+    ModelCostEstimate estimate = reloaded.costEstimates().getFirst();
+    assertThat(estimate.tokenizerId()).isEqualTo("openai/o200k_base");
+    assertThat(estimate.precision()).isEqualTo(TokenizationPrecision.EXACT_LOCAL);
+  }
+
+  @Test
+  void persistsAndRetrievesHeuristicPrecision() {
+    // GIVEN a ModelCostEstimate with HEURISTIC precision
+    RepositoryAnalysisResult input =
+        resultWithEstimate(
+            new ModelCostEstimate(
+                AiProvider.ANTHROPIC,
+                "claude-3-5-sonnet-20241022",
+                CostEstimationMode.RAW,
+                "anthropic/cl100k_heuristic",
+                TokenizationPrecision.HEURISTIC,
+                95,
+                0,
+                95,
+                new BigDecimal("0.000000"),
+                new BigDecimal("0.000285"),
+                new BigDecimal("0.000285"),
+                "test formula"));
+
+    RepositoryAnalysisResult saved = persistenceService.save(input);
+    RepositoryAnalysisResult reloaded = persistenceService.findById(saved.id()).orElseThrow();
+
+    ModelCostEstimate estimate = reloaded.costEstimates().getFirst();
+    assertThat(estimate.tokenizerId()).isEqualTo("anthropic/cl100k_heuristic");
+    assertThat(estimate.precision()).isEqualTo(TokenizationPrecision.HEURISTIC);
+  }
+
+  @Test
+  void legacyNullTokenizerColumnsReadNullSafeWithoutNpe() {
+    // GIVEN a ModelCostEstimate with null tokenizerId and null precision (legacy / pre-V10 row)
+    RepositoryAnalysisResult input =
+        resultWithEstimate(
+            new ModelCostEstimate(
+                AiProvider.OPENAI,
+                "gpt-4o",
+                CostEstimationMode.RAW,
+                null,
+                null,
+                40,
+                0,
+                40,
+                new BigDecimal("0.000000"),
+                new BigDecimal("0.000400"),
+                new BigDecimal("0.000400"),
+                "test formula"));
+
+    // WHEN saved (columns will be NULL) and re-read
+    RepositoryAnalysisResult saved = persistenceService.save(input);
+    RepositoryAnalysisResult reloaded = persistenceService.findById(saved.id()).orElseThrow();
+
+    // THEN domain object reads null (no NPE, no 500)
+    ModelCostEstimate estimate = reloaded.costEstimates().getFirst();
+    assertThat(estimate.tokenizerId()).isNull();
+    assertThat(estimate.precision()).isNull();
+  }
+
+  private static RepositoryAnalysisResult resultWithEstimate(ModelCostEstimate estimate) {
+    return new RepositoryAnalysisResult(
+        "https://github.com/test/repo",
+        "https://github.com/test/repo.git",
+        "test",
+        "repo",
+        new RepositoryScanResult(1, 10, 100, List.of(), Map.of()),
+        new RepositoryTokenizationResult(
+            "o200k_base",
+            1,
+            estimate.baseTokens(),
+            Map.of("openai/o200k_base", estimate.baseTokens()),
+            List.of(),
+            Map.of()),
+        List.of(estimate),
+        null);
   }
 
   private static RepositoryAnalysisResult sampleResultWithPricing(PricingSnapshotHandle handle) {

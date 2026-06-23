@@ -2,6 +2,7 @@ package dev.diegobarrioh.tokenmeter.infrastructure.persistence.analysis;
 
 import dev.diegobarrioh.tokenmeter.domain.cost.CostEstimationMode;
 import dev.diegobarrioh.tokenmeter.domain.pricing.AiProvider;
+import dev.diegobarrioh.tokenmeter.domain.tokenizer.TokenizationPrecision;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -58,6 +59,13 @@ public class CostEstimateEntity {
   @Column(nullable = false, columnDefinition = "TEXT")
   private String formula;
 
+  @Column(name = "tokenizer_id", length = 120)
+  private String tokenizerId;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "tokenization_precision", length = 30)
+  private TokenizationPrecision tokenizationPrecision;
+
   protected CostEstimateEntity() {}
 
   public CostEstimateEntity(
@@ -70,7 +78,9 @@ public class CostEstimateEntity {
       BigDecimal inputCost,
       BigDecimal outputCost,
       BigDecimal totalCost,
-      String formula) {
+      String formula,
+      String tokenizerId,
+      TokenizationPrecision tokenizationPrecision) {
     this.provider = provider;
     this.model = model;
     this.mode = mode;
@@ -81,6 +91,8 @@ public class CostEstimateEntity {
     this.outputCost = outputCost;
     this.totalCost = totalCost;
     this.formula = formula;
+    this.tokenizerId = tokenizerId;
+    this.tokenizationPrecision = tokenizationPrecision;
   }
 
   void setAnalysis(AnalysisEntity analysis) {
@@ -125,5 +137,13 @@ public class CostEstimateEntity {
 
   public String getFormula() {
     return formula;
+  }
+
+  public String getTokenizerId() {
+    return tokenizerId;
+  }
+
+  public TokenizationPrecision getTokenizationPrecision() {
+    return tokenizationPrecision;
   }
 }
