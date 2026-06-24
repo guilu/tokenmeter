@@ -114,6 +114,8 @@ export interface CostBreakdownPricingResponse {
   outputTokenPricePerMillion: number
 }
 
+export type TokenizationPrecision = 'EXACT_LOCAL' | 'LOCAL_ESTIMATED' | 'HEURISTIC'
+
 export interface CostBreakdownModeResponse {
   mode: 'raw' | 'assisted' | 'agentic'
   baseTokens: number
@@ -123,6 +125,8 @@ export interface CostBreakdownModeResponse {
   outputCost: number
   totalCost: number
   formula: string
+  tokenizerId?: string | null
+  precision?: TokenizationPrecision | null
 }
 
 export interface RepositoryAnalysisMetricsResponse {
@@ -153,6 +157,8 @@ export interface RepositoryAnalysisCostEstimateResponse {
   outputCost: number
   totalCost: number
   formula: string
+  tokenizerId?: string | null
+  precision?: TokenizationPrecision | null
   engineeringEffort: EngineeringEffortEstimateResponse
 }
 

@@ -75,6 +75,8 @@ public class CostBreakdownMapper {
         estimate.inputCost(),
         estimate.outputCost(),
         estimate.totalCost(),
-        estimate.formula());
+        estimate.formula(),
+        estimate.tokenizerId(),
+        estimate.precision() == null ? null : estimate.precision().name());
   }
 }

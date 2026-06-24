@@ -26,6 +26,7 @@ import dev.diegobarrioh.tokenmeter.domain.pricing.PricingSnapshotId;
 import dev.diegobarrioh.tokenmeter.domain.pricing.PricingSource;
 import dev.diegobarrioh.tokenmeter.domain.tokenizer.LanguageTokenMetrics;
 import dev.diegobarrioh.tokenmeter.domain.tokenizer.RepositoryTokenizationResult;
+import dev.diegobarrioh.tokenmeter.domain.tokenizer.TokenizationPrecision;
 import dev.diegobarrioh.tokenmeter.infrastructure.web.PublicOriginProperties;
 import dev.diegobarrioh.tokenmeter.infrastructure.web.WebMvcConfiguration;
 import dev.diegobarrioh.tokenmeter.infrastructure.web.repository.RepositoryIntakeExceptionHandler;
@@ -436,6 +437,48 @@ class RepositoryAnalysisControllerTest {
     return "v1:" + "0".repeat(64);
   }
 
+  // D.1.1 RED: tokenizerId + precision surfaced in cost-breakdown response
+  @Test
+  void costBreakdownModesIncludeTokenizerIdAndPrecision() throws Exception {
+    UUID id = UUID.randomUUID();
+    when(analysisService.findById(id))
+        .thenReturn(sampleAnalysis(id, sampleCostEstimatesWithPrecision()));
+
+    mockMvc
+        .perform(get("/api/analyze/{id}/cost-breakdown", id))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.models[0].modes[0].tokenizerId").value("openai/o200k_base"))
+        .andExpect(jsonPath("$.models[0].modes[0].precision").value("EXACT_LOCAL"));
+  }
+
+  // D.1.1 RED: tokenizerId + precision surfaced in /api/analyze/{id} response costEstimates
+  @Test
+  void analysisResponseCostEstimatesIncludeTokenizerIdAndPrecision() throws Exception {
+    UUID id = UUID.randomUUID();
+    when(analysisService.findById(id))
+        .thenReturn(sampleAnalysis(id, sampleCostEstimatesWithPrecision()));
+
+    mockMvc
+        .perform(get("/api/analyze/{id}", id))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.costEstimates[0].tokenizerId").value("openai/o200k_base"))
+        .andExpect(jsonPath("$.costEstimates[0].precision").value("EXACT_LOCAL"));
+  }
+
+  // D.1.1 RED: null tokenizerId + null precision (legacy) serialized as null — no 500
+  @Test
+  void costBreakdownModesWithNullPrecisionAreNullInJson() throws Exception {
+    UUID id = UUID.randomUUID();
+    when(analysisService.findById(id)).thenReturn(sampleAnalysis(id, sampleCostEstimates()));
+
+    mockMvc
+        .perform(get("/api/analyze/{id}/cost-breakdown", id))
+        .andExpect(status().isOk())
+        // modes[0].tokenizerId is null because sampleCostEstimates uses null,null legacy form
+        .andExpect(jsonPath("$.models[0].modes[0].tokenizerId").doesNotExist())
+        .andExpect(jsonPath("$.models[0].modes[0].precision").doesNotExist());
+  }
+
   private static List<ModelCostEstimate> sampleCostEstimates() {
     return List.of(
         new ModelCostEstimate(
@@ -470,6 +513,49 @@ class RepositoryAnalysisControllerTest {
             CostEstimationMode.AGENTIC,
             null,
             null,
+            25,
+            100,
+            500,
+            new BigDecimal("0.000250"),
+            new BigDecimal("0.005000"),
+            new BigDecimal("0.005250"),
+            "agentic formula"));
+  }
+
+  private static List<ModelCostEstimate> sampleCostEstimatesWithPrecision() {
+    return List.of(
+        new ModelCostEstimate(
+            AiProvider.OPENAI,
+            "gpt-4o",
+            CostEstimationMode.RAW,
+            "openai/o200k_base",
+            TokenizationPrecision.EXACT_LOCAL,
+            25,
+            0,
+            25,
+            new BigDecimal("0.000000"),
+            new BigDecimal("0.000250"),
+            new BigDecimal("0.000250"),
+            "raw formula"),
+        new ModelCostEstimate(
+            AiProvider.OPENAI,
+            "gpt-4o",
+            CostEstimationMode.ASSISTED,
+            "openai/o200k_base",
+            TokenizationPrecision.EXACT_LOCAL,
+            25,
+            25,
+            125,
+            new BigDecimal("0.000063"),
+            new BigDecimal("0.001250"),
+            new BigDecimal("0.001313"),
+            "assisted formula"),
+        new ModelCostEstimate(
+            AiProvider.OPENAI,
+            "gpt-4o",
+            CostEstimationMode.AGENTIC,
+            "openai/o200k_base",
+            TokenizationPrecision.EXACT_LOCAL,
             25,
             100,
             500,
