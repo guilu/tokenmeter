@@ -13,6 +13,7 @@ import java.math.BigDecimal;
  *   <li>If {@code strategy == JTOKKIT} then {@code encoding} must be non-null and non-blank.
  *   <li>If {@code strategy == HEURISTIC} then {@code heuristicFactor} must be non-null and
  *       positive.
+ *   <li>If {@code strategy == HF_LOCAL} then {@code hfModelPath} must be non-null and non-blank.
  * </ul>
  *
  * @param tokenizerId logical identifier keying this profile (e.g. {@code "openai/o200k_base"})
@@ -21,13 +22,17 @@ import java.math.BigDecimal;
  * @param encoding jtokkit {@code EncodingType} name (non-null only for {@code JTOKKIT} strategy)
  * @param heuristicFactor multiplicative factor over the o200k reference count (positive, non-null
  *     only for {@code HEURISTIC} strategy)
+ * @param hfModelPath classpath-relative path to the vendored {@code tokenizer.json} file under
+ *     {@code tokenizers/} (non-null and non-blank only for {@code HF_LOCAL} strategy, e.g. {@code
+ *     "deepseek/tokenizer.json"})
  */
 public record ModelTokenizationProfile(
     String tokenizerId,
     TokenizationPrecision precision,
     TokenCounterStrategy strategy,
     String encoding,
-    BigDecimal heuristicFactor) {
+    BigDecimal heuristicFactor,
+    String hfModelPath) {
 
   public ModelTokenizationProfile {
     if (tokenizerId == null || tokenizerId.isBlank()) {
@@ -46,6 +51,10 @@ public record ModelTokenizationProfile(
         && (heuristicFactor == null || heuristicFactor.signum() <= 0)) {
       throw new IllegalArgumentException(
           "heuristicFactor must be non-null and positive for HEURISTIC strategy");
+    }
+    if (strategy == TokenCounterStrategy.HF_LOCAL
+        && (hfModelPath == null || hfModelPath.isBlank())) {
+      throw new IllegalArgumentException("hfModelPath is required for HF_LOCAL strategy");
     }
   }
 }

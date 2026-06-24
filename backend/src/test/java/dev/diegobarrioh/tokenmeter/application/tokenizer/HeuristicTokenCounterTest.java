@@ -18,7 +18,8 @@ class HeuristicTokenCounterTest {
         TokenizationPrecision.HEURISTIC,
         TokenCounterStrategy.HEURISTIC,
         null,
-        BigDecimal.valueOf(factor));
+        BigDecimal.valueOf(factor),
+        null);
   }
 
   @Test
@@ -41,6 +42,7 @@ class HeuristicTokenCounterTest {
             TokenizationPrecision.EXACT_LOCAL,
             TokenCounterStrategy.JTOKKIT,
             "O200K_BASE",
+            null,
             null);
     assertThat(counter.supports(jtokkit)).isFalse();
   }
@@ -105,7 +107,8 @@ class HeuristicTokenCounterTest {
             TokenizationPrecision.HEURISTIC,
             TokenCounterStrategy.HEURISTIC,
             null,
-            new BigDecimal("0.90"));
+            new BigDecimal("0.90"),
+            null);
     long result = counter.count("gemini text", geminiProfile);
 
     assertThat(result).isEqualTo(900L);

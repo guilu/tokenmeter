@@ -28,6 +28,7 @@ dependencies {
   implementation("net.logstash.logback:logstash-logback-encoder:8.1")
   implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml")
   implementation("com.knuddels:jtokkit:1.1.0")
+  implementation("ai.djl.huggingface:tokenizers:0.36.0")
   runtimeOnly("org.postgresql:postgresql")
   testRuntimeOnly("com.h2database:h2")
   testImplementation("org.springframework.boot:spring-boot-starter-test")
