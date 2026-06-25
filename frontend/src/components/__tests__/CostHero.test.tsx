@@ -51,20 +51,8 @@ function makeAnalysis(
       tokenEncoding: 'o200k_base',
       totalTokens: 5000,
       languages: {
-        TypeScript: {
-          language: 'TypeScript',
-          files: 8,
-          lines: 400,
-          bytes: 16000,
-          tokens: 4000,
-        },
-        CSS: {
-          language: 'CSS',
-          files: 2,
-          lines: 100,
-          bytes: 4000,
-          tokens: 1000,
-        },
+        TypeScript: { language: 'TypeScript', files: 8, lines: 400, bytes: 16000, tokens: 4000 },
+        CSS: { language: 'CSS', files: 2, lines: 100, bytes: 4000, tokens: 1000 },
       },
     },
     costEstimates: [],
@@ -72,152 +60,101 @@ function makeAnalysis(
   }
 }
 
-describe('CostHero — cross-mode floor/ceiling range', () => {
+describe('CostHero — min/max range within the selected mode', () => {
   afterEach(() => {
     cleanup()
   })
 
-  it('renders floorEstimate totalCost in the Floor (RAW) card', () => {
-    const floorEstimate = makeEstimate({ totalCost: 1.23, mode: 'raw', provider: 'openai', model: 'gpt-4o-mini' })
-    const ceilingEstimate = makeEstimate({ totalCost: 99.50, mode: 'agentic', provider: 'anthropic', model: 'claude-opus' })
+  it('renders the lowest estimate cost in the Min card', () => {
+    const lowest = makeEstimate({ totalCost: 1.23, model: 'gpt-4o-mini' })
+    const highest = makeEstimate({ totalCost: 4.56, model: 'gpt-4o' })
 
     render(
       <CostHero
         analysis={makeAnalysis()}
-        floorEstimate={floorEstimate}
-        ceilingEstimate={ceilingEstimate}
-        selectedModeEstimate={floorEstimate}
-        selectedMode="raw"
-        topLanguage={{ language: 'TypeScript', files: 8, lines: 400, bytes: 16000, tokens: 4000 }}
+        lowestEstimate={lowest}
+        highestEstimate={highest}
+        selectedMode="assisted"
+        topLanguage={undefined}
       />,
     )
 
     expect(screen.getByText('$1.23')).toBeInTheDocument()
   })
 
-  it('renders ceilingEstimate totalCost in the Ceiling (AGENTIC) card', () => {
-    const floorEstimate = makeEstimate({ totalCost: 1.23, mode: 'raw' })
-    const ceilingEstimate = makeEstimate({ totalCost: 99.50, mode: 'agentic', provider: 'anthropic', model: 'claude-opus' })
+  it('renders the highest estimate cost in the Max card', () => {
+    const lowest = makeEstimate({ totalCost: 1.23, model: 'gpt-4o-mini' })
+    const highest = makeEstimate({ totalCost: 4.56, provider: 'anthropic', model: 'claude-opus' })
 
     render(
       <CostHero
         analysis={makeAnalysis()}
-        floorEstimate={floorEstimate}
-        ceilingEstimate={ceilingEstimate}
-        selectedModeEstimate={floorEstimate}
-        selectedMode="raw"
-        topLanguage={undefined}
-      />,
-    )
-
-    expect(screen.getByText('$99.50')).toBeInTheDocument()
-  })
-
-  it('renders badge labels "Floor (RAW)" and "Ceiling (AGENTIC)"', () => {
-    const floorEstimate = makeEstimate({ totalCost: 1.23, mode: 'raw' })
-    const ceilingEstimate = makeEstimate({ totalCost: 9.87, mode: 'agentic' })
-
-    render(
-      <CostHero
-        analysis={makeAnalysis()}
-        floorEstimate={floorEstimate}
-        ceilingEstimate={ceilingEstimate}
-        selectedModeEstimate={floorEstimate}
-        selectedMode="raw"
-        topLanguage={undefined}
-      />,
-    )
-
-    expect(screen.getByText('Floor (RAW)')).toBeInTheDocument()
-    expect(screen.getByText('Ceiling (AGENTIC)')).toBeInTheDocument()
-  })
-
-  it('renders em dash when both floor and ceiling estimates are null', () => {
-    render(
-      <CostHero
-        analysis={makeAnalysis()}
-        floorEstimate={null}
-        ceilingEstimate={null}
-        selectedModeEstimate={null}
+        lowestEstimate={lowest}
+        highestEstimate={highest}
         selectedMode="assisted"
         topLanguage={undefined}
       />,
     )
 
-    const dashes = screen.getAllByText('—')
-    expect(dashes).toHaveLength(2)
+    expect(screen.getByText('$4.56')).toBeInTheDocument()
   })
 
-  it('renders ceiling fallback value when no AGENTIC rows are available (fallback = max across all modes)', () => {
-    // In this case ceilingEstimate is derived from assisted (fallback), not agentic
-    const floorEstimate = makeEstimate({ totalCost: 0.50, mode: 'raw' })
-    const fallbackCeiling = makeEstimate({ totalCost: 5.00, mode: 'assisted', provider: 'openai', model: 'gpt-4o' })
+  it('renders the "Min" and "Max" badge labels', () => {
+    const lowest = makeEstimate({ totalCost: 1.23 })
+    const highest = makeEstimate({ totalCost: 4.56 })
 
     render(
       <CostHero
         analysis={makeAnalysis()}
-        floorEstimate={floorEstimate}
-        ceilingEstimate={fallbackCeiling}
-        selectedModeEstimate={fallbackCeiling}
+        lowestEstimate={lowest}
+        highestEstimate={highest}
         selectedMode="assisted"
         topLanguage={undefined}
       />,
     )
 
-    expect(screen.getByText('$5.00')).toBeInTheDocument()
-    // Still renders Ceiling (AGENTIC) badge label regardless of fallback
-    expect(screen.getByText('Ceiling (AGENTIC)')).toBeInTheDocument()
+    expect(screen.getByText('Min')).toBeInTheDocument()
+    expect(screen.getByText('Max')).toBeInTheDocument()
   })
 
-  it('renders selected-mode indicator text when selectedModeEstimate is provided', () => {
-    const floorEstimate = makeEstimate({ totalCost: 1.23, mode: 'raw' })
-    const ceilingEstimate = makeEstimate({ totalCost: 9.87, mode: 'agentic' })
-    const selectedModeEstimate = makeEstimate({ totalCost: 3.50, mode: 'assisted', provider: 'openai', model: 'gpt-4o' })
+  it('labels each card with the selected workflow mode (reacts to mode)', () => {
+    const lowest = makeEstimate({ totalCost: 1.23, provider: 'openai', model: 'gpt-4o-mini' })
+    const highest = makeEstimate({ totalCost: 4.56, provider: 'anthropic', model: 'claude-opus' })
 
     render(
       <CostHero
         analysis={makeAnalysis()}
-        floorEstimate={floorEstimate}
-        ceilingEstimate={ceilingEstimate}
-        selectedModeEstimate={selectedModeEstimate}
+        lowestEstimate={lowest}
+        highestEstimate={highest}
+        selectedMode="agentic"
+        topLanguage={undefined}
+      />,
+    )
+
+    expect(screen.getByText(/gpt-4o-mini · agentic workflow mode/i)).toBeInTheDocument()
+    expect(screen.getByText(/claude-opus · agentic workflow mode/i)).toBeInTheDocument()
+  })
+
+  it('renders an em dash in each card when both estimates are null', () => {
+    render(
+      <CostHero
+        analysis={makeAnalysis()}
+        lowestEstimate={null}
+        highestEstimate={null}
         selectedMode="assisted"
         topLanguage={undefined}
       />,
     )
 
-    // In-band indicator showing current mode
-    expect(screen.getByText(/Viewing:/i)).toBeInTheDocument()
-    expect(screen.getByText(/assisted/i)).toBeInTheDocument()
-  })
-
-  it('single-mode analysis: floor and ceiling both show raw values', () => {
-    const cheapRaw = makeEstimate({ totalCost: 0.10, mode: 'raw', model: 'gpt-4o-mini' })
-    const priceyRaw = makeEstimate({ totalCost: 0.80, mode: 'raw', model: 'gpt-4o' })
-
-    render(
-      <CostHero
-        analysis={makeAnalysis()}
-        floorEstimate={cheapRaw}
-        ceilingEstimate={priceyRaw}
-        selectedModeEstimate={cheapRaw}
-        selectedMode="raw"
-        topLanguage={undefined}
-      />,
-    )
-
-    expect(screen.getByText('$0.10')).toBeInTheDocument()
-    expect(screen.getByText('$0.80')).toBeInTheDocument()
-    // Selected mode indicator visible
-    expect(screen.getByText(/Viewing:/i)).toBeInTheDocument()
+    expect(screen.getAllByText('—')).toHaveLength(2)
   })
 
   it('renders topLanguage label in HeroMeta', () => {
     render(
       <CostHero
         analysis={makeAnalysis()}
-        floorEstimate={null}
-        ceilingEstimate={null}
-        selectedModeEstimate={null}
+        lowestEstimate={null}
+        highestEstimate={null}
         selectedMode="raw"
         topLanguage={{ language: 'TypeScript', files: 8, lines: 400, bytes: 16000, tokens: 4000 }}
       />,
@@ -230,9 +167,8 @@ describe('CostHero — cross-mode floor/ceiling range', () => {
     render(
       <CostHero
         analysis={makeAnalysis()}
-        floorEstimate={null}
-        ceilingEstimate={null}
-        selectedModeEstimate={null}
+        lowestEstimate={null}
+        highestEstimate={null}
         selectedMode="raw"
         topLanguage={undefined}
       />,
