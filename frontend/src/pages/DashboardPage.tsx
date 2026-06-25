@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 
 import { CostHero } from '../components/CostHero'
+import { FloorDisclaimer } from '../components/FloorDisclaimer'
 import { HeuristicDisclaimer } from '../components/HeuristicDisclaimer'
 import { PipelineTimeline } from '../components/PipelineTimeline'
 import { PrecisionBadge } from '../components/PrecisionBadge'
@@ -448,9 +449,20 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
     () => analysis.costEstimates.filter((estimate) => estimate.mode === 'raw'),
     [analysis.costEstimates],
   )
+  const agenticEstimates = useMemo(
+    () => analysis.costEstimates.filter((estimate) => estimate.mode === 'agentic'),
+    [analysis.costEstimates],
+  )
   const cheapestEstimate = useMemo(() => cheapest(estimatesForMode), [estimatesForMode])
   const highestEstimate = useMemo(() => highest(estimatesForMode), [estimatesForMode])
   const rawBaselineEstimate = useMemo(() => cheapest(rawEstimates), [rawEstimates])
+  // Cross-mode floor/ceiling: floor = cheapest RAW; ceiling = priciest AGENTIC (fallback = priciest across all modes)
+  const floorEstimate = useMemo(() => cheapest(rawEstimates), [rawEstimates])
+  const ceilingEstimate = useMemo(
+    () => highest(agenticEstimates) ?? highest(analysis.costEstimates),
+    [agenticEstimates, analysis.costEstimates],
+  )
+  const selectedModeEstimate = useMemo(() => cheapest(estimatesForMode), [estimatesForMode])
   const primaryEstimate = cheapestEstimate ?? estimatesForMode[0] ?? null
   const topLanguage = languages[0]
   const providersForMode = useMemo(() => uniqueProviders(estimatesForMode), [estimatesForMode])
@@ -542,11 +554,16 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
 
       <CostHero
         analysis={analysis}
-        highestEstimate={highestEstimate}
-        lowestEstimate={cheapestEstimate}
+        floorEstimate={floorEstimate}
+        ceilingEstimate={ceilingEstimate}
+        selectedModeEstimate={selectedModeEstimate}
         selectedMode={selectedMode}
         topLanguage={topLanguage}
       />
+
+      <div className="mt-8">
+        <FloorDisclaimer />
+      </div>
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4" id="metrics">
         <MetricCard label="Tokens" value={compactNumberFormatter.format(analysis.metrics.totalTokens)} hint={`${numberFormatter.format(analysis.metrics.totalTokens)} tracked`} />
