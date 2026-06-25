@@ -4,16 +4,18 @@ import { compactNumberFormatter, currencyFormatter, numberFormatter } from '../u
 
 interface CostHeroProps {
   analysis: RepositoryAnalysisResponse
-  highestEstimate: RepositoryAnalysisCostEstimateResponse | null
-  lowestEstimate: RepositoryAnalysisCostEstimateResponse | null
+  floorEstimate: RepositoryAnalysisCostEstimateResponse | null
+  ceilingEstimate: RepositoryAnalysisCostEstimateResponse | null
+  selectedModeEstimate: RepositoryAnalysisCostEstimateResponse | null
   selectedMode: CostMode
   topLanguage: LanguageBreakdownItem | undefined
 }
 
 export function CostHero({
   analysis,
-  highestEstimate,
-  lowestEstimate,
+  floorEstimate,
+  ceilingEstimate,
+  selectedModeEstimate,
   selectedMode,
   topLanguage,
 }: CostHeroProps) {
@@ -33,27 +35,35 @@ export function CostHero({
         </p>
         <div
           className="mt-5 grid gap-4 transition-all duration-500 sm:grid-cols-2"
-          key={`${selectedMode}-${lowestEstimate?.provider ?? 'none'}-${highestEstimate?.provider ?? 'none'}`}
+          key={`${selectedMode}-${floorEstimate?.provider ?? 'none'}-${ceilingEstimate?.provider ?? 'none'}`}
         >
           <div className="relative min-w-0 rounded-2xl bg-card/20 p-5 pr-20">
-            <CostRangeBadge label="Min" />
+            <CostRangeBadge label="Floor (RAW)" />
             <p className="text-5xl font-semibold tracking-tight text-text sm:text-6xl">
-              {lowestEstimate ? currencyFormatter.format(lowestEstimate.totalCost) : '—'}
+              {floorEstimate ? currencyFormatter.format(floorEstimate.totalCost) : '—'}
             </p>
             <p className="mt-3 truncate text-sm text-text/60">
-              {lowestEstimate ? `${lowestEstimate.provider} · ${lowestEstimate.model} · ${selectedMode} workflow mode` : 'No estimate'}
+              {floorEstimate ? `${floorEstimate.provider} · ${floorEstimate.model} · raw workflow mode` : 'No estimate'}
             </p>
           </div>
           <div className="relative min-w-0 rounded-2xl bg-card/20 p-5 pr-20">
-            <CostRangeBadge label="Max" />
+            <CostRangeBadge label="Ceiling (AGENTIC)" />
             <p className="text-5xl font-semibold tracking-tight text-text sm:text-6xl">
-              {highestEstimate ? currencyFormatter.format(highestEstimate.totalCost) : '—'}
+              {ceilingEstimate ? currencyFormatter.format(ceilingEstimate.totalCost) : '—'}
             </p>
             <p className="mt-3 truncate text-sm text-text/60">
-              {highestEstimate ? `${highestEstimate.provider} · ${highestEstimate.model} · ${selectedMode} workflow mode` : 'No estimate'}
+              {ceilingEstimate ? `${ceilingEstimate.provider} · ${ceilingEstimate.model} · agentic workflow mode` : 'No estimate'}
             </p>
           </div>
         </div>
+
+        {selectedModeEstimate ? (
+          <p className="mt-3 text-sm text-text/70">
+            <span className="font-medium text-primary">Viewing:</span>{' '}
+            <span className="capitalize">{selectedMode}</span> mode —{' '}
+            {currencyFormatter.format(selectedModeEstimate.totalCost)} ({selectedModeEstimate.provider} · {selectedModeEstimate.model})
+          </p>
+        ) : null}
 
         <p className="mt-4 max-w-3xl text-sm leading-6 text-text/60">
           TokenMeter estimates what it would cost to regenerate {repositoryLabel} with AI, including repository size,
@@ -71,7 +81,7 @@ export function CostHero({
   )
 }
 
-function CostRangeBadge({ label }: { label: 'Min' | 'Max' }) {
+function CostRangeBadge({ label }: { label: string }) {
   return (
     <span className="absolute right-4 top-4 rounded-full border border-primary/30 bg-primary/20 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-primary shadow-lg shadow-bg/20 backdrop-blur">
       {label}
