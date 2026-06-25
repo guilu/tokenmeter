@@ -33,6 +33,19 @@ import {
   numberFormatter,
 } from '../utils/formatters'
 import type { CostMode } from '../utils/formatters'
+import {
+  average,
+  capitalize,
+  cheapest,
+  formatDecimal,
+  highest,
+  languageBreakdown,
+  modelComparisonNote,
+  modelTier,
+  percentOf,
+  uniqueProviders,
+} from '../utils/resultsCost'
+import type { ModelComparisonRow } from '../utils/resultsCost'
 import { buildPricingMap, derivePricing, pricingKey } from '../utils/whatIfCost'
 import type { PricingMap } from '../utils/whatIfCost'
 
@@ -873,15 +886,6 @@ function ModelComparison({
   )
 }
 
-type ModelComparisonRow = {
-  estimate: RepositoryAnalysisCostEstimateResponse
-  relativeCost: number
-  costPercent: number
-  efficiencyScore: number
-  tier: string
-  note: string
-}
-
 function ModelComparisonCard({ row }: { row: ModelComparisonRow }) {
   return (
     <article className="rounded-2xl bg-bg/45 p-4">
@@ -1039,10 +1043,6 @@ function CostSummaryCard({ label, estimate }: { label: string; estimate: Reposit
   )
 }
 
-function languageBreakdown(analysis: RepositoryAnalysisResponse) {
-  return Object.values(analysis.metrics.languages).sort((left, right) => right.tokens - left.tokens)
-}
-
 function getAnalysisIdFromLocation() {
   const match = window.location.pathname.match(/^\/analysis\/([^/]+)\/?$/)
   if (match) return decodeURIComponent(match[1])
@@ -1172,66 +1172,6 @@ function costRangeLabel(
   return lowest === highest ? lowest : `${lowest} – ${highest}`
 }
 
-function uniqueProviders(estimates: RepositoryAnalysisCostEstimateResponse[]) {
-  return Array.from(new Set(estimates.map((estimate) => estimate.provider))).sort((left, right) => left.localeCompare(right))
-}
-
-function modelTier(estimate: RepositoryAnalysisCostEstimateResponse, baselineCost: number, maxCost: number) {
-  const model = estimate.model.toLowerCase()
-  const provider = estimate.provider.toLowerCase()
-  const relativeCost = baselineCost > 0 ? estimate.totalCost / baselineCost : 1
-  const premiumThreshold = maxCost * 0.82
-
-  if (relativeCost <= 1.05) return 'Cheapest'
-  if (model.includes('reason') || model.includes('opus') || model.includes('o1') || model.includes('o3')) return 'High reasoning'
-  if (model.includes('preview') || model.includes('experimental') || provider.includes('xai')) return 'Experimental'
-  if (estimate.totalCost >= premiumThreshold) return 'Premium'
-  return 'Balanced'
-}
-
-function modelComparisonNote(estimate: RepositoryAnalysisCostEstimateResponse, baselineCost: number, maxCost: number) {
-  const tier = modelTier(estimate, baselineCost, maxCost)
-  if (tier === 'Cheapest') return 'Lowest simulated cost for this workflow.'
-  if (tier === 'High reasoning') return 'Higher reasoning profile; useful for complex repositories.'
-  if (tier === 'Premium') return 'Higher cost option, likely best reserved for quality-sensitive work.'
-  if (tier === 'Experimental') return 'Useful benchmark candidate; validate quality before relying on it.'
-  return 'Middle-ground cost profile for routine generation workflows.'
-}
-
-function cheapest(estimates: RepositoryAnalysisCostEstimateResponse[]) {
-  return estimates.reduce<RepositoryAnalysisCostEstimateResponse | null>((best, estimate) => {
-    if (best === null) return estimate
-    return estimate.totalCost < best.totalCost ? estimate : best
-  }, null)
-}
-
-function highest(estimates: RepositoryAnalysisCostEstimateResponse[]) {
-  return estimates.reduce<RepositoryAnalysisCostEstimateResponse | null>((best, estimate) => {
-    if (best === null) return estimate
-    return estimate.totalCost > best.totalCost ? estimate : best
-  }, null)
-}
-
-function average(values: number[]) {
-  if (values.length === 0) return 0
-  return values.reduce((sum, value) => sum + value, 0) / values.length
-}
-
-function formatDecimal(value: number, maximumFractionDigits: number) {
-  return new Intl.NumberFormat('en-US', {
-    maximumFractionDigits,
-    minimumFractionDigits: value % 1 === 0 ? 0 : Math.min(1, maximumFractionDigits),
-  }).format(value)
-}
-
-function percentOf(value: number, total: number) {
-  if (total <= 0) return 0
-  return (value / total) * 100
-}
-
-function capitalize(value: string) {
-  return value.charAt(0).toUpperCase() + value.slice(1)
-}
 
 function isValidGitHubUrl(value: string) {
   try {
