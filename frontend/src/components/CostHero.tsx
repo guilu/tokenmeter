@@ -1,6 +1,6 @@
 import type { RepositoryAnalysisCostEstimateResponse, RepositoryAnalysisResponse } from '../types/api'
 import type { CostMode, LanguageBreakdownItem } from '../utils/formatters'
-import { compactNumberFormatter, currencyFormatter, numberFormatter } from '../utils/formatters'
+import { currencyFormatter } from '../utils/formatters'
 
 interface CostHeroProps {
   analysis: RepositoryAnalysisResponse
@@ -60,10 +60,8 @@ export function CostHero({
           token footprint and workflow overhead for the selected mode.
         </p>
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-4">
+        <div className="mt-6 grid gap-3 sm:grid-cols-2">
           <HeroMeta label="Repository" value={repositoryLabel} />
-          <HeroMeta label="Total tokens" value={compactNumberFormatter.format(analysis.metrics.totalTokens)} />
-          <HeroMeta label="Files · languages" value={`${numberFormatter.format(analysis.metrics.totalFiles)} · ${numberFormatter.format(Object.keys(analysis.metrics.languages).length)}`} />
           <HeroMeta label="Top language" value={topLanguage ? topLanguage.language : 'Unknown'} />
         </div>
       </div>

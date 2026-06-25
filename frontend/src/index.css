@@ -146,4 +146,11 @@ button, a {
   #results header {
     break-after: avoid;
   }
+
+  /* Belt-and-suspenders: force all tab panel wrappers visible in print so PDF
+     and crawlers see every tab. The inner WhatIfPanel section keeps its own
+     print:hidden on a different DOM node — specificity is not affected. */
+  #results [role="tabpanel"] {
+    display: block !important;
+  }
 }
