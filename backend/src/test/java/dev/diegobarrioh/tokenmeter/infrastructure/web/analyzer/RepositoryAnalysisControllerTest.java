@@ -214,6 +214,12 @@ class RepositoryAnalysisControllerTest {
             result ->
                 org.assertj.core.api.Assertions.assertThat(
                         result.getResponse().getContentAsString())
+                    .contains(
+                        "<link rel=\"canonical\" href=\"http://localhost/analysis/" + id + "\""))
+        .andExpect(
+            result ->
+                org.assertj.core.api.Assertions.assertThat(
+                        result.getResponse().getContentAsString())
                     .contains("url=/?analysis=" + id)
                     .doesNotContain("<script>"));
   }
