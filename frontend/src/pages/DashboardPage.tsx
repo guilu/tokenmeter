@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 
 import { PipelineTimeline } from '../components/PipelineTimeline'
+import { TabBar } from '../components/TabBar'
+import type { TabBarItem } from '../components/TabBar'
 import { LanguagesTab } from '../components/results/LanguagesTab'
 import { ModelsTab } from '../components/results/ModelsTab'
 import { OverviewSection } from '../components/results/OverviewSection'
@@ -33,11 +35,9 @@ import {
 import type { CostMode } from '../utils/formatters'
 import {
   average,
-  capitalize,
   cheapest,
   highest,
   languageBreakdown,
-  percentOf,
   uniqueProviders,
 } from '../utils/resultsCost'
 import { buildPricingMap, derivePricing, pricingKey } from '../utils/whatIfCost'
@@ -45,6 +45,36 @@ import type { PricingMap } from '../utils/whatIfCost'
 
 type ComparisonSort = 'cost' | 'relative' | 'efficiency' | 'model'
 type ProviderFilter = 'all' | string
+type ResultsTab = 'models' | 'languages' | 'workflow' | 'whatif'
+
+const RESULTS_TABS: TabBarItem[] = [
+  { key: 'models', label: 'Models' },
+  { key: 'languages', label: 'Languages' },
+  { key: 'workflow', label: 'Workflow & Effort' },
+  { key: 'whatif', label: 'What-if' },
+]
+
+function ResultsPanel({
+  tab,
+  active,
+  children,
+}: {
+  tab: ResultsTab
+  active: boolean
+  children: ReactNode
+}) {
+  return (
+    <div
+      role="tabpanel"
+      id={`tab-panel-${tab}`}
+      aria-labelledby={`tab-${tab}`}
+      data-testid={`tab-panel-${tab}`}
+      className={active ? 'mt-8 block' : 'mt-8 hidden print:block'}
+    >
+      {children}
+    </div>
+  )
+}
 
 const modeCopy: Record<CostMode, string> = {
   raw: 'Price the final codebase as if the repository appeared in one clean generation pass.',
@@ -418,6 +448,7 @@ function SharedAnalysisState({ error, loading, onBack }: { error: string | null;
 
 function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysisResponse; onNewAnalysis: () => void }) {
   const [selectedMode, setSelectedMode] = useState<CostMode>('raw')
+  const [activeTab, setActiveTab] = useState<ResultsTab>('models')
   const [comparisonSort, setComparisonSort] = useState<ComparisonSort>('cost')
   const [providerFilter, setProviderFilter] = useState<ProviderFilter>('all')
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle')
@@ -506,149 +537,43 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
         selectedOpenGraphImageUrl={selectedOpenGraphImageUrl}
       />
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
+      <TabBar
+        tabs={RESULTS_TABS}
+        activeTab={activeTab}
+        onSelect={(key) => setActiveTab(key as ResultsTab)}
+        idBase="tab"
+        ariaLabel="Results sections"
+      />
+
+      <ResultsPanel tab="models" active={activeTab === 'models'}>
+        <ModelsTab
+          estimates={estimatesForMode}
+          providerFilter={providerFilter}
+          providers={providersForMode}
+          selectedMode={selectedMode}
+          sortBy={comparisonSort}
+          onFilterProvider={setProviderFilter}
+          onSort={setComparisonSort}
+        />
+      </ResultsPanel>
+
+      <ResultsPanel tab="languages" active={activeTab === 'languages'}>
         <LanguagesTab languages={languages} totalTokens={analysis.metrics.totalTokens} />
+      </ResultsPanel>
 
-        <Panel eyebrow="AI costs" title={`${capitalize(selectedMode)} mode estimates`}>
-          <div className="mb-5 grid gap-3 sm:grid-cols-2">
-            <CostSummaryCard label="Lowest" estimate={cheapestEstimate} />
-            <CostSummaryCard label="Highest" estimate={highestEstimate} />
-          </div>
-          <BarList
-            emptyLabel="No cost estimates available for this mode."
-            items={estimatesForMode
-              .slice()
-              .sort((left, right) => right.totalCost - left.totalCost)
-              .map((estimate) => ({
-                label: estimate.model,
-                value: estimate.totalCost,
-                helper: estimate.provider,
-                percent: percentOf(estimate.totalCost, highestEstimate?.totalCost ?? 0),
-              }))}
-            valueFormatter={(value) => currencyFormatter.format(value)}
-          />
-        </Panel>
-      </div>
+      <ResultsPanel tab="workflow" active={activeTab === 'workflow'}>
+        <WorkflowTab
+          estimates={estimatesForMode}
+          selectedMode={selectedMode}
+          primaryEstimate={primaryEstimate}
+          rawBaselineEstimate={rawBaselineEstimate}
+        />
+      </ResultsPanel>
 
-      <WorkflowTab
-        estimates={estimatesForMode}
-        selectedMode={selectedMode}
-        primaryEstimate={primaryEstimate}
-        rawBaselineEstimate={rawBaselineEstimate}
-      />
-
-      <ModelsTab
-        estimates={estimatesForMode}
-        providerFilter={providerFilter}
-        providers={providersForMode}
-        selectedMode={selectedMode}
-        sortBy={comparisonSort}
-        onFilterProvider={setProviderFilter}
-        onSort={setComparisonSort}
-      />
-
-      <WhatIfTab estimates={estimatesForMode} selectedMode={selectedMode} pricingMap={pricingMap} />
-
-      <div className="mt-8 rounded-3xl bg-card/20 p-4 sm:p-6">
-        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-          <div>
-            <p className="text-sm text-text/60">Cost breakdown</p>
-            <h2 className="mt-1 text-2xl font-semibold text-text">AI generation estimates</h2>
-          </div>
-          <p className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-sm text-primary">
-            {capitalize(selectedMode)} mode
-          </p>
-        </div>
-        <div className="mt-6 overflow-hidden rounded-2xl">
-          <table className="min-w-full divide-y divide-text/10 text-sm">
-            <thead className="bg-card/20 text-left text-text/60">
-              <tr>
-                <th className="hidden px-4 py-3 font-medium sm:table-cell">Provider</th>
-                <th className="px-4 py-3 font-medium">Model</th>
-                <th className="px-4 py-3 font-medium">Mode</th>
-                <th className="hidden px-4 py-3 text-right font-medium sm:table-cell">Output tokens</th>
-                <th className="px-4 py-3 text-right font-medium">Total cost</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-text/10 text-text/80">
-              {estimatesForMode.map((estimate) => (
-                <tr key={`${estimate.provider}-${estimate.model}-${estimate.mode}`}>
-                  <td className="hidden px-4 py-3 capitalize sm:table-cell">{estimate.provider}</td>
-                  <td className="px-4 py-3">{estimate.model}</td>
-                  <td className="px-4 py-3 capitalize">{estimate.mode}</td>
-                  <td className="hidden px-4 py-3 text-right sm:table-cell">{numberFormatter.format(estimate.estimatedOutputTokens)}</td>
-                  <td className="px-4 py-3 text-right font-medium text-text">{currencyFormatter.format(estimate.totalCost)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <ResultsPanel tab="whatif" active={activeTab === 'whatif'}>
+        <WhatIfTab estimates={estimatesForMode} selectedMode={selectedMode} pricingMap={pricingMap} />
+      </ResultsPanel>
     </section>
-  )
-}
-
-function Panel({ eyebrow, title, children }: { eyebrow: string; title: string; children: ReactNode }) {
-  return (
-    <section className="rounded-3xl bg-card/20 p-5 shadow-2xl shadow-bg/20 sm:p-6">
-      <p className="text-sm text-text/60">{eyebrow}</p>
-      <h2 className="mt-1 text-2xl font-semibold text-text">{title}</h2>
-      <div className="mt-6">{children}</div>
-    </section>
-  )
-}
-
-function BarList({
-  emptyLabel,
-  items,
-  valueFormatter,
-}: {
-  emptyLabel: string
-  items: Array<{ label: string; value: number; helper: string; percent: number }>
-  valueFormatter: (value: number) => string
-}) {
-  if (items.length === 0) {
-    return <p className="rounded-2xl border border-dashed border-text/10 p-6 text-sm text-text/60">{emptyLabel}</p>
-  }
-
-  return (
-    <div className="space-y-4">
-      {items.map((item) => (
-        <div key={`${item.label}-${item.helper}`}>
-          <div className="mb-2 flex items-start justify-between gap-3 text-sm">
-            <div className="min-w-0">
-              <p className="truncate font-medium text-text" title={item.label}>
-                {item.label}
-              </p>
-              <p className="truncate text-text/50" title={item.helper}>
-                {item.helper}
-              </p>
-            </div>
-            <p className="shrink-0 text-right font-medium text-primary">{valueFormatter(item.value)}</p>
-          </div>
-          <div className="h-2 overflow-hidden rounded-full bg-text/10">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-primary to-secondary"
-              style={{ width: `${Math.max(2, Math.min(100, item.percent))}%` }}
-            />
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function CostSummaryCard({ label, estimate }: { label: string; estimate: RepositoryAnalysisCostEstimateResponse | null }) {
-  return (
-    <article className="rounded-2xl bg-bg/50 p-4">
-      <p className="text-sm text-text/60">{label}</p>
-      <p className="mt-2 text-2xl font-semibold text-text">
-        {estimate ? currencyFormatter.format(estimate.totalCost) : '$0.00'}
-      </p>
-      <p className="mt-1 truncate text-sm text-text/50" title={estimate ? `${estimate.provider} · ${estimate.model}` : undefined}>
-        {estimate ? `${estimate.provider} · ${estimate.model}` : 'No estimates available'}
-      </p>
-    </article>
   )
 }
 
