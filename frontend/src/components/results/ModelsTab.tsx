@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 
 import { PrecisionBadge } from '../PrecisionBadge'
 import type { RepositoryAnalysisCostEstimateResponse } from '../../types/api'
-import { currencyFormatter } from '../../utils/formatters'
+import { currencyFormatter, numberFormatter } from '../../utils/formatters'
 import type { CostMode } from '../../utils/formatters'
 import {
   capitalize,
@@ -77,6 +77,7 @@ function ModelComparisonCard({ row }: { row: ModelComparisonRow }) {
             <PrecisionBadge precision={row.estimate.precision ?? undefined} />
           </span>
           <p className="mt-1 text-sm capitalize text-text/50">{row.estimate.provider}</p>
+          <p className="mt-1 text-xs text-text/50">{numberFormatter.format(row.estimate.estimatedOutputTokens)} output tokens</p>
         </div>
         <p className="shrink-0 text-lg font-semibold text-text">
           {currencyFormatter.format(row.estimate.totalCost)}
@@ -210,6 +211,7 @@ export function ModelsTab({
             <tr>
               <th className="px-4 py-3 font-medium">Model</th>
               <th className="px-4 py-3 font-medium">Provider</th>
+              <th className="px-4 py-3 text-right font-medium">Output tokens</th>
               <th className="px-4 py-3 text-right font-medium">Estimated cost</th>
               <th className="px-4 py-3 font-medium">Relative cost</th>
               <th className="px-4 py-3 font-medium">Efficiency tier</th>
@@ -229,6 +231,9 @@ export function ModelsTab({
                   </span>
                 </td>
                 <td className="px-4 py-3 capitalize text-text/80">{row.estimate.provider}</td>
+                <td className="px-4 py-3 text-right text-text/80">
+                  {numberFormatter.format(row.estimate.estimatedOutputTokens)}
+                </td>
                 <td className="px-4 py-3 text-right font-medium text-text">
                   {currencyFormatter.format(row.estimate.totalCost)}
                 </td>

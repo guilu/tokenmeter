@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { ReactNode } from 'react'
 
 import { numberFormatter } from '../../utils/formatters'
@@ -65,12 +66,18 @@ function BarList({
   )
 }
 
+const PAGE_SIZE = 8
+
 export function LanguagesTab({ languages, totalTokens }: LanguagesTabProps) {
+  const [showAll, setShowAll] = useState(false)
+  const hasMore = languages.length > PAGE_SIZE
+  const visible = languages.slice(0, showAll ? languages.length : PAGE_SIZE)
+
   return (
     <Panel eyebrow="Language breakdown" title="Repository composition">
       <BarList
         emptyLabel="No language metrics available."
-        items={languages.slice(0, 8).map((language) => ({
+        items={visible.map((language) => ({
           label: language.language,
           value: language.tokens,
           helper: `${numberFormatter.format(language.files)} files · ${numberFormatter.format(language.lines)} lines`,
@@ -78,6 +85,17 @@ export function LanguagesTab({ languages, totalTokens }: LanguagesTabProps) {
         }))}
         valueFormatter={(value) => `${new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(value)} tokens`}
       />
+      {hasMore ? (
+        <div className="mt-4 text-center">
+          <button
+            type="button"
+            onClick={() => setShowAll((v) => !v)}
+            className="rounded-xl border border-text/10 bg-card/20 px-4 py-2 text-sm text-text/60 transition hover:border-primary/30 hover:text-text"
+          >
+            {showAll ? 'Show top 8' : `Show all ${languages.length} languages`}
+          </button>
+        </div>
+      ) : null}
     </Panel>
   )
 }
