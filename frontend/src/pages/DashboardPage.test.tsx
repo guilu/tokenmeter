@@ -186,6 +186,136 @@ describe('DashboardPage export controls', () => {
   })
 })
 
+describe('DashboardPage WhatIfPanel integration', () => {
+  afterEach(() => {
+    cleanup()
+    vi.restoreAllMocks()
+    window.history.pushState(null, '', '/')
+  })
+
+  function makeBreakdownResponse(analysisId: string) {
+    return {
+      analysisId,
+      createdAt: '2026-05-24T18:00:00Z',
+      repositoryUrl: 'https://github.com/guilu/tokenmeter',
+      summary: { totalTokens: 1000, totalModels: 1, totalModes: 3 },
+      models: [
+        {
+          provider: 'openai',
+          model: 'gpt-4o',
+          pricing: { inputTokenPricePerMillion: 2.5, outputTokenPricePerMillion: 10.0 },
+          modes: [],
+        },
+      ],
+    }
+  }
+
+  function makeFetchWithBreakdown(analysisId: string) {
+    return vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString()
+      if (url.includes('/cost-breakdown')) {
+        return jsonResponse(makeBreakdownResponse(analysisId))
+      }
+      return jsonResponse(sampleAnalysis({ withPricing: true }))
+    })
+  }
+
+  it('fetches cost-breakdown exactly once on results view load', async () => {
+    const analysisId = 'analysis-with-pricing'
+    window.history.pushState(null, '', `/analysis/${analysisId}`)
+    const fetchMock = makeFetchWithBreakdown(analysisId)
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<DashboardPage />)
+    await screen.findByText(/Analysis id:/)
+
+    // Wait for WhatIfPanel to appear (breakdown resolved)
+    await screen.findByRole('heading', { name: /What-If Multiplier Panel/i })
+
+    const breakdownCalls = fetchMock.mock.calls.filter((call) => {
+      const url = typeof call[0] === 'string' ? call[0] : String(call[0])
+      return url.includes('/cost-breakdown')
+    })
+    expect(breakdownCalls).toHaveLength(1)
+  })
+
+  it('renders WhatIfPanel with a multiplier slider after results load', async () => {
+    const analysisId = 'analysis-with-pricing'
+    window.history.pushState(null, '', `/analysis/${analysisId}`)
+    vi.stubGlobal('fetch', makeFetchWithBreakdown(analysisId))
+
+    render(<DashboardPage />)
+    await screen.findByText(/Analysis id:/)
+
+    // Sliders appear once WhatIfPanel is rendered
+    const sliders = await screen.findAllByRole('slider')
+    expect(sliders.length).toBeGreaterThan(0)
+  })
+
+  it('WhatIfPanel root element carries print:hidden class', async () => {
+    const analysisId = 'analysis-with-pricing'
+    window.history.pushState(null, '', `/analysis/${analysisId}`)
+    vi.stubGlobal('fetch', makeFetchWithBreakdown(analysisId))
+
+    render(<DashboardPage />)
+    await screen.findByText(/Analysis id:/)
+
+    const panelHeading = await screen.findByRole('heading', { name: /What-If Multiplier Panel/i })
+    // The panel's outermost section element carries print:hidden
+    const panelRoot = panelHeading.closest('section')
+    expect(panelRoot?.className).toContain('print:hidden')
+  })
+
+  it('changing a slider does NOT trigger additional cost-breakdown fetches', async () => {
+    const analysisId = 'analysis-with-pricing'
+    window.history.pushState(null, '', `/analysis/${analysisId}`)
+    const fetchMock = makeFetchWithBreakdown(analysisId)
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<DashboardPage />)
+    await screen.findByText(/Analysis id:/)
+
+    const sliders = await screen.findAllByRole('slider')
+    const outputSlider = sliders.find((el) => {
+      const label = el.getAttribute('aria-label') ?? ''
+      return /output/i.test(label)
+    })
+    expect(outputSlider).toBeDefined()
+
+    // Count breakdown calls before slider change
+    const callsBefore = fetchMock.mock.calls.filter((call) => {
+      const url = typeof call[0] === 'string' ? call[0] : String(call[0])
+      return url.includes('/cost-breakdown')
+    }).length
+
+    fireEvent.change(outputSlider!, { target: { value: '10' } })
+
+    // Give React a tick to process
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    const callsAfter = fetchMock.mock.calls.filter((call) => {
+      const url = typeof call[0] === 'string' ? call[0] : String(call[0])
+      return url.includes('/cost-breakdown')
+    }).length
+
+    expect(callsAfter).toBe(callsBefore)
+  })
+
+  it('markdown export link is still present and unchanged alongside WhatIfPanel', async () => {
+    const analysisId = 'analysis-with-pricing'
+    window.history.pushState(null, '', `/analysis/${analysisId}`)
+    vi.stubGlobal('fetch', makeFetchWithBreakdown(analysisId))
+
+    render(<DashboardPage />)
+    await screen.findByText(/Analysis id:/)
+    await screen.findByRole('heading', { name: /What-If Multiplier Panel/i })
+
+    const link = screen.getByRole('link', { name: /Markdown/i })
+    expect(link).toHaveAttribute('href', `/api/analyze/${analysisId}/export.md`)
+    expect(link).toHaveAttribute('download')
+  })
+})
+
 function jsonResponse(body: unknown): Response {
   return new Response(JSON.stringify(body), {
     status: 200,
