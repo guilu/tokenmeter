@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 
-import { CostHero } from '../components/CostHero'
-import { FloorDisclaimer } from '../components/FloorDisclaimer'
-import { HeuristicDisclaimer } from '../components/HeuristicDisclaimer'
 import { PipelineTimeline } from '../components/PipelineTimeline'
-import { PrecisionBadge } from '../components/PrecisionBadge'
+import { LanguagesTab } from '../components/results/LanguagesTab'
+import { ModelsTab } from '../components/results/ModelsTab'
+import { OverviewSection } from '../components/results/OverviewSection'
+import { WhatIfTab } from '../components/results/WhatIfTab'
+import { WorkflowTab } from '../components/results/WorkflowTab'
 import { TrendingSection } from '../components/TrendingSection'
-import { WhatIfPanel } from '../components/WhatIfPanel'
-import { WorkflowAssumptions } from '../components/WorkflowAssumptions'
 import { useAnalysisJob } from '../hooks/useAnalysisJob'
 import { useAsync } from '../hooks/useAsync'
 import { useElapsedSeconds } from '../hooks/useElapsedSeconds'
@@ -27,19 +26,22 @@ import {
   stageIndexFromJob,
 } from '../utils/analysisJobProgress'
 import {
-  compactNumberFormatter,
   costModes,
   currencyFormatter,
   numberFormatter,
 } from '../utils/formatters'
 import type { CostMode } from '../utils/formatters'
+import {
+  average,
+  capitalize,
+  cheapest,
+  highest,
+  languageBreakdown,
+  percentOf,
+  uniqueProviders,
+} from '../utils/resultsCost'
 import { buildPricingMap, derivePricing, pricingKey } from '../utils/whatIfCost'
 import type { PricingMap } from '../utils/whatIfCost'
-
-const dateFormatter = new Intl.DateTimeFormat('en-US', {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-})
 
 type ComparisonSort = 'cost' | 'relative' | 'efficiency' | 'model'
 type ProviderFilter = 'all' | string
@@ -54,24 +56,6 @@ const modeMultiplierLabel: Record<CostMode, string> = {
   raw: '1× output tokens — baseline floor',
   assisted: '5× output + 1× input — workflow overhead',
   agentic: '20× output + 4× input — autonomous loop',
-}
-
-function ShareIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="h-4 w-4"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      viewBox="0 0 24 24"
-    >
-      <circle cx="18" cy="5" r="3" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="6" cy="12" r="3" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="18" cy="19" r="3" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
 }
 
 export function DashboardPage() {
@@ -506,114 +490,24 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
 
   return (
     <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-16" id="results">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <button className="text-sm text-primary/80 transition hover:text-primary" onClick={onNewAnalysis} type="button">
-          ← Analyze another repository
-        </button>
-        <div className="flex flex-wrap items-center gap-2 print:hidden">
-          <button
-            className="rounded-2xl border border-text/10 bg-card/20 px-4 py-2 text-sm text-text/80 transition hover:bg-card/40"
-            onClick={() => void handleCopyPublicUrl()}
-            type="button"
-          >
-            {copyState === 'copied' ? 'Copied!' : copyState === 'failed' ? 'Copy failed' : 'Copy URL'}
-          </button>
-          <a
-            className="inline-flex items-center gap-2 rounded-2xl border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-medium text-primary transition hover:bg-primary/20"
-            href={selectedOpenGraphImageUrl}
-            rel="noreferrer"
-            target="_blank"
-          >
-            <ShareIcon />
-            Badge
-          </a>
-          <a
-            className="inline-flex items-center gap-2 rounded-2xl border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-medium text-primary transition hover:bg-primary/20"
-            href={`/api/analyze/${analysis.id}/badge.svg`}
-            rel="noreferrer"
-            target="_blank"
-          >
-            <ShareIcon />
-            Mini badge
-          </a>
-          <a
-            className="inline-flex items-center gap-2 rounded-2xl border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-medium text-primary transition hover:bg-primary/20"
-            download
-            href={`/api/analyze/${analysis.id}/export.md`}
-          >
-            Markdown
-          </a>
-          <button
-            className="inline-flex items-center gap-2 rounded-2xl border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-medium text-primary transition hover:bg-primary/20"
-            onClick={() => window.print()}
-            type="button"
-          >
-            Export PDF
-          </button>
-        </div>
-      </div>
-
-      <header className="mt-6 rounded-3xl bg-secondary/10 p-5 sm:p-6">
-        <p className="mb-4 inline-flex rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-sm text-primary">
-          Analysis complete
-        </p>
-        <h1 className="flex items-center gap-3 text-2xl font-semibold tracking-tight text-text sm:text-4xl">
-          <svg aria-hidden="true" className="h-7 w-7 shrink-0 text-text/60 sm:h-9 sm:w-9" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
-          </svg>
-          <a
-            className="break-all transition hover:opacity-80"
-            href={analysis.repositoryUrl}
-            rel="noopener noreferrer"
-            target="_blank"
-          >
-            {repositoryName(analysis.repositoryUrl)}
-          </a>
-        </h1>
-        <p className="mt-3 text-sm text-text/60">
-          Analysis id: {analysis.id} · {dateFormatter.format(new Date(analysis.createdAt))}
-        </p>
-        {analysis.pricing ? (
-          <p className="mt-1 text-sm text-text/60">
-            Pricing: {analysis.pricing.primarySource} · captured {dateFormatter.format(new Date(analysis.pricing.capturedAt))}
-          </p>
-        ) : null}
-      </header>
-
-      <ModeSwitch selectedMode={selectedMode} onSelectMode={setSelectedMode} />
-
-      <CostHero
+      <OverviewSection
         analysis={analysis}
+        selectedMode={selectedMode}
+        onSelectMode={setSelectedMode}
         lowestEstimate={cheapestEstimate}
         highestEstimate={highestEstimate}
-        selectedMode={selectedMode}
         topLanguage={topLanguage}
+        languageCount={languages.length}
+        modelCount={estimatesForMode.length}
+        averageCost={averageCost}
+        onNewAnalysis={onNewAnalysis}
+        copyState={copyState}
+        onCopyPublicUrl={handleCopyPublicUrl}
+        selectedOpenGraphImageUrl={selectedOpenGraphImageUrl}
       />
 
-      <div className="mt-8">
-        <FloorDisclaimer />
-      </div>
-
-      <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4" id="metrics">
-        <MetricCard label="Tokens" value={compactNumberFormatter.format(analysis.metrics.totalTokens)} hint={`${numberFormatter.format(analysis.metrics.totalTokens)} tracked`} />
-        <MetricCard label="Files" value={numberFormatter.format(analysis.metrics.totalFiles)} hint={`${numberFormatter.format(analysis.metrics.totalLines)} total lines`} />
-        <MetricCard label="Languages" value={numberFormatter.format(languages.length)} hint={`${analysis.metrics.tokenEncoding} encoding`} />
-        <MetricCard label="Avg. cost" value={currencyFormatter.format(averageCost)} hint={`${selectedMode} mode across ${estimatesForMode.length} models`} />
-      </div>
-
       <div className="mt-8 grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-        <Panel eyebrow="Language breakdown" title="Repository composition">
-          <BarList
-            emptyLabel="No language metrics available."
-            items={languages.slice(0, 8).map((language) => ({
-              label: language.language,
-              value: language.tokens,
-              helper: `${numberFormatter.format(language.files)} files · ${numberFormatter.format(language.lines)} lines`,
-              percent: percentOf(language.tokens, analysis.metrics.totalTokens),
-            }))}
-            valueFormatter={(value) => `${compactNumberFormatter.format(value)} tokens`}
-          />
-        </Panel>
+        <LanguagesTab languages={languages} totalTokens={analysis.metrics.totalTokens} />
 
         <Panel eyebrow="AI costs" title={`${capitalize(selectedMode)} mode estimates`}>
           <div className="mb-5 grid gap-3 sm:grid-cols-2">
@@ -636,17 +530,14 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
         </Panel>
       </div>
 
-      <WorkflowAssumptions selectedMode={selectedMode} estimate={primaryEstimate} rawBaselineEstimate={rawBaselineEstimate} />
+      <WorkflowTab
+        estimates={estimatesForMode}
+        selectedMode={selectedMode}
+        primaryEstimate={primaryEstimate}
+        rawBaselineEstimate={rawBaselineEstimate}
+      />
 
-      <EngineeringEffortPanel estimates={estimatesForMode} selectedMode={selectedMode} />
-
-      {estimatesForMode.length > 0 ? (
-        <div className="mt-8">
-          <HeuristicDisclaimer estimates={estimatesForMode} />
-        </div>
-      ) : null}
-
-      <ModelComparison
+      <ModelsTab
         estimates={estimatesForMode}
         providerFilter={providerFilter}
         providers={providersForMode}
@@ -656,7 +547,7 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
         onSort={setComparisonSort}
       />
 
-      <WhatIfPanel estimates={estimatesForMode} selectedMode={selectedMode} pricingMap={pricingMap} />
+      <WhatIfTab estimates={estimatesForMode} selectedMode={selectedMode} pricingMap={pricingMap} />
 
       <div className="mt-8 rounded-3xl bg-card/20 p-4 sm:p-6">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
@@ -694,284 +585,6 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
         </div>
       </div>
     </section>
-  )
-}
-
-function EngineeringEffortPanel({ estimates, selectedMode }: { estimates: RepositoryAnalysisCostEstimateResponse[]; selectedMode: CostMode }) {
-  const representativeEstimate = cheapest(estimates) ?? estimates[0] ?? null
-  const highestEffortEstimate = estimates.reduce<RepositoryAnalysisCostEstimateResponse | null>((best, estimate) => {
-    if (best === null) return estimate
-    return estimate.engineeringEffort.seniorEngineerHours > best.engineeringEffort.seniorEngineerHours ? estimate : best
-  }, null)
-  const averageHours = average(estimates.map((estimate) => estimate.engineeringEffort.seniorEngineerHours))
-  const assumptions = representativeEstimate?.engineeringEffort.assumptions
-
-  return (
-    <section className="mt-8 rounded-3xl border border-secondary/20 bg-secondary/[0.04] p-5 shadow-2xl shadow-bg/20 sm:p-6">
-      <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-start">
-        <div>
-          <p className="text-sm text-secondary/80">Engineering effort equivalence</p>
-          <h2 className="mt-1 text-2xl font-semibold text-text">Human-readable scale for {selectedMode} mode</h2>
-          <p className="mt-3 text-sm leading-6 text-text/60">
-            TokenMeter translates token and workflow estimates into senior-engineering time, so cost numbers have a practical delivery-scale reference instead of feeling like abstract cents.
-          </p>
-          {representativeEstimate ? (
-            <div className="mt-5 rounded-2xl border border-secondary/20 bg-secondary/10 p-5">
-              <p className="text-xs uppercase tracking-[0.2em] text-secondary/70">Lowest-cost model equivalence</p>
-              <p className="mt-3 text-3xl font-semibold text-text">{representativeEstimate.engineeringEffort.summary}</p>
-              <p className="mt-2 text-sm text-secondary/80">
-                {representativeEstimate.provider} · {representativeEstimate.model}
-              </p>
-            </div>
-          ) : null}
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <AssumptionMetric label="Average senior hours" value={`${formatDecimal(averageHours, 1)} h`} />
-          <AssumptionMetric label="Max manual effort" value={highestEffortEstimate ? highestEffortEstimate.engineeringEffort.manualImplementationEffort : 'No estimate'} />
-          <AssumptionMetric label="Engineering day" value={assumptions ? `${formatDecimal(assumptions.hoursPerEngineeringDay, 1)} h/day` : 'Configurable'} />
-          <AssumptionMetric label="Mode multiplier" value={assumptions ? `${formatDecimal(assumptions.modeComplexityMultiplier, 2)}×` : 'Mode-aware'} />
-        </div>
-      </div>
-    </section>
-  )
-}
-
-function ModelComparison({
-  estimates,
-  providerFilter,
-  providers,
-  selectedMode,
-  sortBy,
-  onFilterProvider,
-  onSort,
-}: {
-  estimates: RepositoryAnalysisCostEstimateResponse[]
-  providerFilter: ProviderFilter
-  providers: string[]
-  selectedMode: CostMode
-  sortBy: ComparisonSort
-  onFilterProvider: (provider: ProviderFilter) => void
-  onSort: (sort: ComparisonSort) => void
-}) {
-  const cheapestEstimate = cheapest(estimates)
-  const highestEstimate = highest(estimates)
-  const comparisonRows = useMemo(() => {
-    const baselineCost = cheapestEstimate?.totalCost ?? 0
-    const maxCost = highestEstimate?.totalCost ?? 0
-
-    return estimates
-      .filter((estimate) => providerFilter === 'all' || estimate.provider === providerFilter)
-      .map((estimate) => ({
-        estimate,
-        relativeCost: baselineCost > 0 ? estimate.totalCost / baselineCost : 1,
-        costPercent: percentOf(estimate.totalCost, maxCost),
-        efficiencyScore: maxCost > 0 ? 1 - estimate.totalCost / maxCost : 1,
-        tier: modelTier(estimate, baselineCost, maxCost),
-        note: modelComparisonNote(estimate, baselineCost, maxCost),
-      }))
-      .sort((left, right) => {
-        if (sortBy === 'model') return left.estimate.model.localeCompare(right.estimate.model)
-        if (sortBy === 'relative') return left.relativeCost - right.relativeCost
-        if (sortBy === 'efficiency') return right.efficiencyScore - left.efficiencyScore
-        return left.estimate.totalCost - right.estimate.totalCost
-      })
-  }, [cheapestEstimate, estimates, highestEstimate, providerFilter, sortBy])
-
-  return (
-    <section className="mt-8 rounded-3xl bg-card/20 p-5 shadow-2xl shadow-bg/20 sm:p-6">
-      <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
-        <div>
-          <p className="text-sm text-text/60">Model benchmark</p>
-          <h2 className="mt-1 text-2xl font-semibold text-text">AI model comparison</h2>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-text/60">
-            Compare {selectedMode} generation estimates side-by-side by provider, cost, relative efficiency and quality tier.
-          </p>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="grid gap-1 text-sm text-text/60">
-            Provider
-            <div className="relative">
-              <select
-                className="w-full appearance-none rounded-2xl border border-text/10 bg-bg px-3 py-2 pr-8 text-sm text-text outline-none transition focus:border-primary/60"
-                onChange={(event) => onFilterProvider(event.target.value)}
-                value={providerFilter}
-              >
-                <option value="all">All providers</option>
-                {providers.map((provider) => (
-                  <option key={provider} value={provider}>
-                    {capitalize(provider)}
-                  </option>
-                ))}
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center">
-                <svg className="h-4 w-4 text-text/50" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" /></svg>
-              </div>
-            </div>
-          </label>
-          <label className="grid gap-1 text-sm text-text/60">
-            Sort by
-            <div className="relative">
-              <select
-                className="w-full appearance-none rounded-2xl border border-text/10 bg-bg px-3 py-2 pr-8 text-sm text-text outline-none transition focus:border-primary/60"
-                onChange={(event) => onSort(event.target.value as ComparisonSort)}
-                value={sortBy}
-              >
-                <option value="cost">Lowest cost</option>
-                <option value="relative">Relative cost</option>
-                <option value="efficiency">Efficiency</option>
-                <option value="model">Model name</option>
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center">
-                <svg className="h-4 w-4 text-text/50" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" /></svg>
-              </div>
-            </div>
-          </label>
-        </div>
-      </div>
-
-      <div className="mt-6 grid gap-3 lg:hidden">
-        {comparisonRows.map((row) => (
-          <ModelComparisonCard key={`${row.estimate.provider}-${row.estimate.model}`} row={row} />
-        ))}
-      </div>
-
-      <div className="mt-6 hidden overflow-hidden rounded-2xl lg:block">
-        <table className="min-w-full divide-y divide-text/10 text-sm">
-          <thead className="bg-card/20 text-left text-text/60">
-            <tr>
-              <th className="px-4 py-3 font-medium">Model</th>
-              <th className="px-4 py-3 font-medium">Provider</th>
-              <th className="px-4 py-3 text-right font-medium">Estimated cost</th>
-              <th className="px-4 py-3 font-medium">Relative cost</th>
-              <th className="px-4 py-3 font-medium">Efficiency tier</th>
-              <th className="px-4 py-3 font-medium">Notes</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-text/10 text-text/80">
-            {comparisonRows.map((row) => (
-              <tr className="transition hover:bg-card/20" key={`${row.estimate.provider}-${row.estimate.model}`}>
-                <td className="px-4 py-3 font-medium text-text">
-                  <span className="flex items-center gap-2">
-                    {row.estimate.model}
-                    <PrecisionBadge precision={row.estimate.precision ?? undefined} />
-                  </span>
-                </td>
-                <td className="px-4 py-3 capitalize text-text/80">{row.estimate.provider}</td>
-                <td className="px-4 py-3 text-right font-medium text-text">{currencyFormatter.format(row.estimate.totalCost)}</td>
-                <td className="px-4 py-3">
-                  <RelativeCostBar percent={row.costPercent} label={`${row.relativeCost.toFixed(1)}×`} />
-                </td>
-                <td className="px-4 py-3"><TierBadge tier={row.tier} /></td>
-                <td className="px-4 py-3 text-text/60">{row.note}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  )
-}
-
-type ModelComparisonRow = {
-  estimate: RepositoryAnalysisCostEstimateResponse
-  relativeCost: number
-  costPercent: number
-  efficiencyScore: number
-  tier: string
-  note: string
-}
-
-function ModelComparisonCard({ row }: { row: ModelComparisonRow }) {
-  return (
-    <article className="rounded-2xl bg-bg/45 p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <span className="flex items-center gap-2">
-            <p className="truncate font-medium text-text" title={row.estimate.model}>{row.estimate.model}</p>
-            <PrecisionBadge precision={row.estimate.precision ?? undefined} />
-          </span>
-          <p className="mt-1 text-sm capitalize text-text/50">{row.estimate.provider}</p>
-        </div>
-        <p className="shrink-0 text-lg font-semibold text-text">{currencyFormatter.format(row.estimate.totalCost)}</p>
-      </div>
-      <div className="mt-4">
-        <RelativeCostBar percent={row.costPercent} label={`${row.relativeCost.toFixed(1)}× vs cheapest`} />
-      </div>
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <TierBadge tier={row.tier} />
-        <span className="text-sm text-text/60">{row.note}</span>
-      </div>
-    </article>
-  )
-}
-
-function RelativeCostBar({ percent, label }: { percent: number; label: string }) {
-  return (
-    <div>
-      <div className="mb-2 flex items-center justify-between gap-3 text-xs text-text/60">
-        <span>Relative cost</span>
-        <span className="font-medium text-primary">{label}</span>
-      </div>
-      <div className="h-2 overflow-hidden rounded-full bg-text/10">
-        <div className="h-full rounded-full bg-gradient-to-r from-secondary via-primary to-accent" style={{ width: `${Math.max(4, Math.min(100, percent))}%` }} />
-      </div>
-    </div>
-  )
-}
-
-function TierBadge({ tier }: { tier: string }) {
-  const tone = tier === 'Cheapest' ? 'secondary' : tier === 'Premium' || tier === 'High reasoning' ? 'accent' : tier === 'Experimental' ? 'secondary' : 'primary'
-  const className =
-    tone === 'secondary'
-      ? 'border-secondary/20 bg-secondary/10 text-secondary'
-      : tone === 'accent'
-        ? 'border-accent/20 bg-accent/10 text-accent'
-        : 'border-primary/20 bg-primary/10 text-primary'
-
-  return <span className={`rounded-full border px-3 py-1 text-xs font-medium ${className}`}>{tier}</span>
-}
-
-function AssumptionMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <article className="rounded-2xl bg-card/20 p-4">
-      <p className="text-xs uppercase tracking-[0.2em] text-text/50">{label}</p>
-      <p className="mt-2 text-lg font-semibold text-text">{value}</p>
-    </article>
-  )
-}
-
-function ModeSwitch({ selectedMode, onSelectMode }: { selectedMode: CostMode; onSelectMode: (mode: CostMode) => void }) {
-  return (
-    <div className="mt-6 rounded-2xl border border-text/10 bg-bg/60 p-1.5">
-      <div className="grid grid-cols-3 gap-1.5">
-        {costModes.map((mode) => {
-          const active = selectedMode === mode
-          return (
-            <button
-              className={`rounded-xl px-4 py-3 text-base font-semibold capitalize transition ${
-                active ? 'bg-primary text-bg shadow-lg shadow-primary/20' : 'text-text/80 hover:bg-card/40 hover:text-text'
-              }`}
-              key={mode}
-              onClick={() => onSelectMode(mode)}
-              type="button"
-            >
-              {mode}
-            </button>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-function MetricCard({ label, value, hint }: { label: string; value: string; hint: string }) {
-  return (
-    <article className="rounded-2xl bg-card/20 p-5 shadow-2xl shadow-bg/20 sm:p-6">
-      <p className="text-sm text-text/60">{label}</p>
-      <p className="mt-3 text-3xl font-semibold text-text">{value}</p>
-      <p className="mt-2 text-sm text-text/50">{hint}</p>
-    </article>
   )
 }
 
@@ -1037,10 +650,6 @@ function CostSummaryCard({ label, estimate }: { label: string; estimate: Reposit
       </p>
     </article>
   )
-}
-
-function languageBreakdown(analysis: RepositoryAnalysisResponse) {
-  return Object.values(analysis.metrics.languages).sort((left, right) => right.tokens - left.tokens)
 }
 
 function getAnalysisIdFromLocation() {
@@ -1172,66 +781,6 @@ function costRangeLabel(
   return lowest === highest ? lowest : `${lowest} – ${highest}`
 }
 
-function uniqueProviders(estimates: RepositoryAnalysisCostEstimateResponse[]) {
-  return Array.from(new Set(estimates.map((estimate) => estimate.provider))).sort((left, right) => left.localeCompare(right))
-}
-
-function modelTier(estimate: RepositoryAnalysisCostEstimateResponse, baselineCost: number, maxCost: number) {
-  const model = estimate.model.toLowerCase()
-  const provider = estimate.provider.toLowerCase()
-  const relativeCost = baselineCost > 0 ? estimate.totalCost / baselineCost : 1
-  const premiumThreshold = maxCost * 0.82
-
-  if (relativeCost <= 1.05) return 'Cheapest'
-  if (model.includes('reason') || model.includes('opus') || model.includes('o1') || model.includes('o3')) return 'High reasoning'
-  if (model.includes('preview') || model.includes('experimental') || provider.includes('xai')) return 'Experimental'
-  if (estimate.totalCost >= premiumThreshold) return 'Premium'
-  return 'Balanced'
-}
-
-function modelComparisonNote(estimate: RepositoryAnalysisCostEstimateResponse, baselineCost: number, maxCost: number) {
-  const tier = modelTier(estimate, baselineCost, maxCost)
-  if (tier === 'Cheapest') return 'Lowest simulated cost for this workflow.'
-  if (tier === 'High reasoning') return 'Higher reasoning profile; useful for complex repositories.'
-  if (tier === 'Premium') return 'Higher cost option, likely best reserved for quality-sensitive work.'
-  if (tier === 'Experimental') return 'Useful benchmark candidate; validate quality before relying on it.'
-  return 'Middle-ground cost profile for routine generation workflows.'
-}
-
-function cheapest(estimates: RepositoryAnalysisCostEstimateResponse[]) {
-  return estimates.reduce<RepositoryAnalysisCostEstimateResponse | null>((best, estimate) => {
-    if (best === null) return estimate
-    return estimate.totalCost < best.totalCost ? estimate : best
-  }, null)
-}
-
-function highest(estimates: RepositoryAnalysisCostEstimateResponse[]) {
-  return estimates.reduce<RepositoryAnalysisCostEstimateResponse | null>((best, estimate) => {
-    if (best === null) return estimate
-    return estimate.totalCost > best.totalCost ? estimate : best
-  }, null)
-}
-
-function average(values: number[]) {
-  if (values.length === 0) return 0
-  return values.reduce((sum, value) => sum + value, 0) / values.length
-}
-
-function formatDecimal(value: number, maximumFractionDigits: number) {
-  return new Intl.NumberFormat('en-US', {
-    maximumFractionDigits,
-    minimumFractionDigits: value % 1 === 0 ? 0 : Math.min(1, maximumFractionDigits),
-  }).format(value)
-}
-
-function percentOf(value: number, total: number) {
-  if (total <= 0) return 0
-  return (value / total) * 100
-}
-
-function capitalize(value: string) {
-  return value.charAt(0).toUpperCase() + value.slice(1)
-}
 
 function isValidGitHubUrl(value: string) {
   try {
