@@ -51,20 +51,8 @@ function makeAnalysis(
       tokenEncoding: 'o200k_base',
       totalTokens: 5000,
       languages: {
-        TypeScript: {
-          language: 'TypeScript',
-          files: 8,
-          lines: 400,
-          bytes: 16000,
-          tokens: 4000,
-        },
-        CSS: {
-          language: 'CSS',
-          files: 2,
-          lines: 100,
-          bytes: 4000,
-          tokens: 1000,
-        },
+        TypeScript: { language: 'TypeScript', files: 8, lines: 400, bytes: 16000, tokens: 4000 },
+        CSS: { language: 'CSS', files: 2, lines: 100, bytes: 4000, tokens: 1000 },
       },
     },
     costEstimates: [],
@@ -72,48 +60,52 @@ function makeAnalysis(
   }
 }
 
-describe('CostHero — cross-mode floor/ceiling range', () => {
+describe('CostHero — selected-mode headline + floor/ceiling band marker', () => {
   afterEach(() => {
     cleanup()
   })
 
-  it('renders floorEstimate totalCost in the Floor (RAW) card', () => {
-    const floorEstimate = makeEstimate({ totalCost: 1.23, mode: 'raw', provider: 'openai', model: 'gpt-4o-mini' })
-    const ceilingEstimate = makeEstimate({ totalCost: 99.50, mode: 'agentic', provider: 'anthropic', model: 'claude-opus' })
-
-    render(
-      <CostHero
-        analysis={makeAnalysis()}
-        floorEstimate={floorEstimate}
-        ceilingEstimate={ceilingEstimate}
-        selectedModeEstimate={floorEstimate}
-        selectedMode="raw"
-        topLanguage={{ language: 'TypeScript', files: 8, lines: 400, bytes: 16000, tokens: 4000 }}
-      />,
-    )
-
-    expect(screen.getByText('$1.23')).toBeInTheDocument()
-  })
-
-  it('renders ceilingEstimate totalCost in the Ceiling (AGENTIC) card', () => {
+  it('renders the selected-mode cost as the prominent headline (moves with the mode)', () => {
     const floorEstimate = makeEstimate({ totalCost: 1.23, mode: 'raw' })
-    const ceilingEstimate = makeEstimate({ totalCost: 99.50, mode: 'agentic', provider: 'anthropic', model: 'claude-opus' })
+    const ceilingEstimate = makeEstimate({ totalCost: 99.5, mode: 'agentic' })
+    const selectedModeEstimate = makeEstimate({ totalCost: 3.5, mode: 'assisted', provider: 'openai', model: 'gpt-4o' })
 
     render(
       <CostHero
         analysis={makeAnalysis()}
         floorEstimate={floorEstimate}
         ceilingEstimate={ceilingEstimate}
-        selectedModeEstimate={floorEstimate}
-        selectedMode="raw"
+        selectedModeEstimate={selectedModeEstimate}
+        selectedMode="assisted"
         topLanguage={undefined}
       />,
     )
 
+    expect(screen.getByText('$3.50')).toBeInTheDocument()
+    expect(screen.getByText(/cheapest in assisted mode/i)).toBeInTheDocument()
+  })
+
+  it('renders floor and ceiling values in the band', () => {
+    const floorEstimate = makeEstimate({ totalCost: 1.23, mode: 'raw', model: 'gpt-4o-mini' })
+    const ceilingEstimate = makeEstimate({ totalCost: 99.5, mode: 'agentic', provider: 'anthropic', model: 'claude-opus' })
+    const selectedModeEstimate = makeEstimate({ totalCost: 50, mode: 'assisted', provider: 'openai', model: 'gpt-4o' })
+
+    render(
+      <CostHero
+        analysis={makeAnalysis()}
+        floorEstimate={floorEstimate}
+        ceilingEstimate={ceilingEstimate}
+        selectedModeEstimate={selectedModeEstimate}
+        selectedMode="assisted"
+        topLanguage={undefined}
+      />,
+    )
+
+    expect(screen.getByText('$1.23')).toBeInTheDocument()
     expect(screen.getByText('$99.50')).toBeInTheDocument()
   })
 
-  it('renders badge labels "Floor (RAW)" and "Ceiling (AGENTIC)"', () => {
+  it('renders the "Floor (RAW)" and "Ceiling (AGENTIC)" band labels', () => {
     const floorEstimate = makeEstimate({ totalCost: 1.23, mode: 'raw' })
     const ceilingEstimate = makeEstimate({ totalCost: 9.87, mode: 'agentic' })
 
@@ -132,47 +124,10 @@ describe('CostHero — cross-mode floor/ceiling range', () => {
     expect(screen.getByText('Ceiling (AGENTIC)')).toBeInTheDocument()
   })
 
-  it('renders em dash when both floor and ceiling estimates are null', () => {
-    render(
-      <CostHero
-        analysis={makeAnalysis()}
-        floorEstimate={null}
-        ceilingEstimate={null}
-        selectedModeEstimate={null}
-        selectedMode="assisted"
-        topLanguage={undefined}
-      />,
-    )
-
-    const dashes = screen.getAllByText('—')
-    expect(dashes).toHaveLength(2)
-  })
-
-  it('renders ceiling fallback value when no AGENTIC rows are available (fallback = max across all modes)', () => {
-    // In this case ceilingEstimate is derived from assisted (fallback), not agentic
-    const floorEstimate = makeEstimate({ totalCost: 0.50, mode: 'raw' })
-    const fallbackCeiling = makeEstimate({ totalCost: 5.00, mode: 'assisted', provider: 'openai', model: 'gpt-4o' })
-
-    render(
-      <CostHero
-        analysis={makeAnalysis()}
-        floorEstimate={floorEstimate}
-        ceilingEstimate={fallbackCeiling}
-        selectedModeEstimate={fallbackCeiling}
-        selectedMode="assisted"
-        topLanguage={undefined}
-      />,
-    )
-
-    expect(screen.getByText('$5.00')).toBeInTheDocument()
-    // Still renders Ceiling (AGENTIC) badge label regardless of fallback
-    expect(screen.getByText('Ceiling (AGENTIC)')).toBeInTheDocument()
-  })
-
-  it('renders selected-mode indicator text when selectedModeEstimate is provided', () => {
+  it('renders a "Viewing:" indicator with the current mode', () => {
     const floorEstimate = makeEstimate({ totalCost: 1.23, mode: 'raw' })
     const ceilingEstimate = makeEstimate({ totalCost: 9.87, mode: 'agentic' })
-    const selectedModeEstimate = makeEstimate({ totalCost: 3.50, mode: 'assisted', provider: 'openai', model: 'gpt-4o' })
+    const selectedModeEstimate = makeEstimate({ totalCost: 3.5, mode: 'assisted' })
 
     render(
       <CostHero
@@ -185,30 +140,64 @@ describe('CostHero — cross-mode floor/ceiling range', () => {
       />,
     )
 
-    // In-band indicator showing current mode
     expect(screen.getByText(/Viewing:/i)).toBeInTheDocument()
-    expect(screen.getByText(/assisted/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/assisted/i).length).toBeGreaterThan(0)
   })
 
-  it('single-mode analysis: floor and ceiling both show raw values', () => {
-    const cheapRaw = makeEstimate({ totalCost: 0.10, mode: 'raw', model: 'gpt-4o-mini' })
-    const priceyRaw = makeEstimate({ totalCost: 0.80, mode: 'raw', model: 'gpt-4o' })
+  it('positions the mode marker proportionally inside the floor→ceiling band', () => {
+    // floor 10, ceiling 110, selected 60 → (60-10)/100 = 50%
+    const floorEstimate = makeEstimate({ totalCost: 10, mode: 'raw' })
+    const ceilingEstimate = makeEstimate({ totalCost: 110, mode: 'agentic' })
+    const selectedModeEstimate = makeEstimate({ totalCost: 60, mode: 'assisted' })
 
     render(
       <CostHero
         analysis={makeAnalysis()}
-        floorEstimate={cheapRaw}
-        ceilingEstimate={priceyRaw}
-        selectedModeEstimate={cheapRaw}
+        floorEstimate={floorEstimate}
+        ceilingEstimate={ceilingEstimate}
+        selectedModeEstimate={selectedModeEstimate}
+        selectedMode="assisted"
+        topLanguage={undefined}
+      />,
+    )
+
+    const marker = screen.getByTestId('mode-marker')
+    expect(marker).toBeInTheDocument()
+    expect(marker.style.left).toBe('50%')
+  })
+
+  it('omits the marker when the band has no spread (floor === ceiling)', () => {
+    const onlyRaw = makeEstimate({ totalCost: 0.5, mode: 'raw' })
+
+    render(
+      <CostHero
+        analysis={makeAnalysis()}
+        floorEstimate={onlyRaw}
+        ceilingEstimate={onlyRaw}
+        selectedModeEstimate={onlyRaw}
         selectedMode="raw"
         topLanguage={undefined}
       />,
     )
 
-    expect(screen.getByText('$0.10')).toBeInTheDocument()
-    expect(screen.getByText('$0.80')).toBeInTheDocument()
-    // Selected mode indicator visible
-    expect(screen.getByText(/Viewing:/i)).toBeInTheDocument()
+    expect(screen.queryByTestId('mode-marker')).not.toBeInTheDocument()
+  })
+
+  it('renders em dashes and no marker when all estimates are null', () => {
+    render(
+      <CostHero
+        analysis={makeAnalysis()}
+        floorEstimate={null}
+        ceilingEstimate={null}
+        selectedModeEstimate={null}
+        selectedMode="assisted"
+        topLanguage={undefined}
+      />,
+    )
+
+    // headline + floor + ceiling each show an em dash
+    expect(screen.getAllByText('—')).toHaveLength(3)
+    expect(screen.queryByTestId('mode-marker')).not.toBeInTheDocument()
   })
 
   it('renders topLanguage label in HeroMeta', () => {
