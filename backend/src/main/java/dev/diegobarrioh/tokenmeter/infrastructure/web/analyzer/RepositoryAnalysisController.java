@@ -149,6 +149,7 @@ public class RepositoryAnalysisController {
             <meta property=\"og:description\" content=\"%s\" />
             <meta property=\"og:type\" content=\"website\" />
             <meta property=\"og:url\" content=\"%s\" />
+            <link rel=\"canonical\" href=\"%s\" />
             <meta property=\"og:image\" content=\"%s\" />
             <meta property=\"og:image:secure_url\" content=\"%s\" />
             <meta property=\"og:image:type\" content=\"image/png\" />
@@ -170,6 +171,7 @@ public class RepositoryAnalysisController {
                 html(description),
                 html(title),
                 html(description),
+                html(publicPath),
                 html(publicPath),
                 html(imagePath),
                 html(imagePath),
