@@ -202,6 +202,49 @@ class HuggingFaceTokenCounterTest {
   }
 
   @Test
+  void nativeLinkageErrorFallsBackToZeroWithoutThrowing() {
+    // The DJL native lib can fail to load with UnsatisfiedLinkError (a LinkageError / Error, NOT an
+    // Exception) — e.g. /tmp mounted noexec in production. count() MUST degrade to 0L, never let
+    // the Error propagate and break the analysis job.
+    HuggingFaceTokenCounter nativeFailingCounter =
+        new HuggingFaceTokenCounter(
+            new DefaultResourceLoader() {
+              @Override
+              public org.springframework.core.io.Resource getResource(String location) {
+                if (location.contains("native-fail")) {
+                  return new org.springframework.core.io.ByteArrayResource(new byte[0]) {
+                    @Override
+                    public boolean exists() {
+                      return true;
+                    }
+
+                    @Override
+                    public java.io.InputStream getInputStream() {
+                      throw new UnsatisfiedLinkError("simulated native lib failure");
+                    }
+                  };
+                }
+                return super.getResource(location);
+              }
+            });
+    try {
+      ModelTokenizationProfile profile =
+          new ModelTokenizationProfile(
+              "test/native-fail",
+              TokenizationPrecision.EXACT_LOCAL,
+              TokenCounterStrategy.HF_LOCAL,
+              null,
+              null,
+              "native-fail/tokenizer.json");
+
+      long result = nativeFailingCounter.count("Hello, world!", profile);
+      assertThat(result).isZero();
+    } finally {
+      nativeFailingCounter.close();
+    }
+  }
+
+  @Test
   void preDestroyClosesAllCachedTokenizers() {
     // Load both tokenizers into the cache
     counter.count("Hello", deepseekProfile());

@@ -77,7 +77,7 @@ public class HuggingFaceTokenCounter implements TokenCounter {
     }
     try {
       return tokenizer.encode(text).getIds().length;
-    } catch (RuntimeException e) {
+    } catch (RuntimeException | LinkageError e) {
       LOG.warn("HF encode failed for tokenizer '{}': {}", profile.tokenizerId(), e.getMessage());
       return 0L;
     }
@@ -119,7 +119,10 @@ public class HuggingFaceTokenCounter implements TokenCounter {
             try (InputStream inputStream = resource.getInputStream()) {
               return HuggingFaceTokenizer.newInstance(inputStream, Map.of());
             }
-          } catch (IOException | RuntimeException e) {
+          } catch (IOException | RuntimeException | LinkageError e) {
+            // LinkageError (e.g. UnsatisfiedLinkError) is thrown when the DJL native lib cannot be
+            // loaded — e.g. /tmp mounted noexec. It is an Error, not an Exception, so it MUST be
+            // caught here or it would propagate and break the whole analysis job.
             LOG.warn(
                 "HF tokenizer load failed for classpath:tokenizers/{}: {}", key, e.getMessage());
             return null;
