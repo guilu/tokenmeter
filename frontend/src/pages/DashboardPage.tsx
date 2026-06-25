@@ -453,20 +453,11 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
     () => analysis.costEstimates.filter((estimate) => estimate.mode === 'raw'),
     [analysis.costEstimates],
   )
-  const agenticEstimates = useMemo(
-    () => analysis.costEstimates.filter((estimate) => estimate.mode === 'agentic'),
-    [analysis.costEstimates],
-  )
+  // Range shown in the hero = cheapest / priciest model within the SELECTED mode.
+  // Both react to the mode switch.
   const cheapestEstimate = useMemo(() => cheapest(estimatesForMode), [estimatesForMode])
   const highestEstimate = useMemo(() => highest(estimatesForMode), [estimatesForMode])
   const rawBaselineEstimate = useMemo(() => cheapest(rawEstimates), [rawEstimates])
-  // Cross-mode floor/ceiling: floor = cheapest RAW; ceiling = priciest AGENTIC (fallback = priciest across all modes)
-  const floorEstimate = useMemo(() => cheapest(rawEstimates), [rawEstimates])
-  const ceilingEstimate = useMemo(
-    () => highest(agenticEstimates) ?? highest(analysis.costEstimates),
-    [agenticEstimates, analysis.costEstimates],
-  )
-  const selectedModeEstimate = useMemo(() => cheapest(estimatesForMode), [estimatesForMode])
   const primaryEstimate = cheapestEstimate ?? estimatesForMode[0] ?? null
   const topLanguage = languages[0]
   const providersForMode = useMemo(() => uniqueProviders(estimatesForMode), [estimatesForMode])
@@ -593,9 +584,8 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
 
       <CostHero
         analysis={analysis}
-        floorEstimate={floorEstimate}
-        ceilingEstimate={ceilingEstimate}
-        selectedModeEstimate={selectedModeEstimate}
+        lowestEstimate={cheapestEstimate}
+        highestEstimate={highestEstimate}
         selectedMode={selectedMode}
         topLanguage={topLanguage}
       />
