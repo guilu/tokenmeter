@@ -47,10 +47,10 @@ profiles:
 
   - provider: deepseek
     model-pattern: ".*"
-    tokenizer-id: "deepseek/heuristic"
-    precision: HEURISTIC
-    strategy: HEURISTIC
-    heuristic-factor: 1.0
+    tokenizer-id: "deepseek/tokenizer"
+    precision: EXACT_LOCAL
+    strategy: HF_LOCAL
+    hf-model-path: "deepseek/tokenizer.json"
 
   - provider: mistral
     model-pattern: ".*"
@@ -61,10 +61,10 @@ profiles:
 
   - provider: alibaba
     model-pattern: "qwen.*"
-    tokenizer-id: "alibaba/qwen_heuristic"
-    precision: HEURISTIC
-    strategy: HEURISTIC
-    heuristic-factor: 1.0
+    tokenizer-id: "qwen/tokenizer"
+    precision: EXACT_LOCAL
+    strategy: HF_LOCAL
+    hf-model-path: "qwen/tokenizer.json"
 
   - provider: xai
     model-pattern: ".*"

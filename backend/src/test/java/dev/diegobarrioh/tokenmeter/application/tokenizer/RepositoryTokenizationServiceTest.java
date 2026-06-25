@@ -30,6 +30,7 @@ class RepositoryTokenizationServiceTest {
           TokenizationPrecision.EXACT_LOCAL,
           TokenCounterStrategy.JTOKKIT,
           "O200K_BASE",
+          null,
           null);
 
   private static final ModelTokenizationProfile HEURISTIC_PROFILE =
@@ -38,7 +39,8 @@ class RepositoryTokenizationServiceTest {
           TokenizationPrecision.HEURISTIC,
           TokenCounterStrategy.HEURISTIC,
           null,
-          new BigDecimal("0.95"));
+          new BigDecimal("0.95"),
+          null);
 
   private static final Map<String, ModelTokenizationProfile> DUAL_TOKENIZERS =
       Map.of(O200K_ID, O200K_PROFILE, HEURISTIC_ID, HEURISTIC_PROFILE);

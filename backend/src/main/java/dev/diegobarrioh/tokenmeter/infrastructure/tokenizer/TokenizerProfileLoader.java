@@ -40,6 +40,8 @@ import org.springframework.stereotype.Component;
  *   <li>{@code strategy == JTOKKIT} requires {@code encoding} present and a valid {@link
  *       EncodingType} name.
  *   <li>{@code strategy == HEURISTIC} requires {@code heuristic-factor > 0}.
+ *   <li>{@code strategy == HF_LOCAL} requires {@code hf-model-path} non-blank AND the classpath
+ *       resource {@code classpath:tokenizers/{hf-model-path}} must exist.
  *   <li>The {@code default} block must be present and valid.
  * </ul>
  */
@@ -54,6 +56,7 @@ public class TokenizerProfileLoader implements TokenizationProfileCatalog {
 
   private final List<ProfileEntry> entries;
   private final ModelTokenizationProfile defaultProfile;
+  private final ResourceLoader resourceLoader;
 
   /**
    * Sole constructor; Spring autowires it (single public constructor, no {@code @Autowired}
@@ -62,6 +65,7 @@ public class TokenizerProfileLoader implements TokenizationProfileCatalog {
    */
   public TokenizerProfileLoader(
       ResourceLoader resourceLoader, TokenizerProfileProperties properties) {
+    this.resourceLoader = resourceLoader;
     Resource resource = resourceLoader.getResource(properties.profilesLocation());
     ProfilesConfiguration config = parseYaml(resource);
     this.entries = compileEntries(config.profiles());
@@ -157,7 +161,7 @@ public class TokenizerProfileLoader implements TokenizationProfileCatalog {
     validateEncodingOrFactor(dto, strategy, index);
     BigDecimal factor = dto.heuristicFactor() != null ? dto.heuristicFactor() : null;
     return new ModelTokenizationProfile(
-        dto.tokenizerId(), precision, strategy, dto.encoding(), factor);
+        dto.tokenizerId(), precision, strategy, dto.encoding(), factor, dto.hfModelPath());
   }
 
   private ModelTokenizationProfile buildDefaultProfile(DefaultEntryDto dto) {
@@ -172,7 +176,7 @@ public class TokenizerProfileLoader implements TokenizationProfileCatalog {
     TokenCounterStrategy strategy = parseStrategy(dto.strategy(), -1);
     BigDecimal factor = dto.heuristicFactor() != null ? dto.heuristicFactor() : null;
     return new ModelTokenizationProfile(
-        dto.tokenizerId(), precision, strategy, dto.encoding(), factor);
+        dto.tokenizerId(), precision, strategy, dto.encoding(), factor, null);
   }
 
   private TokenizationPrecision parsePrecision(String value, int index) {
@@ -219,6 +223,20 @@ public class TokenizerProfileLoader implements TokenizationProfileCatalog {
                 + " tokenizer-profiles.profiles[%d]".formatted(index));
       }
     }
+    if (strategy == TokenCounterStrategy.HF_LOCAL) {
+      if (dto.hfModelPath() == null || dto.hfModelPath().isBlank()) {
+        throw new PricingConfigurationException(
+            "hf-model-path is required for HF_LOCAL strategy at"
+                + " tokenizer-profiles.profiles[%d]".formatted(index));
+      }
+      Resource res = resourceLoader.getResource("classpath:tokenizers/" + dto.hfModelPath());
+      if (!res.exists()) {
+        throw new PricingConfigurationException(
+            ("HF tokenizer resource not found: classpath:tokenizers/%s at"
+                    + " tokenizer-profiles.profiles[%d]")
+                .formatted(dto.hfModelPath(), index));
+      }
+    }
   }
 
   // --- internal DTOs and compiled entry ---
@@ -236,7 +254,8 @@ public class TokenizerProfileLoader implements TokenizationProfileCatalog {
       String precision,
       String strategy,
       String encoding,
-      @JsonProperty("heuristic-factor") BigDecimal heuristicFactor) {}
+      @JsonProperty("heuristic-factor") BigDecimal heuristicFactor,
+      @JsonProperty("hf-model-path") String hfModelPath) {}
 
   private record DefaultEntryDto(
       @JsonProperty("tokenizer-id") String tokenizerId,

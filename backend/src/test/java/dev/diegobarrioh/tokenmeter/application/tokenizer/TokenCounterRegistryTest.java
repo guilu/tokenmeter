@@ -18,6 +18,7 @@ class TokenCounterRegistryTest {
         TokenizationPrecision.EXACT_LOCAL,
         TokenCounterStrategy.JTOKKIT,
         "O200K_BASE",
+        null,
         null);
   }
 
@@ -27,7 +28,8 @@ class TokenCounterRegistryTest {
         TokenizationPrecision.HEURISTIC,
         TokenCounterStrategy.HEURISTIC,
         null,
-        new BigDecimal("0.95"));
+        new BigDecimal("0.95"),
+        null);
   }
 
   @Test

@@ -146,7 +146,136 @@ class TokenizerProfileLoaderTest {
         .isInstanceOf(RuntimeException.class);
   }
 
+  // --- Task 2.4: HF_LOCAL loading + validation ---
+
+  @Test
+  void loadsHfLocalProfile() {
+    // GIVEN a YAML entry with strategy: HF_LOCAL, precision: EXACT_LOCAL, hf-model-path pointing
+    // to a real classpath resource that exists.
+    String yaml =
+        """
+        profiles:
+          - provider: deepseek
+            model-pattern: ".*"
+            tokenizer-id: "deepseek/tokenizer"
+            precision: EXACT_LOCAL
+            strategy: HF_LOCAL
+            hf-model-path: "deepseek/tokenizer.json"
+        default:
+          tokenizer-id: "openai/cl100k_base"
+          precision: HEURISTIC
+          strategy: JTOKKIT
+          encoding: CL100K_BASE
+        """;
+    // Use a loader that serves YAML for the profile location and the real classpath for the vocab
+    ResourceLoader loader = yamlWithRealClasspathLoader(yaml);
+
+    TokenizerProfileLoader profileLoader =
+        new TokenizerProfileLoader(loader, new TokenizerProfileProperties(null));
+
+    ModelTokenizationProfile profile =
+        profileLoader.resolve(
+            dev.diegobarrioh.tokenmeter.domain.pricing.AiProvider.DEEPSEEK, "deepseek-v3");
+
+    assertThat(profile.strategy()).isEqualTo(TokenCounterStrategy.HF_LOCAL);
+    assertThat(profile.precision()).isEqualTo(TokenizationPrecision.EXACT_LOCAL);
+    assertThat(profile.hfModelPath()).isEqualTo("deepseek/tokenizer.json");
+    assertThat(profile.tokenizerId()).isEqualTo("deepseek/tokenizer");
+  }
+
+  @Test
+  void rejectsHfLocalMissingHfModelPath() {
+    // GIVEN a YAML entry with strategy: HF_LOCAL but no hf-model-path key.
+    String yaml =
+        """
+        profiles:
+          - provider: deepseek
+            model-pattern: ".*"
+            tokenizer-id: "deepseek/tokenizer"
+            precision: EXACT_LOCAL
+            strategy: HF_LOCAL
+        default:
+          tokenizer-id: "openai/cl100k_base"
+          precision: HEURISTIC
+          strategy: JTOKKIT
+          encoding: CL100K_BASE
+        """;
+    ResourceLoader loader = yamlWithRealClasspathLoader(yaml);
+
+    // THEN PricingConfigurationException is thrown at startup
+    assertThatThrownBy(
+            () -> new TokenizerProfileLoader(loader, new TokenizerProfileProperties(null)))
+        .isInstanceOf(
+            dev.diegobarrioh.tokenmeter.application.pricing.PricingConfigurationException.class)
+        .hasMessageContaining("hf-model-path");
+  }
+
+  @Test
+  void rejectsHfLocalMissingClasspathResource() {
+    // GIVEN a YAML entry with strategy: HF_LOCAL and hf-model-path pointing to an absent resource.
+    String yaml =
+        """
+        profiles:
+          - provider: deepseek
+            model-pattern: ".*"
+            tokenizer-id: "deepseek/tokenizer"
+            precision: EXACT_LOCAL
+            strategy: HF_LOCAL
+            hf-model-path: "nonexistent/tokenizer.json"
+        default:
+          tokenizer-id: "openai/cl100k_base"
+          precision: HEURISTIC
+          strategy: JTOKKIT
+          encoding: CL100K_BASE
+        """;
+    ResourceLoader loader = yamlWithRealClasspathLoader(yaml);
+
+    // THEN PricingConfigurationException is thrown because the classpath resource does not exist
+    assertThatThrownBy(
+            () -> new TokenizerProfileLoader(loader, new TokenizerProfileProperties(null)))
+        .isInstanceOf(
+            dev.diegobarrioh.tokenmeter.application.pricing.PricingConfigurationException.class)
+        .hasMessageContaining("not found");
+  }
+
   // --- helpers ---
+
+  /**
+   * Returns a ResourceLoader that serves the given YAML content for the profile location but
+   * delegates to the real classpath for all other resource lookups (e.g. vocab resources).
+   */
+  private static ResourceLoader yamlWithRealClasspathLoader(String yaml) {
+    byte[] bytes = yaml.getBytes(StandardCharsets.UTF_8);
+    Resource yamlResource =
+        new ByteArrayResource(bytes) {
+          @Override
+          public boolean exists() {
+            return true;
+          }
+
+          @Override
+          public InputStream getInputStream() throws IOException {
+            return super.getInputStream();
+          }
+        };
+    DefaultResourceLoader realClasspathLoader = new DefaultResourceLoader();
+    return new ResourceLoader() {
+      @Override
+      public Resource getResource(String location) {
+        // Serve the in-memory YAML for the profile file; delegate everything else to the real
+        // classpath (so HF_LOCAL vocab existence checks resolve correctly).
+        if (location != null && location.endsWith("tokenizer-profiles.yaml")) {
+          return yamlResource;
+        }
+        return realClasspathLoader.getResource(location);
+      }
+
+      @Override
+      public ClassLoader getClassLoader() {
+        return TokenizerProfileLoaderTest.class.getClassLoader();
+      }
+    };
+  }
 
   private static ResourceLoader inMemoryLoader(String yaml) {
     byte[] bytes = yaml.getBytes(StandardCharsets.UTF_8);

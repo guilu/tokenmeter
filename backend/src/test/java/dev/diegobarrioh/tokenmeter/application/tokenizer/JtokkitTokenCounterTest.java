@@ -17,6 +17,7 @@ class JtokkitTokenCounterTest {
         TokenizationPrecision.EXACT_LOCAL,
         TokenCounterStrategy.JTOKKIT,
         "O200K_BASE",
+        null,
         null);
   }
 
@@ -26,6 +27,7 @@ class JtokkitTokenCounterTest {
         TokenizationPrecision.EXACT_LOCAL,
         TokenCounterStrategy.JTOKKIT,
         "CL100K_BASE",
+        null,
         null);
   }
 
@@ -42,7 +44,8 @@ class JtokkitTokenCounterTest {
             TokenizationPrecision.HEURISTIC,
             TokenCounterStrategy.HEURISTIC,
             null,
-            new java.math.BigDecimal("0.95"));
+            new java.math.BigDecimal("0.95"),
+            null);
     assertThat(counter.supports(heuristic)).isFalse();
   }
 
@@ -87,6 +90,7 @@ class JtokkitTokenCounterTest {
             TokenizationPrecision.EXACT_LOCAL,
             TokenCounterStrategy.JTOKKIT,
             "P50K_BASE",
+            null,
             null);
     assertThat(counter.count("Hello, world!", p50k)).isPositive();
   }
@@ -99,6 +103,7 @@ class JtokkitTokenCounterTest {
             TokenizationPrecision.EXACT_LOCAL,
             TokenCounterStrategy.JTOKKIT,
             "R50K_BASE",
+            null,
             null);
     assertThat(counter.count("Hello, world!", r50k)).isPositive();
   }

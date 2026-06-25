@@ -8,6 +8,14 @@ import org.junit.jupiter.api.Test;
 
 class ModelTokenizationProfileTest {
 
+  // --- Task 1.4 RED: HF_LOCAL enum value ---
+  @Test
+  void enumContainsHfLocal() {
+    // Asserts HF_LOCAL is a valid constant; will be RED until task 1.5 adds it to the enum
+    TokenCounterStrategy strategy = TokenCounterStrategy.valueOf("HF_LOCAL");
+    assertThat(strategy).isNotNull();
+  }
+
   @Test
   void rejectsBlankTokenizerId() {
     assertThatThrownBy(
@@ -17,6 +25,7 @@ class ModelTokenizationProfileTest {
                     TokenizationPrecision.EXACT_LOCAL,
                     TokenCounterStrategy.JTOKKIT,
                     "O200K_BASE",
+                    null,
                     null))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("tokenizerId");
@@ -31,6 +40,7 @@ class ModelTokenizationProfileTest {
                     TokenizationPrecision.EXACT_LOCAL,
                     TokenCounterStrategy.JTOKKIT,
                     "O200K_BASE",
+                    null,
                     null))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("tokenizerId");
@@ -44,6 +54,7 @@ class ModelTokenizationProfileTest {
                     "openai/o200k_base",
                     TokenizationPrecision.EXACT_LOCAL,
                     TokenCounterStrategy.JTOKKIT,
+                    null,
                     null,
                     null))
         .isInstanceOf(IllegalArgumentException.class)
@@ -59,6 +70,7 @@ class ModelTokenizationProfileTest {
                     TokenizationPrecision.HEURISTIC,
                     TokenCounterStrategy.HEURISTIC,
                     null,
+                    null,
                     null))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("heuristicFactor");
@@ -73,7 +85,8 @@ class ModelTokenizationProfileTest {
                     TokenizationPrecision.HEURISTIC,
                     TokenCounterStrategy.HEURISTIC,
                     null,
-                    BigDecimal.ZERO))
+                    BigDecimal.ZERO,
+                    null))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("heuristicFactor");
   }
@@ -86,6 +99,7 @@ class ModelTokenizationProfileTest {
             TokenizationPrecision.EXACT_LOCAL,
             TokenCounterStrategy.JTOKKIT,
             "O200K_BASE",
+            null,
             null);
 
     assertThat(profile.tokenizerId()).isEqualTo("openai/o200k_base");
@@ -103,12 +117,61 @@ class ModelTokenizationProfileTest {
             TokenizationPrecision.HEURISTIC,
             TokenCounterStrategy.HEURISTIC,
             null,
-            new BigDecimal("0.95"));
+            new BigDecimal("0.95"),
+            null);
 
     assertThat(profile.tokenizerId()).isEqualTo("anthropic/cl100k_heuristic");
     assertThat(profile.precision()).isEqualTo(TokenizationPrecision.HEURISTIC);
     assertThat(profile.strategy()).isEqualTo(TokenCounterStrategy.HEURISTIC);
     assertThat(profile.encoding()).isNull();
     assertThat(profile.heuristicFactor()).isEqualByComparingTo("0.95");
+  }
+
+  // --- Task 1.6 RED: HF_LOCAL domain record tests (6-arg constructor, compile fails until 1.7) ---
+  @Test
+  void acceptsValidHfLocalProfile() {
+    ModelTokenizationProfile profile =
+        new ModelTokenizationProfile(
+            "deepseek/tokenizer",
+            TokenizationPrecision.EXACT_LOCAL,
+            TokenCounterStrategy.HF_LOCAL,
+            null,
+            null,
+            "deepseek/tokenizer.json");
+
+    assertThat(profile.tokenizerId()).isEqualTo("deepseek/tokenizer");
+    assertThat(profile.strategy()).isEqualTo(TokenCounterStrategy.HF_LOCAL);
+    assertThat(profile.precision()).isEqualTo(TokenizationPrecision.EXACT_LOCAL);
+    assertThat(profile.hfModelPath()).isEqualTo("deepseek/tokenizer.json");
+  }
+
+  @Test
+  void rejectsHfLocalProfileWithNullPath() {
+    assertThatThrownBy(
+            () ->
+                new ModelTokenizationProfile(
+                    "deepseek/tokenizer",
+                    TokenizationPrecision.EXACT_LOCAL,
+                    TokenCounterStrategy.HF_LOCAL,
+                    null,
+                    null,
+                    null))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("hfModelPath");
+  }
+
+  @Test
+  void rejectsHfLocalProfileWithBlankPath() {
+    assertThatThrownBy(
+            () ->
+                new ModelTokenizationProfile(
+                    "deepseek/tokenizer",
+                    TokenizationPrecision.EXACT_LOCAL,
+                    TokenCounterStrategy.HF_LOCAL,
+                    null,
+                    null,
+                    "   "))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("hfModelPath");
   }
 }
