@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 
 import { CostHero } from '../components/CostHero'
@@ -7,11 +7,13 @@ import { HeuristicDisclaimer } from '../components/HeuristicDisclaimer'
 import { PipelineTimeline } from '../components/PipelineTimeline'
 import { PrecisionBadge } from '../components/PrecisionBadge'
 import { TrendingSection } from '../components/TrendingSection'
+import { WhatIfPanel } from '../components/WhatIfPanel'
 import { WorkflowAssumptions } from '../components/WorkflowAssumptions'
 import { useAnalysisJob } from '../hooks/useAnalysisJob'
+import { useAsync } from '../hooks/useAsync'
 import { useElapsedSeconds } from '../hooks/useElapsedSeconds'
 import { useStalledProgress } from '../hooks/useStalledProgress'
-import { ApiError, DEFAULT_REPOSITORY_URL, getAnalysis, submitAnalysis } from '../services/api'
+import { ApiError, DEFAULT_REPOSITORY_URL, getAnalysis, getCostBreakdown, submitAnalysis } from '../services/api'
 import type {
   RepositoryAnalysisCostEstimateResponse,
   RepositoryAnalysisResponse,
@@ -31,6 +33,8 @@ import {
   numberFormatter,
 } from '../utils/formatters'
 import type { CostMode } from '../utils/formatters'
+import { buildPricingMap, derivePricing, pricingKey } from '../utils/whatIfCost'
+import type { PricingMap } from '../utils/whatIfCost'
 
 const dateFormatter = new Intl.DateTimeFormat('en-US', {
   dateStyle: 'medium',
@@ -468,6 +472,41 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
   const providersForMode = useMemo(() => uniqueProviders(estimatesForMode), [estimatesForMode])
   const averageCost = average(estimatesForMode.map((estimate) => estimate.totalCost))
 
+  // Cost-breakdown fetch — called exactly once per analysis load; factory is
+  // memoized with useCallback so useAsync's [factory] dep is stable and does
+  // not trigger infinite re-fetches.
+  const breakdownFactory = useCallback(
+    () => getCostBreakdown(analysis.id),
+    [analysis.id],
+  )
+  const { data: breakdown } = useAsync(breakdownFactory)
+
+  // Build the pricing map: prefer exact server-side pricing from the breakdown;
+  // fall back to deriving from stored estimate rows for models whose server
+  // pricing is null (or when breakdown hasn't loaded yet).
+  const pricingMap = useMemo<PricingMap>(() => {
+    const map = buildPricingMap(breakdown)
+    // Group all cost estimates by provider:model for derivation fallback
+    const grouped = new Map<string, RepositoryAnalysisCostEstimateResponse[]>()
+    for (const estimate of analysis.costEstimates) {
+      const key = pricingKey(estimate.provider, estimate.model)
+      const existing = grouped.get(key)
+      if (existing) {
+        existing.push(estimate)
+      } else {
+        grouped.set(key, [estimate])
+      }
+    }
+    // Fill in any model missing from the breakdown-derived map
+    for (const [key, rows] of grouped.entries()) {
+      if (!map.has(key)) {
+        const derived = derivePricing(rows)
+        if (derived) map.set(key, derived)
+      }
+    }
+    return map
+  }, [breakdown, analysis.costEstimates])
+
   async function handleCopyPublicUrl() {
     const copied = await copyPublicUrl(publicUrl)
     setCopyState(copied ? 'copied' : 'failed')
@@ -626,6 +665,8 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
         onFilterProvider={setProviderFilter}
         onSort={setComparisonSort}
       />
+
+      <WhatIfPanel estimates={estimatesForMode} selectedMode={selectedMode} pricingMap={pricingMap} />
 
       <div className="mt-8 rounded-3xl bg-card/20 p-4 sm:p-6">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">

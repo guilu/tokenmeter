@@ -2,6 +2,7 @@ import type {
   AnalysisJobAcceptedResponse,
   AnalysisJobStatusResponse,
   AnalyzeRepositoryRequest,
+  CostBreakdownResponse,
   HealthResponse,
   LeaderboardLanguagesResponse,
   LeaderboardOverviewResponse,
@@ -74,6 +75,16 @@ export async function getAnalysis(analysisId: string): Promise<RepositoryAnalysi
   }
 
   return response.json() as Promise<RepositoryAnalysisResponse>
+}
+
+export async function getCostBreakdown(analysisId: string): Promise<CostBreakdownResponse> {
+  const response = await fetch(`/api/analyze/${encodeURIComponent(analysisId)}/cost-breakdown`)
+
+  if (!response.ok) {
+    throw await toApiError(response, 'Cost breakdown request failed')
+  }
+
+  return response.json() as Promise<CostBreakdownResponse>
 }
 
 export async function getPricing(): Promise<PricingResponse> {
