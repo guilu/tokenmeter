@@ -28,6 +28,9 @@ services:
       TOKENMETER_WORKDIR: ${TOKENMETER_WORKDIR:-/tmp/tokenmeter-repositories}
       TOKENMETER_MAX_REPOSITORY_BYTES: ${TOKENMETER_MAX_REPOSITORY_BYTES:-314572800}
       TOKENMETER_CLONE_TIMEOUT: ${TOKENMETER_CLONE_TIMEOUT:-120s}
+      # Canonical public base URL — used for OG/meta tags, sitemap.xml and robots.txt.
+      # MUST be the real public origin in production (e.g. https://tokenmeter.example.com).
+      TOKENMETER_PUBLIC_ORIGIN: ${TOKENMETER_PUBLIC_ORIGIN:-http://localhost:8081}
     read_only: true
     tmpfs:
       - /tmp:size=64m,mode=0700,uid=1001
