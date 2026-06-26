@@ -1,13 +1,15 @@
 import type { RepositoryAnalysisCostEstimateResponse, RepositoryAnalysisResponse } from '../types/api'
-import type { CostMode, LanguageBreakdownItem } from '../utils/formatters'
-import { currencyFormatter } from '../utils/formatters'
+import type { CostMode } from '../utils/formatters'
+import { compactNumberFormatter, currencyFormatter, numberFormatter } from '../utils/formatters'
 
 interface CostHeroProps {
   analysis: RepositoryAnalysisResponse
   lowestEstimate: RepositoryAnalysisCostEstimateResponse | null
   highestEstimate: RepositoryAnalysisCostEstimateResponse | null
   selectedMode: CostMode
-  topLanguage: LanguageBreakdownItem | undefined
+  languageCount: number
+  modelCount: number
+  averageCost: number
 }
 
 export function CostHero({
@@ -15,7 +17,9 @@ export function CostHero({
   lowestEstimate,
   highestEstimate,
   selectedMode,
-  topLanguage,
+  languageCount,
+  modelCount,
+  averageCost,
 }: CostHeroProps) {
   const repositoryLabel = repositoryName(analysis.repositoryUrl)
 
@@ -60,9 +64,27 @@ export function CostHero({
           token footprint and workflow overhead for the selected mode.
         </p>
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-2">
-          <HeroMeta label="Repository" value={repositoryLabel} />
-          <HeroMeta label="Top language" value={topLanguage ? topLanguage.language : 'Unknown'} />
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4" id="metrics">
+          <MetricCard
+            label="Tokens"
+            value={compactNumberFormatter.format(analysis.metrics.totalTokens)}
+            hint={`${numberFormatter.format(analysis.metrics.totalTokens)} tracked`}
+          />
+          <MetricCard
+            label="Files"
+            value={numberFormatter.format(analysis.metrics.totalFiles)}
+            hint={`${numberFormatter.format(analysis.metrics.totalLines)} total lines`}
+          />
+          <MetricCard
+            label="Languages"
+            value={numberFormatter.format(languageCount)}
+            hint={`${analysis.metrics.tokenEncoding} encoding`}
+          />
+          <MetricCard
+            label="Avg. cost"
+            value={currencyFormatter.format(averageCost)}
+            hint={`${selectedMode} mode across ${modelCount} models`}
+          />
         </div>
       </div>
     </section>
@@ -77,13 +99,12 @@ function CostRangeBadge({ label }: { label: 'Min' | 'Max' }) {
   )
 }
 
-function HeroMeta({ label, value }: { label: string; value: string }) {
+function MetricCard({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
-    <article className="min-w-0 rounded-2xl bg-card/20 p-4">
-      <p className="text-xs uppercase tracking-[0.2em] text-text/50">{label}</p>
-      <p className="mt-2 truncate text-lg font-semibold text-text" title={value}>
-        {value}
-      </p>
+    <article className="rounded-2xl bg-card/20 p-4 sm:p-5">
+      <p className="text-sm text-text/60">{label}</p>
+      <p className="mt-2 text-2xl font-semibold text-text sm:text-3xl">{value}</p>
+      <p className="mt-2 text-sm text-text/50">{hint}</p>
     </article>
   )
 }

@@ -60,7 +60,9 @@ function makeAnalysis(
   }
 }
 
-describe('CostHero — min/max range within the selected mode', () => {
+const baseMetrics = { languageCount: 2, modelCount: 3, averageCost: 2.5 }
+
+describe('CostHero — min/max range + embedded repo metrics', () => {
   afterEach(() => {
     cleanup()
   })
@@ -75,7 +77,7 @@ describe('CostHero — min/max range within the selected mode', () => {
         lowestEstimate={lowest}
         highestEstimate={highest}
         selectedMode="assisted"
-        topLanguage={undefined}
+        {...baseMetrics}
       />,
     )
 
@@ -92,7 +94,7 @@ describe('CostHero — min/max range within the selected mode', () => {
         lowestEstimate={lowest}
         highestEstimate={highest}
         selectedMode="assisted"
-        topLanguage={undefined}
+        {...baseMetrics}
       />,
     )
 
@@ -100,16 +102,13 @@ describe('CostHero — min/max range within the selected mode', () => {
   })
 
   it('renders the "Min" and "Max" badge labels', () => {
-    const lowest = makeEstimate({ totalCost: 1.23 })
-    const highest = makeEstimate({ totalCost: 4.56 })
-
     render(
       <CostHero
         analysis={makeAnalysis()}
-        lowestEstimate={lowest}
-        highestEstimate={highest}
+        lowestEstimate={makeEstimate({ totalCost: 1.23 })}
+        highestEstimate={makeEstimate({ totalCost: 4.56 })}
         selectedMode="assisted"
-        topLanguage={undefined}
+        {...baseMetrics}
       />,
     )
 
@@ -127,7 +126,7 @@ describe('CostHero — min/max range within the selected mode', () => {
         lowestEstimate={lowest}
         highestEstimate={highest}
         selectedMode="agentic"
-        topLanguage={undefined}
+        {...baseMetrics}
       />,
     )
 
@@ -135,45 +134,58 @@ describe('CostHero — min/max range within the selected mode', () => {
     expect(screen.getByText(/claude-opus · agentic workflow mode/i)).toBeInTheDocument()
   })
 
-  it('renders an em dash in each card when both estimates are null', () => {
+  it('renders an em dash in each cost card when both estimates are null', () => {
     render(
       <CostHero
         analysis={makeAnalysis()}
         lowestEstimate={null}
         highestEstimate={null}
         selectedMode="assisted"
-        topLanguage={undefined}
+        {...baseMetrics}
       />,
     )
 
     expect(screen.getAllByText('—')).toHaveLength(2)
   })
 
-  it('renders topLanguage label in HeroMeta', () => {
+  it('renders the 4 repo metric cards (Tokens, Files, Languages, Avg. cost) inside the hero', () => {
     render(
       <CostHero
         analysis={makeAnalysis()}
-        lowestEstimate={null}
-        highestEstimate={null}
-        selectedMode="raw"
-        topLanguage={{ language: 'TypeScript', files: 8, lines: 400, bytes: 16000, tokens: 4000 }}
+        lowestEstimate={makeEstimate({ totalCost: 1.23 })}
+        highestEstimate={makeEstimate({ totalCost: 4.56 })}
+        selectedMode="assisted"
+        languageCount={2}
+        modelCount={3}
+        averageCost={2.5}
       />,
     )
 
-    expect(screen.getByText('TypeScript')).toBeInTheDocument()
+    expect(screen.getByText('Tokens')).toBeInTheDocument()
+    expect(screen.getByText('Files')).toBeInTheDocument()
+    expect(screen.getByText('Languages')).toBeInTheDocument()
+    expect(screen.getByText('Avg. cost')).toBeInTheDocument()
+    // Files value + Avg cost value
+    expect(screen.getByText('10')).toBeInTheDocument()
+    expect(screen.getByText('$2.50')).toBeInTheDocument()
+    // Avg cost hint shows mode + model count
+    expect(screen.getByText(/assisted mode across 3 models/i)).toBeInTheDocument()
   })
 
-  it('renders "Unknown" when topLanguage is undefined', () => {
+  it('renders the language count and token encoding in the Languages card', () => {
     render(
       <CostHero
         analysis={makeAnalysis()}
-        lowestEstimate={null}
-        highestEstimate={null}
+        lowestEstimate={makeEstimate({ totalCost: 1.23 })}
+        highestEstimate={makeEstimate({ totalCost: 4.56 })}
         selectedMode="raw"
-        topLanguage={undefined}
+        languageCount={14}
+        modelCount={84}
+        averageCost={1086.74}
       />,
     )
 
-    expect(screen.getByText('Unknown')).toBeInTheDocument()
+    expect(screen.getByText('14')).toBeInTheDocument()
+    expect(screen.getByText(/o200k_base encoding/i)).toBeInTheDocument()
   })
 })
