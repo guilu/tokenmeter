@@ -474,7 +474,6 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
   const highestEstimate = useMemo(() => highest(estimatesForMode), [estimatesForMode])
   const rawBaselineEstimate = useMemo(() => cheapest(rawEstimates), [rawEstimates])
   const primaryEstimate = cheapestEstimate ?? estimatesForMode[0] ?? null
-  const topLanguage = languages[0]
   const providersForMode = useMemo(() => uniqueProviders(estimatesForMode), [estimatesForMode])
   const averageCost = average(estimatesForMode.map((estimate) => estimate.totalCost))
 
@@ -527,7 +526,6 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
         onSelectMode={setSelectedMode}
         lowestEstimate={cheapestEstimate}
         highestEstimate={highestEstimate}
-        topLanguage={topLanguage}
         languageCount={languages.length}
         modelCount={estimatesForMode.length}
         averageCost={averageCost}

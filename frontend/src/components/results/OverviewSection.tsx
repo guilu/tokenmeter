@@ -1,13 +1,8 @@
 import { CostHero } from '../CostHero'
 import { FloorDisclaimer } from '../FloorDisclaimer'
 import type { RepositoryAnalysisCostEstimateResponse, RepositoryAnalysisResponse } from '../../types/api'
-import {
-  compactNumberFormatter,
-  costModes,
-  currencyFormatter,
-  numberFormatter,
-} from '../../utils/formatters'
-import type { CostMode, LanguageBreakdownItem } from '../../utils/formatters'
+import { costModes } from '../../utils/formatters'
+import type { CostMode } from '../../utils/formatters'
 
 const dateFormatter = new Intl.DateTimeFormat('en-US', {
   dateStyle: 'medium',
@@ -20,7 +15,6 @@ export interface OverviewSectionProps {
   onSelectMode: (mode: CostMode) => void
   lowestEstimate: RepositoryAnalysisCostEstimateResponse | null
   highestEstimate: RepositoryAnalysisCostEstimateResponse | null
-  topLanguage: LanguageBreakdownItem | undefined
   languageCount: number
   modelCount: number
   averageCost: number
@@ -81,16 +75,6 @@ function ModeSwitch({
   )
 }
 
-function MetricCard({ label, value, hint }: { label: string; value: string; hint: string }) {
-  return (
-    <article className="rounded-2xl bg-card/20 p-5 shadow-2xl shadow-bg/20 sm:p-6">
-      <p className="text-sm text-text/60">{label}</p>
-      <p className="mt-3 text-3xl font-semibold text-text">{value}</p>
-      <p className="mt-2 text-sm text-text/50">{hint}</p>
-    </article>
-  )
-}
-
 function repositoryName(repositoryUrl: string) {
   try {
     const url = new URL(repositoryUrl)
@@ -106,7 +90,6 @@ export function OverviewSection({
   onSelectMode,
   lowestEstimate,
   highestEstimate,
-  topLanguage,
   languageCount,
   modelCount,
   averageCost,
@@ -208,34 +191,13 @@ export function OverviewSection({
         lowestEstimate={lowestEstimate}
         highestEstimate={highestEstimate}
         selectedMode={selectedMode}
-        topLanguage={topLanguage}
+        languageCount={languageCount}
+        modelCount={modelCount}
+        averageCost={averageCost}
       />
 
       <div className="mt-8">
         <FloorDisclaimer />
-      </div>
-
-      <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4" id="metrics">
-        <MetricCard
-          label="Tokens"
-          value={compactNumberFormatter.format(analysis.metrics.totalTokens)}
-          hint={`${numberFormatter.format(analysis.metrics.totalTokens)} tracked`}
-        />
-        <MetricCard
-          label="Files"
-          value={numberFormatter.format(analysis.metrics.totalFiles)}
-          hint={`${numberFormatter.format(analysis.metrics.totalLines)} total lines`}
-        />
-        <MetricCard
-          label="Languages"
-          value={numberFormatter.format(languageCount)}
-          hint={`${analysis.metrics.tokenEncoding} encoding`}
-        />
-        <MetricCard
-          label="Avg. cost"
-          value={currencyFormatter.format(averageCost)}
-          hint={`${selectedMode} mode across ${modelCount} models`}
-        />
       </div>
     </>
   )

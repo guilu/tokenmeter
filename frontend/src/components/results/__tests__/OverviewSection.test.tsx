@@ -69,7 +69,6 @@ const defaultProps = {
   onSelectMode: vi.fn(),
   lowestEstimate: makeEstimate({ totalCost: 0.01 }),
   highestEstimate: makeEstimate({ totalCost: 0.10 }),
-  topLanguage: { language: 'TypeScript', files: 8, lines: 400, bytes: 16000, tokens: 4000 },
   languageCount: 2,
   modelCount: 1,
   averageCost: 0.01,
