@@ -1,6 +1,11 @@
 services:
   db:
     image: postgres:18-alpine
+    # Stable, low-cardinality labels for Promtail → Loki (host=omarchy is added by Promtail).
+    # Promtail relabels these container labels into Loki stream labels; do NOT add dynamic values.
+    labels:
+      app: tokenmeter
+      component: db
     environment:
       POSTGRES_DB: ${TOKENMETER_DB_NAME:-tokenmeter}
       POSTGRES_USER: ${TOKENMETER_DB_USER:?TOKENMETER_DB_USER must be set (see .env.example)}
@@ -20,6 +25,9 @@ services:
   backend:
     build:
       context: ./backend
+    labels:
+      app: tokenmeter
+      component: backend
     environment:
       SPRING_PROFILES_ACTIVE: docker
       DATABASE_URL: jdbc:postgresql://db:5432/${TOKENMETER_DB_NAME:-tokenmeter}
@@ -62,6 +70,9 @@ services:
       args:
         # Public GA4 Measurement ID (not a secret). Override via host env if needed.
         VITE_GA_MEASUREMENT_ID: "${VITE_GA_MEASUREMENT_ID:-G-2B7EES2G5F}"
+    labels:
+      app: tokenmeter
+      component: frontend
     depends_on:
       backend:
         condition: service_healthy
