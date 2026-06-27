@@ -3,10 +3,18 @@
   <include resource="org/springframework/boot/logging/logback/defaults.xml" />
 
   <springProperty scope="context" name="applicationName" source="spring.application.name" defaultValue="tokenmeter-backend" />
+  <springProperty scope="context" name="activeProfile" source="spring.profiles.active" defaultValue="local" />
 
+  <!--
+    Stable, low-cardinality identity fields emitted on every JSON line so Loki/Grafana queries can
+    filter without parsing the message. `component` is constant for this service; `environment`
+    tracks the active Spring profile (docker/prod/...). MDC fields (requestId, jobId) and the
+    encoder's own level/logger_name/thread_name are added automatically — do NOT promote dynamic
+    values (repositoryUrl, analysisId, IPs) to Loki labels; keep them as JSON fields or message.
+  -->
   <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
     <encoder class="net.logstash.logback.encoder.LogstashEncoder">
-      <customFields>{"service":"${applicationName}"}</customFields>
+      <customFields>{"service":"${applicationName}","component":"backend","environment":"${activeProfile}"}</customFields>
     </encoder>
   </appender>
 
