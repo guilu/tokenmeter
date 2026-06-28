@@ -420,6 +420,82 @@ El cuerpo incluye en orden:
 
 ---
 
+## `GET /api/badge/{owner}/{repo}.svg`
+
+Badge SVG embebible en READMEs, resuelto por repositorio (no por `analysisId`). Devuelve el badge de coste del **último análisis `SUCCESS`** de ese repositorio, de modo que el badge se autoactualiza cuando se reanaliza el repo. El coste mostrado es el rango RAW (min/max).
+
+**Path params**: `owner`, `repo`. El sufijo `.svg` forma parte de la ruta. La resolución es **case-insensitive** (se normaliza a minúsculas, igual que la columna `repository_url`).
+
+**200 OK** — análisis encontrado
+
+- `Content-Type: image/svg+xml`
+- `Cache-Control: max-age=1800, public` (30 min)
+- Cuerpo: SVG con el coste de regeneración.
+
+**200 OK** — repo sin análisis (estado controlado, **no 404**)
+
+- Mismo `Content-Type`.
+- Cuerpo: badge **neutro** con texto `not analyzed` (color `#9f9f9f`).
+
+**400 INVALID_URL** si `owner`/`repo` tienen formato inválido (p. ej. caracteres ilegales). Nunca devuelve `500` por formato.
+
+> El badge por `analysisId` (`GET /api/analyze/{id}/badge.svg`, fijo a un análisis concreto), la imagen Open Graph PNG (`GET /api/analyze/{id}/og-image.png`) y la página HTML con meta tags OG/Twitter (`GET /analysis/{id}`) ya existían y no se ven afectados por este endpoint.
+
+### Snippet Markdown (botón "Copy badge Markdown")
+
+En la página de resultados (sección Overview) el botón **"Copy badge Markdown"** copia un snippet que apunta a este endpoint by-repo:
+
+```markdown
+[![AI generation cost](https://<host>/api/badge/{owner}/{repo}.svg)](https://<host>/analysis/{id})
+```
+
+### Prueba manual (una vez desplegado)
+
+Asumiendo Docker (frontend `:3001`, nginx proxya `/api` → backend). Para `local`: frontend dev `:3000`, backend `:8080`.
+
+1. **Precondición** — analiza un repo por la UI (`http://localhost:3001`), p. ej. `https://github.com/octocat/Hello-World`, y espera a `COMPLETED`. El badge by-repo necesita un análisis `SUCCESS` previo.
+
+2. **Caso feliz** — debe responder `200`, `image/svg+xml`, `Cache-Control: max-age=1800, public`:
+
+   ```bash
+   curl -i "http://localhost:3001/api/badge/octocat/Hello-World.svg"
+   ```
+
+   Visual: abre la misma URL en el navegador → se ve el badge.
+
+3. **Badge neutro** — repo sin análisis → `200` con texto `not analyzed` (no 404):
+
+   ```bash
+   curl -i "http://localhost:3001/api/badge/torvalds/linux.svg"
+   ```
+
+4. **Formato inválido** → `400 INVALID_URL`, no `500`:
+
+   ```bash
+   curl -i "http://localhost:3001/api/badge/inv@lid/repo.svg"
+   ```
+
+5. **Case-insensitive** — mismo badge que el paso 2:
+
+   ```bash
+   curl -s "http://localhost:3001/api/badge/OCTOCAT/HELLO-WORLD.svg" | head -c 80
+   ```
+
+6. **Botón "Copy badge Markdown"** — abre un análisis completado en la UI, click en "Copy badge Markdown" (cambia a "Copied!"), pega el snippet en un README de GitHub real y comprueba que el badge se renderiza embebido.
+
+**Smoke todo-en-uno** (tras analizar `octocat/Hello-World`):
+
+```bash
+for u in "octocat/Hello-World" "torvalds/linux" "inv@lid/x"; do
+  echo "=== $u ==="
+  curl -s -o /dev/null -w "%{http_code} %{content_type}\n" "http://localhost:3001/api/badge/$u.svg"
+done
+```
+
+Esperado: `200 image/svg+xml`, `200 image/svg+xml` (neutro), `400` (formato inválido).
+
+---
+
 ## `GET /api/pricing`
 
 Devuelve los precios vigentes, fusionando overrides → snapshot persistido (REMOTE) → fallback YAML. Precios en USD por millón de tokens.
