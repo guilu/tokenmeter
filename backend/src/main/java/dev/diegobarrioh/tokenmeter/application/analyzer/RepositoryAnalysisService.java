@@ -1,5 +1,6 @@
 package dev.diegobarrioh.tokenmeter.application.analyzer;
 
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 
@@ -20,5 +21,11 @@ public class RepositoryAnalysisService {
 
   public RepositoryAnalysisResult findById(UUID id) {
     return persistenceService.findById(id).orElseThrow(() -> new AnalysisNotFoundException(id));
+  }
+
+  public Optional<RepositoryAnalysisResult> findLatestByRepositoryUrl(String repositoryUrl) {
+    return persistenceService
+        .findLatestSuccessIdFor(repositoryUrl)
+        .flatMap(persistenceService::findById);
   }
 }

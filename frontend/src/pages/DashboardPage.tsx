@@ -452,6 +452,7 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
   const [comparisonSort, setComparisonSort] = useState<ComparisonSort>('cost')
   const [providerFilter, setProviderFilter] = useState<ProviderFilter>('all')
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle')
+  const [badgeCopyState, setBadgeCopyState] = useState<'idle' | 'copied' | 'failed'>('idle')
   const publicUrl = typeof window === 'undefined' ? analysisPath(analysis.id) : new URL(analysisPath(analysis.id), window.location.origin).toString()
   const selectedOpenGraphImageUrl = openGraphImageUrl(analysis.id, publicUrl, selectedMode)
 
@@ -518,6 +519,16 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
     window.setTimeout(() => setCopyState('idle'), 2200)
   }
 
+  async function handleCopyBadgeMarkdown() {
+    const repoPath = repositoryName(analysis.repositoryUrl)
+    const [owner, repo] = repoPath.split('/')
+    const origin = window.location.origin
+    const snippet = `[![AI generation cost](${origin}/api/badge/${owner}/${repo}.svg)](${publicUrl})`
+    const copied = await copyPublicUrl(snippet)
+    setBadgeCopyState(copied ? 'copied' : 'failed')
+    window.setTimeout(() => setBadgeCopyState('idle'), 2200)
+  }
+
   return (
     <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-16" id="results">
       <OverviewSection
@@ -533,6 +544,8 @@ function ResultsView({ analysis, onNewAnalysis }: { analysis: RepositoryAnalysis
         copyState={copyState}
         onCopyPublicUrl={handleCopyPublicUrl}
         selectedOpenGraphImageUrl={selectedOpenGraphImageUrl}
+        badgeCopyState={badgeCopyState}
+        onCopyBadgeMarkdown={handleCopyBadgeMarkdown}
       />
 
       <TabBar

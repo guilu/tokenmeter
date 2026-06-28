@@ -15,4 +15,11 @@ public interface AnalysisPersistenceService {
    * at the cached row.
    */
   Optional<UUID> findLatestSuccessIdFor(String repositoryUrl, String pricingSnapshotId);
+
+  /**
+   * Returns the id of the most recent SUCCESS analysis for the given repository URL, regardless of
+   * pricing snapshot. Used by the by-repo badge endpoint to display the latest result for any
+   * repository URL.
+   */
+  Optional<UUID> findLatestSuccessIdFor(String repositoryUrl);
 }

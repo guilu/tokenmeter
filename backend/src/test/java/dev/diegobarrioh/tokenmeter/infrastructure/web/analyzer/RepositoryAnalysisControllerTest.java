@@ -334,6 +334,95 @@ class RepositoryAnalysisControllerTest {
   }
 
   // ---------------------------------------------------------------------------
+  // TKM-72 — GET /api/badge/{owner}/{repo}.svg by-repo badge endpoint
+  // ---------------------------------------------------------------------------
+
+  @Test
+  void getRepositoryBadge_returns200SvgWithCacheControlWhenAnalysisFound() throws Exception {
+    UUID id = UUID.randomUUID();
+    when(analysisService.findLatestByRepositoryUrl("https://github.com/acme/myrepo"))
+        .thenReturn(Optional.of(sampleAnalysis(id, sampleCostEstimates())));
+    when(badgeRenderer.render(any())).thenReturn("<svg>cost badge</svg>");
+
+    mockMvc
+        .perform(get("/api/badge/acme/myrepo.svg"))
+        .andExpect(status().isOk())
+        .andExpect(
+            result ->
+                org.assertj.core.api.Assertions.assertThat(result.getResponse().getContentType())
+                    .contains("image/svg+xml"))
+        .andExpect(
+            result ->
+                org.assertj.core.api.Assertions.assertThat(
+                        result.getResponse().getHeader("Cache-Control"))
+                    .contains("max-age=1800")
+                    .contains("public"))
+        .andExpect(
+            result ->
+                org.assertj.core.api.Assertions.assertThat(
+                        result.getResponse().getContentAsString())
+                    .contains("<svg>cost badge</svg>"));
+  }
+
+  @Test
+  void getRepositoryBadge_returns200NeutralSvgWhenNoAnalysisFound() throws Exception {
+    when(analysisService.findLatestByRepositoryUrl("https://github.com/acme/unknown"))
+        .thenReturn(Optional.empty());
+    when(badgeRenderer.neutral()).thenReturn("<svg>not analyzed</svg>");
+
+    mockMvc
+        .perform(get("/api/badge/acme/unknown.svg"))
+        .andExpect(status().isOk())
+        .andExpect(
+            result ->
+                org.assertj.core.api.Assertions.assertThat(result.getResponse().getContentType())
+                    .contains("image/svg+xml"))
+        .andExpect(
+            result ->
+                org.assertj.core.api.Assertions.assertThat(
+                        result.getResponse().getHeader("Cache-Control"))
+                    .contains("max-age=1800")
+                    .contains("public"))
+        .andExpect(
+            result ->
+                org.assertj.core.api.Assertions.assertThat(
+                        result.getResponse().getContentAsString())
+                    .contains("<svg>not analyzed</svg>"));
+  }
+
+  @Test
+  void getRepositoryBadge_returns400ForInvalidOwner() throws Exception {
+    mockMvc
+        .perform(get("/api/badge/inv@lid/repo.svg"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("INVALID_URL"));
+  }
+
+  @Test
+  void getRepositoryBadge_normalizesUppercaseOwnerAndRepo() throws Exception {
+    when(analysisService.findLatestByRepositoryUrl("https://github.com/acme/myrepo"))
+        .thenReturn(Optional.empty());
+    when(badgeRenderer.neutral()).thenReturn("<svg>neutral</svg>");
+
+    mockMvc.perform(get("/api/badge/ACME/MYREPO.svg")).andExpect(status().isOk());
+
+    org.mockito.Mockito.verify(analysisService)
+        .findLatestByRepositoryUrl("https://github.com/acme/myrepo");
+  }
+
+  @Test
+  void getRepositoryBadge_resolvesDottedRepoName() throws Exception {
+    when(analysisService.findLatestByRepositoryUrl("https://github.com/owner/foo.bar"))
+        .thenReturn(Optional.empty());
+    when(badgeRenderer.neutral()).thenReturn("<svg>neutral</svg>");
+
+    mockMvc.perform(get("/api/badge/owner/foo.bar.svg")).andExpect(status().isOk());
+
+    org.mockito.Mockito.verify(analysisService)
+        .findLatestByRepositoryUrl("https://github.com/owner/foo.bar");
+  }
+
+  // ---------------------------------------------------------------------------
   // export.md endpoint tests
   // ---------------------------------------------------------------------------
 
