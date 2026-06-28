@@ -115,6 +115,49 @@ class JpaAnalysisPersistenceServiceTest {
   }
 
   // -----------------------------------------------------------------------
+  // TKM-72 — findLatestSuccessIdFor(String) single-arg overload (by-repo badge)
+  // -----------------------------------------------------------------------
+
+  @Test
+  void findLatestSuccessIdForUrl_returnsNewerUuidWhenMultipleSuccessRowsExist() {
+    Instant older = Instant.parse("2026-06-01T10:00:00Z");
+    Instant newer = Instant.parse("2026-06-01T11:00:00Z");
+    RepositoryAnalysisResult savedOlder =
+        persistenceService.save(sampleResultAt("https://github.com/acme/myrepo", older));
+    RepositoryAnalysisResult savedNewer =
+        persistenceService.save(sampleResultAt("https://github.com/acme/myrepo", newer));
+
+    Optional<UUID> found =
+        persistenceService.findLatestSuccessIdFor("https://github.com/acme/myrepo");
+
+    assertThat(found).isPresent();
+    assertThat(found.get()).isEqualTo(savedNewer.id());
+    assertThat(found.get()).isNotEqualTo(savedOlder.id());
+  }
+
+  @Test
+  void findLatestSuccessIdForUrl_returnsEmptyWhenNoRowExistsForUrl() {
+    Optional<UUID> found =
+        persistenceService.findLatestSuccessIdFor("https://github.com/acme/unknown");
+    assertThat(found).isEmpty();
+  }
+
+  @Test
+  void findLatestSuccessIdForUrl_returnsEmptyForNullUrl() {
+    Optional<UUID> found = persistenceService.findLatestSuccessIdFor((String) null);
+    assertThat(found).isEmpty();
+  }
+
+  @Test
+  void findLatestSuccessIdForUrl_ignoresDifferentRepositoryUrl() {
+    persistenceService.save(sampleResultAt("https://github.com/acme/other", Instant.now()));
+
+    Optional<UUID> found =
+        persistenceService.findLatestSuccessIdFor("https://github.com/acme/myrepo");
+    assertThat(found).isEmpty();
+  }
+
+  // -----------------------------------------------------------------------
   // Slice C — tokenizerId + precision persistence round-trip
   // -----------------------------------------------------------------------
 
@@ -232,6 +275,21 @@ class JpaAnalysisPersistenceServiceTest {
         base.tokenization(),
         base.costEstimates(),
         handle);
+  }
+
+  private static RepositoryAnalysisResult sampleResultAt(String url, Instant createdAt) {
+    RepositoryAnalysisResult base = sampleResult();
+    return new RepositoryAnalysisResult(
+        null,
+        createdAt,
+        url,
+        url + ".git",
+        "acme",
+        "myrepo",
+        base.scan(),
+        base.tokenization(),
+        base.costEstimates(),
+        null);
   }
 
   private static RepositoryAnalysisResult sampleResult() {

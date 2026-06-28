@@ -77,6 +77,9 @@ const defaultProps = {
   copyState: 'idle' as const,
   onCopyPublicUrl: vi.fn(),
   selectedOpenGraphImageUrl: 'https://example.com/og.png',
+  // Badge copy props (TKM-72)
+  badgeCopyState: 'idle' as const,
+  onCopyBadgeMarkdown: vi.fn(),
 }
 
 afterEach(() => {
@@ -131,5 +134,35 @@ describe('OverviewSection', () => {
     // We find it via a button inside it
     const pdfButton = screen.getByRole('button', { name: /Export PDF/i })
     expect(pdfButton.closest('div')).toHaveClass('print:hidden')
+  })
+
+  // TKM-72 — Copy badge Markdown button
+  it('renders "Copy badge Markdown" button when badgeCopyState is idle', () => {
+    render(<OverviewSection {...defaultProps} badgeCopyState="idle" />)
+    expect(screen.getByRole('button', { name: /Copy badge Markdown/i })).toBeInTheDocument()
+  })
+
+  it('clicking Copy badge Markdown button calls onCopyBadgeMarkdown', () => {
+    const onCopyBadgeMarkdown = vi.fn()
+    render(
+      <OverviewSection
+        {...defaultProps}
+        badgeCopyState="idle"
+        onCopyBadgeMarkdown={onCopyBadgeMarkdown}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Copy badge Markdown/i }))
+    expect(onCopyBadgeMarkdown).toHaveBeenCalledOnce()
+  })
+
+  it('shows "Copied!" when badgeCopyState is copied', () => {
+    render(<OverviewSection {...defaultProps} badgeCopyState="copied" />)
+    expect(screen.getByRole('button', { name: /Copied!/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Copy badge Markdown/i })).not.toBeInTheDocument()
+  })
+
+  it('shows "Copy failed" when badgeCopyState is failed', () => {
+    render(<OverviewSection {...defaultProps} badgeCopyState="failed" />)
+    expect(screen.getByRole('button', { name: /Copy failed/i })).toBeInTheDocument()
   })
 })

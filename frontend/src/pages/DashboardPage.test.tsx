@@ -316,6 +316,110 @@ describe('DashboardPage WhatIfPanel integration', () => {
   })
 })
 
+// ─── TKM-72 — Copy badge Markdown handler ────────────────────────────────────
+
+describe('DashboardPage Copy badge Markdown', () => {
+  afterEach(() => {
+    cleanup()
+    vi.restoreAllMocks()
+    window.history.pushState(null, '', '/')
+  })
+
+  async function setupResults() {
+    window.history.pushState(null, '', '/analysis/analysis-with-pricing')
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse(sampleAnalysis({ withPricing: true }))),
+    )
+    render(<DashboardPage />)
+    return screen.findByText(/Analysis id:/)
+  }
+
+  it('clicking Copy badge Markdown writes correct snippet to clipboard and shows Copied!', async () => {
+    const writeText = vi.fn<(text: string) => Promise<void>>().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      writable: true,
+      configurable: true,
+    })
+    Object.defineProperty(window, 'isSecureContext', {
+      value: true,
+      writable: true,
+      configurable: true,
+    })
+
+    await setupResults()
+
+    fireEvent.click(screen.getByRole('button', { name: /Copy badge Markdown/i }))
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Copied!/i })).toBeInTheDocument(),
+    )
+
+    // analysis.repositoryUrl = 'https://github.com/guilu/tokenmeter' → owner='guilu', repo='tokenmeter'
+    // origin and publicUrl are derived from window.location at runtime
+    const origin = window.location.origin
+    const expectedSnippet = `[![AI generation cost](${origin}/api/badge/guilu/tokenmeter.svg)](${origin}/analysis/analysis-with-pricing)`
+    expect(writeText).toHaveBeenCalledWith(expectedSnippet)
+  })
+
+  it('clipboard writeText failure transitions badge button to Copy failed', async () => {
+    const writeText = vi
+      .fn<(text: string) => Promise<void>>()
+      .mockRejectedValue(new Error('Permission denied'))
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      writable: true,
+      configurable: true,
+    })
+    Object.defineProperty(window, 'isSecureContext', {
+      value: true,
+      writable: true,
+      configurable: true,
+    })
+    // Prevent the execCommand fallback from succeeding — define it if not present in jsdom
+    Object.defineProperty(document, 'execCommand', {
+      value: vi.fn().mockReturnValue(false),
+      writable: true,
+      configurable: true,
+    })
+
+    await setupResults()
+
+    fireEvent.click(screen.getByRole('button', { name: /Copy badge Markdown/i }))
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Copy failed/i })).toBeInTheDocument(),
+    )
+  })
+
+  it('badgeCopyState is independent of copyState — badge copy does not affect Copy URL button', async () => {
+    const writeText = vi.fn<(text: string) => Promise<void>>().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      writable: true,
+      configurable: true,
+    })
+    Object.defineProperty(window, 'isSecureContext', {
+      value: true,
+      writable: true,
+      configurable: true,
+    })
+
+    await setupResults()
+
+    // Click "Copy badge Markdown" — badge transitions to 'copied'
+    fireEvent.click(screen.getByRole('button', { name: /Copy badge Markdown/i }))
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Copied!/i })).toBeInTheDocument(),
+    )
+
+    // "Copy URL" must still show 'Copy URL' (its state was not touched)
+    expect(screen.getByRole('button', { name: /Copy URL/i })).toBeInTheDocument()
+  })
+})
+
 function jsonResponse(body: unknown): Response {
   return new Response(JSON.stringify(body), {
     status: 200,

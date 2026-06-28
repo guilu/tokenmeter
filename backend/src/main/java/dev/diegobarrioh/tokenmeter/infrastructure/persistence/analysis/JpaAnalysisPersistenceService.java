@@ -53,6 +53,19 @@ public class JpaAnalysisPersistenceService implements AnalysisPersistenceService
         .findFirst();
   }
 
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<UUID> findLatestSuccessIdFor(String repositoryUrl) {
+    if (repositoryUrl == null) {
+      return Optional.empty();
+    }
+    return repository
+        .findLatestSuccessIdByRepositoryUrl(
+            repositoryUrl, org.springframework.data.domain.PageRequest.of(0, 1))
+        .stream()
+        .findFirst();
+  }
+
   private static AnalysisEntity toEntity(RepositoryAnalysisResult result) {
     UUID id = result.id() == null ? UUID.randomUUID() : result.id();
     Instant createdAt = result.createdAt() == null ? Instant.now() : result.createdAt();

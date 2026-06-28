@@ -16,6 +16,14 @@ public class BadgeRenderer {
   private static final int PADDING = 10;
   private static final String LABEL = "AI gen cost";
 
+  /**
+   * Returns a neutral badge SVG with label "AI gen cost" and value "not analyzed" in gray
+   * (#9f9f9f). Used when no SUCCESS analysis exists for a given repository URL.
+   */
+  public String neutral() {
+    return buildSvg(LABEL, "not analyzed", "#9f9f9f");
+  }
+
   public String render(RepositoryAnalysisResult analysis) {
     List<ModelCostEstimate> estimates = rawEstimates(analysis);
     if (estimates.isEmpty()) {

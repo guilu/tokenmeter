@@ -26,6 +26,14 @@ public interface AnalysisJpaRepository extends JpaRepository<AnalysisEntity, UUI
       Pageable pageable);
 
   @Query(
+      "SELECT a.id FROM AnalysisEntity a"
+          + " WHERE a.repositoryUrl = :repositoryUrl"
+          + " AND a.status = dev.diegobarrioh.tokenmeter.infrastructure.persistence.analysis.AnalysisStatus.SUCCESS"
+          + " ORDER BY a.createdAt DESC")
+  List<UUID> findLatestSuccessIdByRepositoryUrl(
+      @Param("repositoryUrl") String repositoryUrl, Pageable pageable);
+
+  @Query(
       "SELECT DISTINCT a.repositoryUrl FROM AnalysisEntity a"
           + " WHERE a.repositoryUrl IN :repositoryUrls"
           + " AND a.status = dev.diegobarrioh.tokenmeter.infrastructure.persistence.analysis.AnalysisStatus.SUCCESS")

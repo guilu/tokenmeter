@@ -23,6 +23,9 @@ export interface OverviewSectionProps {
   copyState: 'idle' | 'copied' | 'failed'
   onCopyPublicUrl: () => void
   selectedOpenGraphImageUrl: string
+  // Badge copy props (TKM-72)
+  badgeCopyState: 'idle' | 'copied' | 'failed'
+  onCopyBadgeMarkdown: () => void
 }
 
 function ShareIcon() {
@@ -97,6 +100,8 @@ export function OverviewSection({
   copyState,
   onCopyPublicUrl,
   selectedOpenGraphImageUrl,
+  badgeCopyState,
+  onCopyBadgeMarkdown,
 }: OverviewSectionProps) {
   return (
     <>
@@ -115,6 +120,17 @@ export function OverviewSection({
             type="button"
           >
             {copyState === 'copied' ? 'Copied!' : copyState === 'failed' ? 'Copy failed' : 'Copy URL'}
+          </button>
+          <button
+            className="rounded-2xl border border-text/10 bg-card/20 px-4 py-2 text-sm text-text/80 transition hover:bg-card/40"
+            onClick={() => void onCopyBadgeMarkdown()}
+            type="button"
+          >
+            {badgeCopyState === 'copied'
+              ? 'Copied!'
+              : badgeCopyState === 'failed'
+                ? 'Copy failed'
+                : 'Copy badge Markdown'}
           </button>
           <a
             className="inline-flex items-center gap-2 rounded-2xl border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-medium text-primary transition hover:bg-primary/20"

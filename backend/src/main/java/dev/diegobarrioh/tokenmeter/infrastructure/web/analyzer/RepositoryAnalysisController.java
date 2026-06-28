@@ -4,6 +4,7 @@ import dev.diegobarrioh.tokenmeter.application.analyzer.RepositoryAnalysisResult
 import dev.diegobarrioh.tokenmeter.application.analyzer.RepositoryAnalysisService;
 import dev.diegobarrioh.tokenmeter.domain.cost.CostEstimationMode;
 import dev.diegobarrioh.tokenmeter.domain.cost.ModelCostEstimate;
+import dev.diegobarrioh.tokenmeter.domain.repository.GitHubRepositoryUrl;
 import dev.diegobarrioh.tokenmeter.infrastructure.web.PublicOriginProperties;
 import java.text.NumberFormat;
 import java.time.Duration;
@@ -201,6 +202,22 @@ public class RepositoryAnalysisController {
         .cacheControl(CacheControl.maxAge(Duration.ofHours(24)).cachePublic())
         .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=tokenmeter-" + id + "-og.png")
         .body(image);
+  }
+
+  @GetMapping(value = "/api/badge/{owner}/{repo}.svg", produces = "image/svg+xml")
+  public ResponseEntity<String> getRepositoryBadge(
+      @PathVariable String owner, @PathVariable String repo) {
+    String normalizedUrl = new GitHubRepositoryUrl(owner, repo).normalizedUrl();
+    String svg =
+        analysisService
+            .findLatestByRepositoryUrl(normalizedUrl)
+            .map(badgeRenderer::render)
+            .orElseGet(badgeRenderer::neutral);
+    return ResponseEntity.ok()
+        .contentType(MediaType.parseMediaType("image/svg+xml"))
+        .cacheControl(CacheControl.maxAge(Duration.ofMinutes(30)).cachePublic())
+        .header("Content-Disposition", "inline")
+        .body(svg);
   }
 
   @GetMapping(value = "/api/analyze/{id}/badge.svg", produces = "image/svg+xml")
