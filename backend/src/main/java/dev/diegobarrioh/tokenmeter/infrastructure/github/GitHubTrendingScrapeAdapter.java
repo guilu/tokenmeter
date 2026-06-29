@@ -139,7 +139,7 @@ public class GitHubTrendingScrapeAdapter implements TrendingRepositoriesPort {
     String href = h2link.attr("href").trim();
     // href format: "/owner/repo" – strip leading slash and normalise whitespace/newlines
     String fullName = href.startsWith("/") ? href.substring(1) : href;
-    fullName = fullName.replaceAll("[\\s\\n]+", "");
+    fullName = fullName.replaceAll("\\s+", "");
     if (fullName.isBlank()) {
       return null;
     }
