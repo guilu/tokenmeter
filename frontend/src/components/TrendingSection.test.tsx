@@ -126,6 +126,40 @@ describe('TrendingSection', () => {
     expect(badges).toHaveLength(1)
   })
 
+  it('shows starsThisPeriod when present', async () => {
+    const payload: TrendingRepositoriesResponse = {
+      fetchedAt: '2026-05-27T12:00:00Z',
+      since: 'weekly',
+      language: null,
+      items: [
+        {
+          fullName: 'acme/hot',
+          repositoryUrl: 'https://github.com/acme/hot',
+          stars: 5000,
+          forks: 100,
+          starsThisPeriod: 1234,
+        },
+      ],
+    }
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(payload)))
+    render(<TrendingSection onAnalyze={() => {}} />)
+
+    expand()
+    await screen.findByText('acme/hot')
+
+    expect(screen.getByText(/▲ 1,234 stars this week/)).toBeInTheDocument()
+  })
+
+  it('does not show starsThisPeriod when absent', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(samplePayload())))
+    render(<TrendingSection onAnalyze={() => {}} />)
+
+    expand()
+    await screen.findByText('acme/widget')
+
+    expect(screen.queryByText(/stars this week/)).not.toBeInTheDocument()
+  })
+
   it('invokes onAnalyze with the repository URL when Analyze is clicked', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(samplePayload())))
     const onAnalyze = vi.fn()

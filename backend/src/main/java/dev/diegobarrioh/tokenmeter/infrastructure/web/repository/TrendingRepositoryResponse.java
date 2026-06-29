@@ -5,8 +5,11 @@ import java.time.Instant;
 
 /**
  * Wire shape for a single trending repository. Optional fields ({@code description}, {@code
- * language}, {@code sizeKb}) are omitted from JSON when null via {@link
- * JsonInclude.Include#NON_NULL}.
+ * language}, {@code sizeKb}, {@code createdAt}, {@code updatedAt}, {@code starsThisPeriod}) are
+ * omitted from JSON when null via {@link JsonInclude.Include#NON_NULL}.
+ *
+ * <p>{@code starsThisPeriod} is populated by the scrape adapter (stars gained in the selected
+ * trending window) and absent when the Search API fallback was used.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record TrendingRepositoryResponse(
@@ -19,4 +22,5 @@ public record TrendingRepositoryResponse(
     Integer sizeKb,
     Instant createdAt,
     Instant updatedAt,
-    boolean analyzed) {}
+    boolean analyzed,
+    Integer starsThisPeriod) {}
