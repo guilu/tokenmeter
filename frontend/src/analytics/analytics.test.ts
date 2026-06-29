@@ -8,6 +8,12 @@ function gtagScripts(): NodeListOf<HTMLScriptElement> {
   return document.querySelectorAll<HTMLScriptElement>('script[src*="googletagmanager.com/gtag"]')
 }
 
+// gtag.js only processes the native `arguments` object pushed onto the dataLayer; a plain array is
+// silently dropped (no `/collect` hit). Normalise the array-like entries before asserting.
+function dataLayerCalls(): unknown[][] {
+  return (window.dataLayer ?? []).map((entry) => Array.from(entry as ArrayLike<unknown>))
+}
+
 afterEach(() => {
   vi.unstubAllEnvs()
   delete window.gtag
@@ -40,7 +46,10 @@ describe('analytics — enabled with a Measurement ID', () => {
     expect(gtagScripts()[0].src).toContain('id=G-TEST123')
     expect(typeof window.gtag).toBe('function')
 
-    const calls = window.dataLayer ?? []
+    // Entries must be `arguments` objects, never plain arrays (the bug that silenced GA).
+    expect(window.dataLayer?.every((entry) => !Array.isArray(entry))).toBe(true)
+
+    const calls = dataLayerCalls()
     expect(calls).toContainEqual(['js', expect.any(Date)])
     expect(calls).toContainEqual(['config', 'G-TEST123', { send_page_view: false }])
   })
@@ -51,7 +60,7 @@ describe('analytics — enabled with a Measurement ID', () => {
 
     trackPageView('/analysis/abc')
 
-    expect(window.dataLayer).toContainEqual([
+    expect(dataLayerCalls()).toContainEqual([
       'event',
       'page_view',
       expect.objectContaining({ page_path: '/analysis/abc' }),
@@ -64,7 +73,7 @@ describe('analytics — enabled with a Measurement ID', () => {
 
     trackEvent('trending_repo_clicked', { repository: 'acme/widget' })
 
-    expect(window.dataLayer).toContainEqual([
+    expect(dataLayerCalls()).toContainEqual([
       'event',
       'trending_repo_clicked',
       { repository: 'acme/widget' },

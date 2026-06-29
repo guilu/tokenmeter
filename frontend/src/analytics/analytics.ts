@@ -35,12 +35,18 @@ export function initAnalytics(): void {
   document.head.appendChild(script)
 
   window.dataLayer = window.dataLayer ?? []
-  const gtag: NonNullable<Window['gtag']> = (...args) => {
-    window.dataLayer!.push(args)
+  // GA's gtag.js only processes entries that are the native `arguments` object the canonical
+  // snippet pushes onto the dataLayer. Pushing a plain array (e.g. from an arrow
+  // `(...args) => push(args)`) is silently ignored, so no `/collect` hit is ever sent and the GA
+  // property reports "no data received". Use the documented function form that pushes `arguments`.
+  function gtag(): void {
+    // eslint-disable-next-line prefer-rest-params
+    window.dataLayer!.push(arguments)
   }
-  window.gtag = gtag
-  gtag('js', new Date())
-  gtag('config', id, { send_page_view: false })
+  const send = gtag as NonNullable<Window['gtag']>
+  window.gtag = send
+  send('js', new Date())
+  send('config', id, { send_page_view: false })
 }
 
 export function trackPageView(path: string): void {
