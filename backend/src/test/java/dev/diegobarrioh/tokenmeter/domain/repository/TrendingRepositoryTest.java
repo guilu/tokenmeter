@@ -20,7 +20,8 @@ class TrendingRepositoryTest {
             10500,
             1073741824,
             now,
-            now);
+            now,
+            null);
 
     assertThat(repo.fullName()).isEqualTo("torvalds/linux");
     assertThat(repo.repositoryUrl()).isEqualTo("https://github.com/torvalds/linux");
@@ -31,6 +32,7 @@ class TrendingRepositoryTest {
     assertThat(repo.sizeKb()).isEqualTo(1073741824);
     assertThat(repo.createdAt()).isEqualTo(now);
     assertThat(repo.updatedAt()).isEqualTo(now);
+    assertThat(repo.starsThisPeriod()).isNull();
   }
 
   @Test
@@ -38,7 +40,16 @@ class TrendingRepositoryTest {
     Instant now = Instant.now();
     TrendingRepository repo =
         new TrendingRepository(
-            "owner/repo", "https://github.com/owner/repo", null, "Java", 100, 10, 512, now, now);
+            "owner/repo",
+            "https://github.com/owner/repo",
+            null,
+            "Java",
+            100,
+            10,
+            512,
+            now,
+            now,
+            null);
 
     assertThat(repo.description()).isNull();
   }
@@ -56,7 +67,8 @@ class TrendingRepositoryTest {
             10,
             512,
             now,
-            now);
+            now,
+            null);
 
     assertThat(repo.language()).isNull();
   }
@@ -74,8 +86,47 @@ class TrendingRepositoryTest {
             10,
             null,
             now,
-            now);
+            now,
+            null);
 
     assertThat(repo.sizeKb()).isNull();
+  }
+
+  @Test
+  void starsThisPeriodAcceptsNull() {
+    Instant now = Instant.now();
+    TrendingRepository repo =
+        new TrendingRepository(
+            "owner/repo",
+            "https://github.com/owner/repo",
+            "Some description",
+            "TypeScript",
+            100,
+            10,
+            512,
+            now,
+            now,
+            null);
+
+    assertThat(repo.starsThisPeriod()).isNull();
+  }
+
+  @Test
+  void starsThisPeriodAcceptsValue() {
+    Instant now = Instant.now();
+    TrendingRepository repo =
+        new TrendingRepository(
+            "owner/repo",
+            "https://github.com/owner/repo",
+            "Some description",
+            "TypeScript",
+            100,
+            10,
+            512,
+            now,
+            now,
+            42);
+
+    assertThat(repo.starsThisPeriod()).isEqualTo(42);
   }
 }

@@ -244,9 +244,10 @@ export interface TrendingRepositoryResponse {
   stars: number
   forks: number
   sizeKb?: number | null
-  createdAt: string
-  updatedAt: string
+  createdAt?: string | null
+  updatedAt?: string | null
   analyzed?: boolean
+  starsThisPeriod?: number | null
 }
 
 export interface TrendingRepositoriesResponse {

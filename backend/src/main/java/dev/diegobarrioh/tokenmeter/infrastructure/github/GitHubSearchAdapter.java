@@ -145,7 +145,8 @@ public class GitHubSearchAdapter implements TrendingRepositoriesPort {
         item.forksCount(),
         item.size(),
         item.createdAt(),
-        item.updatedAt());
+        item.updatedAt(),
+        null);
   }
 
   // --- Internal DTOs (package-private for testing via Jackson) ---

@@ -4,10 +4,18 @@ import { ApiError, getTrendingRepositories } from '../services/api'
 import type { TrendingRepositoryResponse } from '../types/api'
 
 const compactFormatter = new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 })
+const periodStarsFormatter = new Intl.NumberFormat('en-US')
+
+function sinceLabel(since: string): string {
+  if (since === 'daily') return 'today'
+  if (since === 'monthly') return 'this month'
+  return 'this week'
+}
 
 export function TrendingSection({ onAnalyze }: { onAnalyze: (url: string) => void }) {
   const [open, setOpen] = useState(false)
   const [items, setItems] = useState<TrendingRepositoryResponse[] | null>(null)
+  const [since, setSince] = useState<string>('weekly')
   const [error, setError] = useState<string | null>(null)
   const requested = useRef(false)
 
@@ -20,6 +28,7 @@ export function TrendingSection({ onAnalyze }: { onAnalyze: (url: string) => voi
       .then((data) => {
         if (active) {
           setItems(data.items)
+          setSince(data.since ?? 'weekly')
           setError(null)
         }
       })
@@ -93,7 +102,7 @@ export function TrendingSection({ onAnalyze }: { onAnalyze: (url: string) => voi
           ) : null}
 
           {!loading && !error && items && items.length > 0 ? (
-            <TrendingCarousel items={items} onAnalyze={onAnalyze} />
+            <TrendingCarousel items={items} onAnalyze={onAnalyze} since={since} />
           ) : null}
         </div>
       ) : null}
@@ -104,9 +113,11 @@ export function TrendingSection({ onAnalyze }: { onAnalyze: (url: string) => voi
 function TrendingCarousel({
   items,
   onAnalyze,
+  since,
 }: {
   items: TrendingRepositoryResponse[]
   onAnalyze: (url: string) => void
+  since: string
 }) {
   const trackRef = useRef<HTMLDivElement>(null)
   const [active, setActive] = useState(0)
@@ -153,7 +164,7 @@ function TrendingCarousel({
               className="shrink-0 basis-full snap-start sm:basis-[calc((100%-2rem)/3)]"
               key={item.fullName}
             >
-              <TrendingRepoCard item={item} onAnalyze={onAnalyze} />
+              <TrendingRepoCard item={item} onAnalyze={onAnalyze} since={since} />
             </div>
           ))}
         </div>
@@ -200,7 +211,15 @@ function CarouselArrow({ direction, onClick }: { direction: 'left' | 'right'; on
   )
 }
 
-function TrendingRepoCard({ item, onAnalyze }: { item: TrendingRepositoryResponse; onAnalyze: (url: string) => void }) {
+function TrendingRepoCard({
+  item,
+  onAnalyze,
+  since,
+}: {
+  item: TrendingRepositoryResponse
+  onAnalyze: (url: string) => void
+  since: string
+}) {
   return (
     <div className="flex h-full flex-col rounded-2xl border border-text/10 bg-card/20 p-5 shadow-xl shadow-bg/20">
       <p className="truncate font-semibold text-text">{item.fullName}</p>
@@ -214,9 +233,16 @@ function TrendingRepoCard({ item, onAnalyze }: { item: TrendingRepositoryRespons
         <p className="mt-2 line-clamp-2 text-sm leading-6 text-text/60">{item.description}</p>
       ) : null}
       <div className="mt-auto flex items-center justify-between gap-2 pt-4">
-        <p className="text-xs text-text/50">
-          ★ {compactFormatter.format(item.stars)} · ⑂ {compactFormatter.format(item.forks)}
-        </p>
+        <div className="flex flex-col gap-0.5">
+          <p className="text-xs text-text/50">
+            ★ {compactFormatter.format(item.stars)} · ⑂ {compactFormatter.format(item.forks)}
+          </p>
+          {item.starsThisPeriod != null ? (
+            <p className="text-xs font-medium text-emerald-400">
+              ▲ {periodStarsFormatter.format(item.starsThisPeriod)} stars {sinceLabel(since)}
+            </p>
+          ) : null}
+        </div>
         {item.language ? (
           <span className="shrink-0 rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-primary/80">
             {item.language}

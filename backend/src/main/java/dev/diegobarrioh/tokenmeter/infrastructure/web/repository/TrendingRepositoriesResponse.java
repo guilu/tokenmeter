@@ -34,7 +34,8 @@ public record TrendingRepositoriesResponse(
                         item.sizeKb(),
                         item.createdAt(),
                         item.updatedAt(),
-                        analyzedByRepositoryUrl.getOrDefault(item.repositoryUrl(), false)))
+                        analyzedByRepositoryUrl.getOrDefault(item.repositoryUrl(), false),
+                        item.starsThisPeriod()))
             .toList();
     return new TrendingRepositoriesResponse(
         result.fetchedAt(), result.since(), result.language(), items);

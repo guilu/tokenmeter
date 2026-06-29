@@ -70,7 +70,8 @@ class TrendingRepositoriesControllerTest {
             1,
             null,
             Instant.parse("2026-05-20T00:00:00Z"),
-            Instant.parse("2026-05-26T00:00:00Z"));
+            Instant.parse("2026-05-26T00:00:00Z"),
+            null);
     when(service.get(any()))
         .thenReturn(
             new TrendingSuggestions(
@@ -135,6 +136,33 @@ class TrendingRepositoriesControllerTest {
         .andExpect(jsonPath("$.code").value("GITHUB_UNAVAILABLE"));
   }
 
+  @Test
+  void starsThisPeriodIsMappedToResponse() throws Exception {
+    TrendingRepository itemWithPeriod =
+        new TrendingRepository(
+            "acme/hot",
+            "https://github.com/acme/hot",
+            "Hot repo",
+            "Go",
+            5000,
+            200,
+            null,
+            Instant.parse("2026-05-20T00:00:00Z"),
+            Instant.parse("2026-05-26T00:00:00Z"),
+            1234);
+    when(service.get(any()))
+        .thenReturn(
+            new TrendingSuggestions(
+                new TrendingRepositoriesResult(
+                    List.of(itemWithPeriod), Instant.parse("2026-05-27T12:00:00Z"), "weekly", null),
+                Map.of()));
+
+    mockMvc
+        .perform(get("/api/repositories/trending"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items[0].starsThisPeriod").value(1234));
+  }
+
   private static TrendingRepositoriesResult sampleResult() {
     TrendingRepository item =
         new TrendingRepository(
@@ -146,7 +174,8 @@ class TrendingRepositoriesControllerTest {
             56,
             789,
             Instant.parse("2026-05-20T00:00:00Z"),
-            Instant.parse("2026-05-26T00:00:00Z"));
+            Instant.parse("2026-05-26T00:00:00Z"),
+            null);
     return new TrendingRepositoriesResult(
         List.of(item), Instant.parse("2026-05-27T12:00:00Z"), "weekly", null);
   }
