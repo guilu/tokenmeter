@@ -78,9 +78,25 @@ public class HuggingFaceTokenCounter implements TokenCounter {
     try {
       return tokenizer.encode(text).getIds().length;
     } catch (RuntimeException | LinkageError e) {
-      LOG.warn("HF encode failed for tokenizer '{}': {}", profile.tokenizerId(), e.getMessage());
+      LOG.warn(
+          "HF encode failed for tokenizer '{}' (rootCause={}): {}",
+          profile.tokenizerId(),
+          rootCauseMessage(e),
+          e.toString(),
+          e);
       return 0L;
     }
+  }
+
+  /**
+   * Returns the message of the deepest cause, the actionable detail DJL hides behind its wrapper.
+   */
+  private static String rootCauseMessage(Throwable t) {
+    Throwable cause = t;
+    while (cause.getCause() != null && cause.getCause() != cause) {
+      cause = cause.getCause();
+    }
+    return cause.getClass().getSimpleName() + ": " + cause.getMessage();
   }
 
   /**
@@ -123,8 +139,21 @@ public class HuggingFaceTokenCounter implements TokenCounter {
             // LinkageError (e.g. UnsatisfiedLinkError) is thrown when the DJL native lib cannot be
             // loaded — e.g. /tmp mounted noexec. It is an Error, not an Exception, so it MUST be
             // caught here or it would propagate and break the whole analysis job.
+            //
+            // DJL wraps the real failure in an IllegalStateException ("Failed to load Huggingface
+            // native library"); the actionable detail (UnsatisfiedLinkError + OS reason) lives in
+            // the CAUSE chain, so log the full throwable, not just getMessage(). Surface the DJL
+            // cache dir / java.io.tmpdir too — a noexec or read-only extraction dir is the usual
+            // culprit in hardened container runtimes.
             LOG.warn(
-                "HF tokenizer load failed for classpath:tokenizers/{}: {}", key, e.getMessage());
+                "HF tokenizer load failed for classpath:tokenizers/{} (rootCause={}, "
+                    + "djlCacheDir={}, javaIoTmpdir={}): {}",
+                key,
+                rootCauseMessage(e),
+                System.getProperty("ai.djl.cache_dir", System.getenv("DJL_CACHE_DIR")),
+                System.getProperty("java.io.tmpdir"),
+                e.toString(),
+                e);
             return null;
           }
         });

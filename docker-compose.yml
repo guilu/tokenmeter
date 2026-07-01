@@ -43,6 +43,13 @@ services:
     tmpfs:
       - /tmp:size=64m,mode=0700,uid=1001
       - ${TOKENMETER_WORKDIR:-/tmp/tokenmeter-repositories}:size=${TOKENMETER_WORKDIR_TMPFS_SIZE:-1g},mode=0700,uid=1001
+    # DJL extracts its native tokenizer lib (libtokenizers.so) and dlopen()s it at runtime. With
+    # read_only rootfs the image cache dir is unwritable, and the /tmp tmpfs is mounted noexec, so
+    # both fallbacks fail ("Failed to load Huggingface native library" -> DeepSeek/Qwen count 0).
+    # A named volume gives DJL a writable AND exec dir while keeping the rest of the hardening
+    # (read_only, cap_drop ALL, no-new-privileges) intact. DJL_CACHE_DIR is set to /app/.djl.
+    volumes:
+      - tokenmeter-djl-cache:/app/.djl
     cap_drop:
       - ALL
     security_opt:
@@ -91,3 +98,5 @@ services:
 
 volumes:
   tokenmeter-db:
+  # Writable + exec cache for the DJL HuggingFace native tokenizer lib (see backend service).
+  tokenmeter-djl-cache:
