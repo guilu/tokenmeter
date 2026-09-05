@@ -9,6 +9,9 @@ import {
 } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+const trackEventMock = vi.hoisted(() => vi.fn())
+vi.mock('../analytics/analytics', () => ({ trackEvent: trackEventMock }))
+
 import { DashboardPage } from './DashboardPage'
 import type { RepositoryAnalysisResponse } from '../types/api'
 
@@ -741,5 +744,29 @@ describe('DashboardPage ResultsView tabs', () => {
 
     // After click the toggle label should change
     expect(screen.getByRole('button', { name: /Show top 8/i })).toBeInTheDocument()
+  })
+})
+
+describe('DashboardPage analytics', () => {
+  afterEach(() => {
+    cleanup()
+    vi.restoreAllMocks()
+    trackEventMock.mockReset()
+    window.history.pushState(null, '', '/')
+  })
+
+  it('tracks the Simulate generation cost button as a GA4 event', () => {
+    render(<DashboardPage />)
+    fireEvent.change(screen.getByLabelText('Repository URL'), {
+      target: { value: 'https://github.com/guilu/tokenmeter' },
+    })
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Simulate generation cost' }),
+    )
+
+    expect(trackEventMock).toHaveBeenCalledWith('simulate_generation_cost_click', {
+      button_name: 'Simulate generation cost',
+      source_page: '/',
+    })
   })
 })
