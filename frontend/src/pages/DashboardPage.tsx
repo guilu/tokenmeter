@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 
+import { trackEvent } from '../analytics/analytics'
 import { PipelineTimeline } from '../components/PipelineTimeline'
 import { TabBar } from '../components/TabBar'
 import type { TabBarItem } from '../components/TabBar'
@@ -146,6 +147,10 @@ export function DashboardPage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    trackEvent('simulate_generation_cost_click', {
+      button_name: 'Simulate generation cost',
+      source_page: window.location.pathname,
+    })
     await triggerAnalysis(repositoryUrl)
   }
 
