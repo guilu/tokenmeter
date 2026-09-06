@@ -50,14 +50,20 @@ describe('AnalyticsConsent', () => {
     expect(gtagScripts()).toHaveLength(0)
   })
 
-  it('lets a user reopen settings and withdraw consent', () => {
+  it('lets a user reopen settings from an external footer control and withdraw consent', () => {
     vi.stubEnv('VITE_GA_MEASUREMENT_ID', 'G-TEST123')
     localStorage.setItem(ANALYTICS_CONSENT_KEY, 'granted')
     document.cookie = '_ga=test; path=/'
     document.cookie = '_ga_TEST123=session; path=/'
 
-    render(<AnalyticsConsent />)
-    fireEvent.click(screen.getByRole('button', { name: 'Analytics settings' }))
+    const { rerender } = render(
+      <AnalyticsConsent onSettingsClose={vi.fn()} settingsOpen={false} />,
+    )
+    expect(
+      screen.queryByRole('button', { name: 'Analytics settings' }),
+    ).not.toBeInTheDocument()
+
+    rerender(<AnalyticsConsent onSettingsClose={vi.fn()} settingsOpen={true} />)
     fireEvent.click(
       screen.getByRole('button', { name: 'Withdraw analytics consent' }),
     )

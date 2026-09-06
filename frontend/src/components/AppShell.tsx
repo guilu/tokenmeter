@@ -3,6 +3,7 @@ import { useState } from 'react'
 
 import { AnalyticsConsent } from './AnalyticsConsent'
 import { Footer } from './Footer'
+import { isAnalyticsConfigured } from '../analytics/analytics'
 import { ThemeToggle } from './ThemeToggle'
 import { useTheme } from '../hooks/useTheme'
 import { PreproRibbon } from './PreproRibbon'
@@ -10,6 +11,8 @@ import { PreproRibbon } from './PreproRibbon'
 export function AppShell({ children }: PropsWithChildren) {
   const { isDark, toggle } = useTheme()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [analyticsSettingsOpen, setAnalyticsSettingsOpen] = useState(false)
+  const analyticsConfigured = isAnalyticsConfigured()
   const path = window.location.pathname
   const searchParams = new URLSearchParams(window.location.search)
   const effectivePath =
@@ -145,8 +148,14 @@ export function AppShell({ children }: PropsWithChildren) {
       </nav>
 
       <main className="flex-1 pt-16">{children}</main>
-      <Footer />
-      <AnalyticsConsent />
+      <Footer
+        analyticsConfigured={analyticsConfigured}
+        onAnalyticsSettings={() => setAnalyticsSettingsOpen(true)}
+      />
+      <AnalyticsConsent
+        onSettingsClose={() => setAnalyticsSettingsOpen(false)}
+        settingsOpen={analyticsSettingsOpen}
+      />
     </div>
   )
 }
