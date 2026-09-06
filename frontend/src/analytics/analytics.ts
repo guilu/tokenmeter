@@ -10,12 +10,25 @@ declare global {
  * {@link https://vitejs.dev | VITE_GA_MEASUREMENT_ID} is unset, so development/test builds never
  * load GA. The Measurement ID is public frontend configuration — no secret is involved.
  */
+export const ANALYTICS_CONSENT_KEY = 'tokenmeter.analytics-consent'
+
 function measurementId(): string | undefined {
   return import.meta.env.VITE_GA_MEASUREMENT_ID
 }
 
-export function isAnalyticsEnabled(): boolean {
+export function isAnalyticsConfigured(): boolean {
   return Boolean(measurementId())
+}
+
+export function hasAnalyticsConsent(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    localStorage.getItem(ANALYTICS_CONSENT_KEY) === 'granted'
+  )
+}
+
+export function isAnalyticsEnabled(): boolean {
+  return isAnalyticsConfigured() && hasAnalyticsConsent()
 }
 
 /**
@@ -25,7 +38,12 @@ export function isAnalyticsEnabled(): boolean {
  */
 export function initAnalytics(): void {
   const id = measurementId()
-  if (!id || typeof window === 'undefined' || window.gtag) {
+  if (
+    !id ||
+    typeof window === 'undefined' ||
+    !hasAnalyticsConsent() ||
+    window.gtag
+  ) {
     return
   }
 
@@ -50,7 +68,7 @@ export function initAnalytics(): void {
 }
 
 export function trackPageView(path: string): void {
-  if (!measurementId() || !window.gtag) {
+  if (!isAnalyticsEnabled() || !window.gtag) {
     return
   }
   window.gtag('event', 'page_view', {
@@ -60,8 +78,11 @@ export function trackPageView(path: string): void {
   })
 }
 
-export function trackEvent(name: string, params: Record<string, unknown> = {}): void {
-  if (!measurementId() || !window.gtag) {
+export function trackEvent(
+  name: string,
+  params: Record<string, unknown> = {},
+): void {
+  if (!isAnalyticsEnabled() || !window.gtag) {
     return
   }
   window.gtag('event', name, params)

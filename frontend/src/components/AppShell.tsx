@@ -1,6 +1,7 @@
 import type { PropsWithChildren } from 'react'
 import { useState } from 'react'
 
+import { AnalyticsConsent } from './AnalyticsConsent'
 import { Footer } from './Footer'
 import { ThemeToggle } from './ThemeToggle'
 import { useTheme } from '../hooks/useTheme'
@@ -145,6 +146,7 @@ export function AppShell({ children }: PropsWithChildren) {
 
       <main className="flex-1 pt-16">{children}</main>
       <Footer />
+      <AnalyticsConsent />
     </div>
   )
 }
