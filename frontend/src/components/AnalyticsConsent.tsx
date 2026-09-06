@@ -43,12 +43,19 @@ function disableAnalytics(): void {
   deleteGoogleAnalyticsCookies()
 }
 
-export function AnalyticsConsent() {
+interface AnalyticsConsentProps {
+  onSettingsClose?: () => void
+  settingsOpen?: boolean
+}
+
+export function AnalyticsConsent({
+  onSettingsClose = () => undefined,
+  settingsOpen = false,
+}: AnalyticsConsentProps = {}) {
   const configured = isAnalyticsConfigured()
   const [consent, setConsent] = useState<Consent>(() =>
     configured ? storedConsent() : null,
   )
-  const [settingsOpen, setSettingsOpen] = useState(false)
   const showDialog = configured && (consent === null || settingsOpen)
 
   if (!configured) return null
@@ -56,7 +63,7 @@ export function AnalyticsConsent() {
   function save(next: Exclude<Consent, null>): void {
     localStorage.setItem(ANALYTICS_CONSENT_KEY, next)
     setConsent(next)
-    setSettingsOpen(false)
+    onSettingsClose()
     if (next === 'granted') {
       initAnalytics()
       trackPageView(window.location.pathname)
@@ -108,15 +115,6 @@ export function AnalyticsConsent() {
             )}
           </div>
         </section>
-      )}
-      {!showDialog && (
-        <button
-          className="fixed bottom-3 right-3 z-50 rounded-lg border border-secondary/25 bg-bg/95 px-3 py-1.5 text-xs text-text/65 shadow-lg"
-          onClick={() => setSettingsOpen(true)}
-          type="button"
-        >
-          Analytics settings
-        </button>
       )}
     </>
   )

@@ -1,4 +1,12 @@
-export function Footer() {
+interface FooterProps {
+  analyticsConfigured?: boolean
+  onAnalyticsSettings?: () => void
+}
+
+export function Footer({
+  analyticsConfigured = false,
+  onAnalyticsSettings = () => undefined,
+}: FooterProps = {}) {
   const year = new Date().getFullYear()
 
   return (
@@ -6,7 +14,9 @@ export function Footer() {
       <div className="mx-auto flex max-w-7xl flex-col gap-4 px-5 py-5 text-sm text-text/65 md:py-6 lg:py-8 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col items-center gap-1 text-center sm:items-start sm:text-left">
           <span>
-            &copy; {year} <span className="font-medium text-text">TokenMeter</span> · MIT License
+            &copy; {year}{' '}
+            <span className="font-medium text-text">TokenMeter</span> · MIT
+            License
           </span>
           <span className="text-xs text-text/45">
             Floor-cost estimates. Not financial advice.
@@ -82,6 +92,17 @@ export function Footer() {
             </svg>
             GitHub
           </a>
+
+          {analyticsConfigured && (
+            <button
+              aria-label="Privacy"
+              className="inline-flex items-center rounded-xl border border-text/15 bg-text/5 px-3 py-1.5 text-xs font-semibold text-text/70 transition-colors hover:bg-text/10"
+              onClick={onAnalyticsSettings}
+              type="button"
+            >
+              Privacy
+            </button>
+          )}
         </div>
       </div>
     </footer>
