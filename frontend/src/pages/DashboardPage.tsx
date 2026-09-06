@@ -1,7 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 
 import { trackEvent } from '../analytics/analytics'
+import {
+  trackAnalysisComplete,
+  trackAnalysisFailed,
+  trackAnalysisStart,
+} from '../analytics/analysisLifecycle'
 import { PipelineTimeline } from '../components/PipelineTimeline'
 import { TabBar } from '../components/TabBar'
 import type { TabBarItem } from '../components/TabBar'
@@ -99,6 +104,7 @@ export function DashboardPage() {
   const [sharedError, setSharedError] = useState<string | null>(null)
   const [showModes, setShowModes] = useState(false)
   const [activeJobId, setActiveJobId] = useState<string | null>(null)
+  const analysisStartedAt = useRef<number | null>(null)
 
   useEffect(() => {
     function handlePopState() {
@@ -138,6 +144,8 @@ export function DashboardPage() {
     setActiveJobId(null)
     try {
       const accepted = await submitAnalysis(trimmedUrl)
+      analysisStartedAt.current = Date.now()
+      trackAnalysisStart(trimmedUrl)
       setActiveJobId(accepted.jobId)
     } catch (reason) {
       setError(toUserMessage(reason))
@@ -155,13 +163,21 @@ export function DashboardPage() {
   }
 
   function handleJobSuccess(analysisId: string) {
+    if (analysisStartedAt.current !== null) {
+      trackAnalysisComplete(Date.now() - analysisStartedAt.current)
+      analysisStartedAt.current = null
+    }
     setActiveJobId(null)
     setLoading(false)
     setRouteAnalysisId(analysisId)
     window.history.pushState(null, '', analysisPath(analysisId))
   }
 
-  function handleJobFailure(message: string) {
+  function handleJobFailure(message: string, failureCode?: string) {
+    if (analysisStartedAt.current !== null) {
+      trackAnalysisFailed(Date.now() - analysisStartedAt.current, failureCode)
+      analysisStartedAt.current = null
+    }
     setError(message)
     setActiveJobId(null)
     setLoading(false)
@@ -335,7 +351,7 @@ function LoadingState({
   jobId: string | null
   repositoryUrl: string
   onSuccess: (analysisId: string) => void
-  onFailure: (message: string) => void
+  onFailure: (message: string, failureCode?: string) => void
 }) {
   const trimmedRepositoryUrl = repositoryUrl.trim()
   const repositoryLabel = repositoryNameFromUrl(trimmedRepositoryUrl)
@@ -356,13 +372,13 @@ function LoadingState({
       const message = toUserMessage(
         new ApiError(job.error?.message ?? 'Analysis failed', 0, job.error?.code),
       )
-      onFailure(message)
+      onFailure(message, job.error?.code)
     }
   }, [job, onFailure, onSuccess])
 
   useEffect(() => {
     if (!error) return
-    onFailure(toUserMessage(error))
+    onFailure(toUserMessage(error), error.code)
   }, [error, onFailure])
 
   const stage = analysisStages[activeStage]

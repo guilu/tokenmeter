@@ -15,6 +15,145 @@ vi.mock('../analytics/analytics', () => ({ trackEvent: trackEventMock }))
 import { DashboardPage } from './DashboardPage'
 import type { RepositoryAnalysisResponse } from '../types/api'
 
+describe('DashboardPage analysis lifecycle analytics', () => {
+  afterEach(() => {
+    cleanup()
+    vi.restoreAllMocks()
+    trackEventMock.mockReset()
+    window.history.pushState(null, '', '/')
+  })
+
+  it('tracks analysis_start only after the backend accepts the request', async () => {
+    let acceptRequest: ((response: Response) => void) | undefined
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input)
+        if (url.includes('/api/repositories/trending')) return jsonResponse({ items: [] })
+        if (url.includes('/api/analyze') && init?.method === 'POST') {
+          return new Promise<Response>((resolve) => {
+            acceptRequest = resolve
+          })
+        }
+        return jsonResponse({
+          jobId: 'job-1',
+          status: 'RUNNING',
+          phase: 'CLONING_REPOSITORY',
+          phaseLabel: 'Cloning repository',
+          progressPercent: 20,
+          message: null,
+          analysisId: null,
+          error: null,
+          metrics: null,
+          timestamps: { startedAt: null },
+        })
+      }),
+    )
+
+    render(<DashboardPage />)
+    fireEvent.change(screen.getByLabelText('Repository URL'), {
+      target: { value: 'https://github.com/acme/private-widget' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Simulate generation cost' }))
+
+    expect(trackEventMock).not.toHaveBeenCalledWith('analysis_start', expect.anything())
+
+    acceptRequest?.(
+      jsonResponse({
+        jobId: 'job-1',
+        status: 'QUEUED',
+        statusUrl: '/api/analyze/jobs/job-1',
+        analysisId: null,
+      }),
+    )
+
+    await waitFor(() =>
+      expect(trackEventMock).toHaveBeenCalledWith('analysis_start', {
+        analysis_mode: 'new',
+        repository_host: 'github.com',
+        repository_visibility: 'public',
+      }),
+    )
+    expect(JSON.stringify(trackEventMock.mock.calls)).not.toContain('acme')
+  })
+
+  it('tracks analysis_complete when the accepted job succeeds', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input)
+        if (url.includes('/api/repositories/trending')) return jsonResponse({ items: [] })
+        if (url.includes('/api/analyze/jobs/')) {
+          return jsonResponse({
+            jobId: 'job-1',
+            status: 'SUCCESS',
+            phase: 'COMPLETED',
+            progressPercent: 100,
+            analysisId: 'analysis-1',
+            error: null,
+            metrics: null,
+            timestamps: {},
+          })
+        }
+        if (url.includes('/api/analyze') && init?.method === 'POST') {
+          return jsonResponse({ jobId: 'job-1', status: 'QUEUED', statusUrl: '', analysisId: null })
+        }
+        return jsonResponse(sampleAnalysis({ withPricing: false }))
+      }),
+    )
+
+    render(<DashboardPage />)
+    fireEvent.change(screen.getByLabelText('Repository URL'), {
+      target: { value: 'https://github.com/acme/widget' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Simulate generation cost' }))
+
+    await waitFor(() =>
+      expect(trackEventMock).toHaveBeenCalledWith(
+        'analysis_complete',
+        expect.objectContaining({ analysis_mode: 'new', result: 'success' }),
+      ),
+    )
+  })
+
+  it('tracks analysis_failed with the stable backend code when the accepted job fails', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input)
+        if (url.includes('/api/repositories/trending')) return jsonResponse({ items: [] })
+        if (url.includes('/api/analyze/jobs/')) {
+          return jsonResponse({
+            jobId: 'job-1',
+            status: 'FAILED',
+            phase: 'FAILED',
+            progressPercent: 40,
+            analysisId: null,
+            error: { code: 'REPOSITORY_TOO_LARGE', message: 'private details' },
+            metrics: null,
+            timestamps: {},
+          })
+        }
+        return jsonResponse({ jobId: 'job-1', status: 'QUEUED', statusUrl: '', analysisId: null })
+      }),
+    )
+
+    render(<DashboardPage />)
+    fireEvent.change(screen.getByLabelText('Repository URL'), {
+      target: { value: 'https://github.com/acme/widget' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Simulate generation cost' }))
+
+    await waitFor(() =>
+      expect(trackEventMock).toHaveBeenCalledWith(
+        'analysis_failed',
+        expect.objectContaining({ failure_type: 'repository_too_large', result: 'failure' }),
+      ),
+    )
+    expect(JSON.stringify(trackEventMock.mock.calls)).not.toContain('private details')
+  })
+})
+
 describe('DashboardPage trending integration', () => {
   afterEach(() => {
     cleanup()

@@ -397,6 +397,22 @@ Solo las variables `VITE_*` se exponen al navegador.
 |---|---|---|
 | `VITE_GA_MEASUREMENT_ID` | — (Docker: ID del proyecto) | ID de Google Analytics 4 (`G-XXXXXXXXXX`). Opcional en local (`npm run dev`): sin ella GA **no** se carga. En `docker compose` trae como default el ID público de TokenMeter; se puede sobreescribir vía env del host. Es configuración pública de frontend, no un secreto. |
 
+### Eventos GA4 del ciclo de análisis
+
+El frontend emite `analysis_start` únicamente después de recibir el `202 Accepted`, seguido de
+`analysis_complete` o `analysis_failed` al observar el estado terminal del job. No se envían UUID,
+URL completa, owner ni nombre de repositorio. Los parámetros se limitan a host/visibilidad,
+`duration_bucket`, `result`, `failure_type` y `analysis_mode`.
+
+El contrato actual siempre crea un job nuevo y no expone si una solicitud usa caché o se une a otra;
+por eso `analysis_mode` se aproxima como `new`. Cuando la API exponga esa decisión deberá mapearse a
+`new`, `cached` o `joined`.
+
+GA4 permanece completamente inactivo hasta que el visitante acepta Analytics en el banner. La
+decisión se puede cambiar desde el pie de página; retirar el consentimiento detiene nuevos eventos y
+elimina las cookies `_ga` del dominio. Sin `VITE_GA_MEASUREMENT_ID`, el banner y Analytics quedan
+desactivados en desarrollo.
+
 ---
 
 ## Docker Compose

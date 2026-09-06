@@ -1,18 +1,32 @@
 /** @vitest-environment jsdom */
 
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { initAnalytics, isAnalyticsEnabled, trackEvent, trackPageView } from './analytics'
+import {
+  ANALYTICS_CONSENT_KEY,
+  initAnalytics,
+  isAnalyticsEnabled,
+  trackEvent,
+  trackPageView,
+} from './analytics'
 
 function gtagScripts(): NodeListOf<HTMLScriptElement> {
-  return document.querySelectorAll<HTMLScriptElement>('script[src*="googletagmanager.com/gtag"]')
+  return document.querySelectorAll<HTMLScriptElement>(
+    'script[src*="googletagmanager.com/gtag"]',
+  )
 }
 
 // gtag.js only processes the native `arguments` object pushed onto the dataLayer; a plain array is
 // silently dropped (no `/collect` hit). Normalise the array-like entries before asserting.
 function dataLayerCalls(): unknown[][] {
-  return (window.dataLayer ?? []).map((entry) => Array.from(entry as ArrayLike<unknown>))
+  return (window.dataLayer ?? []).map((entry) =>
+    Array.from(entry as ArrayLike<unknown>),
+  )
 }
+
+beforeEach(() => {
+  localStorage.clear()
+})
 
 afterEach(() => {
   vi.unstubAllEnvs()
@@ -21,8 +35,8 @@ afterEach(() => {
   gtagScripts().forEach((s) => s.remove())
 })
 
-describe('analytics — disabled without a Measurement ID', () => {
-  it('reports disabled and never loads GA or throws', () => {
+describe('analytics — disabled without consent', () => {
+  it('reports disabled and never loads GA without a Measurement ID', () => {
     expect(isAnalyticsEnabled()).toBe(false)
 
     initAnalytics()
@@ -32,9 +46,24 @@ describe('analytics — disabled without a Measurement ID', () => {
     expect(window.gtag).toBeUndefined()
     expect(gtagScripts()).toHaveLength(0)
   })
+
+  it('does not load or emit when configured but no decision was stored', () => {
+    vi.stubEnv('VITE_GA_MEASUREMENT_ID', 'G-TEST123')
+
+    initAnalytics()
+    trackPageView('/models')
+    trackEvent('analysis_submitted')
+
+    expect(isAnalyticsEnabled()).toBe(false)
+    expect(window.gtag).toBeUndefined()
+    expect(gtagScripts()).toHaveLength(0)
+  })
 })
 
-describe('analytics — enabled with a Measurement ID', () => {
+describe('analytics — enabled with a Measurement ID and consent', () => {
+  beforeEach(() => {
+    localStorage.setItem(ANALYTICS_CONSENT_KEY, 'granted')
+  })
   it('injects gtag.js once and configures GA with manual page views', () => {
     vi.stubEnv('VITE_GA_MEASUREMENT_ID', 'G-TEST123')
 
@@ -51,7 +80,11 @@ describe('analytics — enabled with a Measurement ID', () => {
 
     const calls = dataLayerCalls()
     expect(calls).toContainEqual(['js', expect.any(Date)])
-    expect(calls).toContainEqual(['config', 'G-TEST123', { send_page_view: false }])
+    expect(calls).toContainEqual([
+      'config',
+      'G-TEST123',
+      { send_page_view: false },
+    ])
   })
 
   it('sends a page_view event with the path', () => {
